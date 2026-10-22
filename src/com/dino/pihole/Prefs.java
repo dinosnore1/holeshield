@@ -36,8 +36,8 @@ final class Prefs {
     boolean forceDns = true;
 
     /** Newline-separated hosts/gravity list URLs. */
-    String blocklistUrls =
-            "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
+    String blocklistUrls = Blocklists.presetText();
+    int blocklistPresetVersion = 0;
     long lastUpdate = 0L;
 
     /** Newline separated custom entries.  "*." prefix = subdomains too;
@@ -79,6 +79,7 @@ final class Prefs {
         String legacyUrl = p.getString("blocklistUrl", null);
         s.blocklistUrls = p.getString("blocklistUrls",
                 legacyUrl == null || legacyUrl.trim().isEmpty() ? s.blocklistUrls : legacyUrl);
+        s.blocklistPresetVersion = p.getInt("blocklistPresetVersion", 0);
         s.lastUpdate = p.getLong("lastUpdate", s.lastUpdate);
         s.customBlocked = p.getString("customBlocked", s.customBlocked);
         s.customAllowed = p.getString("customAllowed", s.customAllowed);
@@ -89,6 +90,16 @@ final class Prefs {
         s.webPassword = p.getString("webPassword", s.webPassword);
         s.lanDns = p.getBoolean("lanDns", s.lanDns);
         s.lanDnsPort = p.getInt("lanDnsPort", s.lanDnsPort);
+
+        // Upgrade the old single-list default without touching custom sources.
+        if (s.blocklistPresetVersion < Blocklists.PRESET_VERSION) {
+            if (Blocklists.isLegacyDefault(s.blocklistUrls)) {
+                s.blocklistUrls = Blocklists.presetText();
+                s.lastUpdate = 0L;
+            }
+            s.blocklistPresetVersion = Blocklists.PRESET_VERSION;
+            s.save(c);
+        }
         return s;
     }
 
@@ -107,6 +118,7 @@ final class Prefs {
                 .putBoolean("blockCname", blockCname)
                 .putBoolean("forceDns", forceDns)
                 .putString("blocklistUrls", blocklistUrls)
+                .putInt("blocklistPresetVersion", blocklistPresetVersion)
                 .putLong("lastUpdate", lastUpdate)
                 .putString("customBlocked", customBlocked)
                 .putString("customAllowed", customAllowed)

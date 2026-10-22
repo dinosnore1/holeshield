@@ -112,7 +112,6 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         super.onCreate();
         channel();
         Stats.load(this);
-        Blocklist.load(this);
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -141,7 +140,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
             startVpn();
             return running ? START_STICKY : START_NOT_STICKY;
         }
-        if (running) return START_STICKY;
+        if (running || starting) return START_STICKY;
 
         prefs = Prefs.load(this);
         if (intent == null && !prefs.protectionWanted) {
@@ -154,8 +153,30 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
             fail("VPN permission is missing");
             return START_NOT_STICKY;
         }
-        startVpn();
-        return running ? START_STICKY : START_NOT_STICKY;
+
+        // Parse gravity off the main thread. A 500k-domain list can take
+        // several seconds on a TV, and blocking here would trigger the
+        // startForegroundService ANR watchdog.
+        starting = true;
+        final int loadGeneration = generation;
+        Thread loader = new Thread(() -> {
+            try {
+                Blocklist.reload(DnsVpnService.this);
+            } catch (Throwable t) {
+                main.post(() -> {
+                    if (!stopping && loadGeneration == generation) {
+                        fail("Could not load blocklists");
+                    }
+                });
+                return;
+            }
+            main.post(() -> {
+                if (!stopping && loadGeneration == generation) startVpn();
+            });
+        }, "gravity-load");
+        loader.setDaemon(true);
+        loader.start();
+        return START_STICKY;
     }
 
     private void startVpn() {

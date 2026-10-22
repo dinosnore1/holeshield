@@ -131,7 +131,6 @@ public class MainActivity extends Activity {
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!DnsVpnService.running && !DnsVpnService.starting) {
             Stats.load(this);
-            Blocklist.load(this);
         }
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
@@ -139,6 +138,17 @@ public class MainActivity extends Activity {
         immersive();
         setContentView(createShell());
         show(Screen.HOME);
+        if (!DnsVpnService.running && !DnsVpnService.starting) {
+            loadGravityAsync();
+        }
+    }
+
+    private void loadGravityAsync() {
+        Blocklist.loadAsync(this, () -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (screen == Screen.LISTS) show(Screen.LISTS);
+            else updateLive();
+        });
     }
 
     private void immersive() {
@@ -207,7 +217,8 @@ public class MainActivity extends Activity {
 
     @Override protected void onPause() {
         handler.removeCallbacks(tick);
-        prefs.save(this);
+        // Every setting is saved where it changes. Saving this snapshot here
+        // can overwrite lastUpdate written by a background gravity update.
         super.onPause();
     }
 
@@ -930,7 +941,7 @@ public class MainActivity extends Activity {
                 prefs.blockSubdomains ? "On" : "Off", () -> {
                     prefs.blockSubdomains = !prefs.blockSubdomains;
                     prefs.save(this);
-                    Blocklist.reload(this);
+                    Blocklist.setBlockSubdomains(prefs.blockSubdomains);
                     show(Screen.LISTS);
                 }), rowLp(1));
 
@@ -951,12 +962,17 @@ public class MainActivity extends Activity {
                 "One URL per line; hosts or adblock format",
                 listUrlCount(prefs.blocklistUrls) + " lists",
                 this::editListUrls), rowLp(5));
+        rows.addView(settingRow("Add maximum blocklists",
+                "Append the comprehensive ad, tracker and TV-telemetry preset",
+                Blocklists.hasAll(prefs.blocklistUrls) ? "Active" : "Add all",
+                this::addMaximumLists), rowLp(6));
         add(col, rows, 0);
 
         LinearLayout note = card(22);
         note.addView(Ui.caption(this, "WHAT DNS CAN AND CANNOT DO"));
-        TextView body = Ui.text(this, "DNS filtering removes most banner, pre-roll and tracker "
-                + "requests. It cannot remove ads that are served from the same domain as the "
+        TextView body = Ui.text(this, "The maximum preset is aggressive; if a service breaks, "
+                + "add an exact allow rule. DNS filtering removes most banner, pre-roll and "
+                + "tracker requests. It cannot remove ads served from the same domain as the "
                 + "video, such as YouTube in-stream ads. It also cannot hide the holes left by "
                 + "a blocked request. The downloaded list is stored on the TV; nothing is "
                 + "uploaded.", 13, Ui.DIM, false);
@@ -989,6 +1005,27 @@ public class MainActivity extends Activity {
             Ui.toast(this, message);
             if (screen == Screen.LISTS) show(Screen.LISTS);
         });
+    }
+
+    private void addMaximumLists() {
+        if (Blocklists.hasAll(prefs.blocklistUrls)) {
+            Ui.toast(this, "Maximum blocklists are already configured");
+            return;
+        }
+        Ui.builder(this)
+                .setTitle("Add maximum blocklists?")
+                .setMessage("Adds " + Blocklists.count() + " curated ad, tracker, malware "
+                        + "and TV-telemetry lists. Existing custom sources and rules are "
+                        + "kept. Downloading the full set can take a few minutes.")
+                .setPositiveButton("Add and update", (d, w) -> {
+                    prefs.blocklistUrls = Blocklists.mergeMissing(prefs.blocklistUrls);
+                    prefs.lastUpdate = 0L;
+                    prefs.save(this);
+                    show(Screen.LISTS);
+                    updateBlocklist();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void addCustomRule() {
@@ -1066,7 +1103,7 @@ public class MainActivity extends Activity {
                     prefs.customBlocked = "";
                     prefs.customAllowed = "";
                     prefs.save(this);
-                    Blocklist.reload(this);
+                    Blocklist.clearCustomInMemory();
                     show(Screen.LISTS);
                 })
                 .setNegativeButton("Cancel", null)

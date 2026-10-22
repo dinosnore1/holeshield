@@ -39,7 +39,7 @@ final class Blocklist {
     static final int REGEX = 2;
 
     private static final String DOWNLOAD_FILE = "blocklist_downloaded.txt";
-    private static final int MAX_DOMAINS = 500000;
+    private static final int MAX_DOMAINS = 600000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
 
@@ -99,6 +99,7 @@ final class Blocklist {
     private static volatile List<Compiled> regexAllowed = Collections.emptyList();
     private static volatile boolean blockSubdomains = true;
     private static volatile boolean updating = false;
+    private static final Object RELOAD_LOCK = new Object();
 
     private Blocklist() { }
 
@@ -106,7 +107,29 @@ final class Blocklist {
         reload(c);
     }
 
+    /** Loads gravity in the background so a large list never blocks the UI. */
+    static void loadAsync(Context c, Runnable done) {
+        if (c == null) return;
+        final Context app = c.getApplicationContext();
+        Thread t = new Thread(() -> {
+            try {
+                reload(app);
+            } catch (Throwable ignored) {
+                // The caller can still show the previous in-memory set.
+            }
+            if (done != null) new Handler(Looper.getMainLooper()).post(done);
+        }, "gravity-load");
+        t.setDaemon(true);
+        t.start();
+    }
+
     static void reload(Context c) {
+        synchronized (RELOAD_LOCK) {
+            reloadLocked(c);
+        }
+    }
+
+    private static void reloadLocked(Context c) {
         HashSet<String> grav = new HashSet<>(131072);
         HashSet<String> eb = new HashSet<>(128);
         HashSet<String> ea = new HashSet<>(64);
@@ -143,6 +166,58 @@ final class Blocklist {
         regexAllowed = ra;
     }
 
+    /** Updates only the cheap custom-rule sets, leaving gravity untouched. */
+    static void setBlockSubdomains(boolean on) {
+        blockSubdomains = on;
+    }
+
+    static void clearCustomInMemory() {
+        exactBlocked = Collections.emptySet();
+        exactAllowed = Collections.emptySet();
+        wildcardBlocked = Collections.emptySet();
+        wildcardAllowed = Collections.emptySet();
+        regexBlocked = Collections.emptyList();
+        regexAllowed = Collections.emptyList();
+    }
+
+    /** Applies a just-saved custom rule without rereading the 500k gravity file. */
+    static void applyRuleInMemory(boolean allow, int kind, String value, boolean add) {
+        if (value == null || value.isEmpty()) return;
+        if (kind == REGEX) {
+            ArrayList<Compiled> copy = new ArrayList<>(allow ? regexAllowed : regexBlocked);
+            boolean found = false;
+            for (int i = copy.size() - 1; i >= 0; i--) {
+                if (value.equals(copy.get(i).source)) {
+                    found = true;
+                    if (!add) copy.remove(i);
+                }
+            }
+            if (add && !found) {
+                try {
+                    copy.add(new Compiled(Pattern.compile(value), value));
+                } catch (Exception ignored) {
+                    return;
+                }
+            }
+            if (allow) regexAllowed = copy;
+            else regexBlocked = copy;
+            return;
+        }
+        Set<String> current = allow
+                ? (kind == WILDCARD ? wildcardAllowed : exactAllowed)
+                : (kind == WILDCARD ? wildcardBlocked : exactBlocked);
+        HashSet<String> copy = new HashSet<>(current);
+        if (add) copy.add(value);
+        else copy.remove(value);
+        if (allow) {
+            if (kind == WILDCARD) wildcardAllowed = copy;
+            else exactAllowed = copy;
+        } else {
+            if (kind == WILDCARD) wildcardBlocked = copy;
+            else exactBlocked = copy;
+        }
+    }
+
     private static void readCustom(String text, boolean allow,
                                    Set<String> exact, Set<String> wildcard,
                                    List<Compiled> regex) {
@@ -153,10 +228,10 @@ final class Blocklist {
             if (line.length() >= 2 && line.startsWith("/") && line.endsWith("/")) {
                 addRegex(line.substring(1, line.length() - 1), regex);
             } else if (line.startsWith("*.")) {
-                String d = normalizeDomain(line.substring(2));
+                String d = HostsParser.normalizeDomain(line.substring(2));
                 if (!d.isEmpty()) wildcard.add(d);
             } else {
-                String d = parseHostsDomain(line);
+                String d = HostsParser.parseLine(line);
                 if (!d.isEmpty()) exact.add(d);
             }
         }
@@ -176,57 +251,10 @@ final class Blocklist {
             String line;
             int n = 0;
             while ((line = r.readLine()) != null && n < MAX_DOMAINS) {
-                String d = parseHostsDomain(line);
+                String d = HostsParser.parseLine(line);
                 if (!d.isEmpty() && into.add(d)) n++;
             }
         } catch (Exception ignored) { }
-    }
-
-    /** Accept hosts lines, adblock "||domain^" lines, and plain domains. */
-    private static String parseHostsDomain(String raw) {
-        if (raw == null) return "";
-        String line = raw.trim();
-        if (line.isEmpty() || line.startsWith("#") || line.startsWith("!")
-                || line.startsWith("//")) return "";
-        if (line.startsWith("||")) {
-            line = line.substring(2);
-            int cut = line.indexOf('^');
-            if (cut < 0) cut = line.indexOf('/');
-            if (cut < 0) cut = line.indexOf('$');
-            if (cut >= 0) line = line.substring(0, cut);
-        } else {
-            String[] parts = line.split("\\s+");
-            if (parts.length >= 2 && looksLikeIp(parts[0])) {
-                line = parts[1];
-            } else if (parts.length >= 1) {
-                line = parts[0];
-            }
-        }
-        return normalizeDomain(line);
-    }
-
-    private static String normalizeDomain(String raw) {
-        if (raw == null) return "";
-        String line = raw.trim().toLowerCase(Locale.US);
-        if (line.startsWith("*.")) line = line.substring(2);
-        if (line.startsWith(".")) line = line.substring(1);
-        if (line.endsWith(".")) line = line.substring(0, line.length() - 1);
-        if (line.isEmpty() || line.length() > 253 || !line.contains(".")
-                || line.equals("localhost")) return "";
-        for (int i = 0; i < line.length(); i++) {
-            char ch = line.charAt(i);
-            boolean ok = (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')
-                    || ch == '-' || ch == '.' || ch == '_';
-            if (!ok) return "";
-        }
-        if (line.startsWith(".") || line.contains("..")) return "";
-        return line;
-    }
-
-    private static boolean looksLikeIp(String s) {
-        return s.equals("0.0.0.0") || s.equals("127.0.0.1") || s.equals("::")
-                || s.equals("::1") || s.equals("0:0:0:0:0:0:0:0")
-                || s.equals("0:0:0:0:0:0:0:1");
     }
 
     static String normalize(String host) {
@@ -329,7 +357,7 @@ final class Blocklist {
             }
             entry = "/" + s + "/";
         } else {
-            String d = normalizeDomain(value);
+            String d = HostsParser.normalizeDomain(value);
             if (d.isEmpty()) return false;
             entry = kind == WILDCARD ? "*." + d : d;
         }
@@ -340,7 +368,12 @@ final class Blocklist {
         if (allow) p.customAllowed = merged;
         else p.customBlocked = merged;
         p.save(c);
-        reload(c);
+        if (kind == REGEX) {
+            String source = entry.length() >= 2 ? entry.substring(1, entry.length() - 1) : entry;
+            applyRuleInMemory(allow, kind, source, true);
+        } else {
+            applyRuleInMemory(allow, kind, entry.startsWith("*.") ? entry.substring(2) : entry, true);
+        }
         return true;
     }
 
@@ -354,7 +387,7 @@ final class Blocklist {
             }
             entry = "/" + s + "/";
         } else {
-            String d = normalizeDomain(value);
+            String d = HostsParser.normalizeDomain(value);
             if (d.isEmpty()) return false;
             entry = kind == WILDCARD ? "*." + d : d;
         }
@@ -365,7 +398,12 @@ final class Blocklist {
         if (allow) p.customAllowed = updated;
         else p.customBlocked = updated;
         p.save(c);
-        reload(c);
+        if (kind == REGEX) {
+            String source = entry.length() >= 2 ? entry.substring(1, entry.length() - 1) : entry;
+            applyRuleInMemory(allow, kind, source, false);
+        } else {
+            applyRuleInMemory(allow, kind, entry.startsWith("*.") ? entry.substring(2) : entry, false);
+        }
         return true;
     }
 
@@ -454,6 +492,7 @@ final class Blocklist {
                 int listsFailed = 0;
                 StringBuilder errors = new StringBuilder();
                 for (String url : urls) {
+                    if (fresh.size() >= MAX_DOMAINS) break;
                     try {
                         downloadInto(url, fresh);
                         listsOk++;
@@ -470,6 +509,7 @@ final class Blocklist {
                     throw new Exception(errors.length() > 0 ? errors.toString()
                             : "No domains found");
                 }
+                int domains = fresh.size();
                 File tmp = new File(app.getFilesDir(), DOWNLOAD_FILE + ".tmp");
                 try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
                         new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
@@ -478,6 +518,11 @@ final class Blocklist {
                         w.write('\n');
                     }
                 }
+                // Drop the download set before rebuilding the live gravity set.
+                // At 500k+ domains, holding both sets plus the previous one can
+                // exhaust the heap on a TV.
+                fresh.clear();
+                fresh = null;
                 File dst = new File(app.getFilesDir(), DOWNLOAD_FILE);
                 if (!tmp.renameTo(dst)) {
                     if (dst.exists()) dst.delete();
@@ -487,7 +532,7 @@ final class Blocklist {
                 p.save(app);
                 reload(app);
                 ok = true;
-                message = "Blocking " + fresh.size() + " domains from " + listsOk
+                message = "Blocking " + domains + " domains from " + listsOk
                         + (listsOk == 1 ? " list" : " lists")
                         + (listsFailed > 0 ? " (" + listsFailed + " failed)" : "");
             } catch (Exception e) {
@@ -517,21 +562,14 @@ final class Blocklist {
                 read += line.length() + 1;
                 if (read > MAX_DOWNLOAD_BYTES) throw new Exception("List is too large");
                 if (into.size() >= MAX_DOMAINS) break;
-                String d = parseHostsDomain(line);
+                String d = HostsParser.parseLine(line);
                 if (!d.isEmpty()) into.add(d);
             }
         }
     }
 
     private static List<String> listUrls(Prefs p) {
-        ArrayList<String> out = new ArrayList<>();
-        String text = p.blocklistUrls == null ? "" : p.blocklistUrls;
-        for (String line : text.split("\\n")) {
-            String s = line.trim();
-            if (s.isEmpty() || s.startsWith("#")) continue;
-            out.add(s);
-        }
-        return out;
+        return Blocklists.urls(p.blocklistUrls);
     }
 
     private static void post(Done done, boolean ok, String message) {

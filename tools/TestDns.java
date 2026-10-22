@@ -22,6 +22,8 @@ public final class TestDns {
         ipv4Reply();
         ipv6Reply();
         sourceAddresses();
+        hostsParsing();
+        blocklistPreset();
         System.out.println("OK — " + passed + " checks passed");
     }
 
@@ -263,6 +265,45 @@ public final class TestDns {
         System.arraycopy(ipv6("fd00::10"), 0, v6, 8, 16);
         check(IpPacket.sourceAddress(v6, v6.length).startsWith("fd00"),
                 "ipv6 source address");
+    }
+
+    private static void hostsParsing() {
+        check(HostsParser.parseLine("0.0.0.0 ads.example.com").equals("ads.example.com"),
+                "hosts line");
+        check(HostsParser.parseLine("127.0.0.1 localhost").isEmpty(),
+                "localhost ignored");
+        check(HostsParser.parseLine("255.255.255.255 broadcasthost").isEmpty(),
+                "broadcast IP ignored");
+        check(HostsParser.parseLine("0.0.0.0 1.2.3.4").isEmpty(),
+                "IP target ignored");
+        check(HostsParser.parseLine("127.0.0.1 localhost.localdomain").isEmpty(),
+                "localdomain ignored");
+        check(HostsParser.parseLine("||ads.example.com^$third-party")
+                        .equals("ads.example.com"), "adblock domain rule");
+        check(HostsParser.parseLine("*.tracker.example.com").equals("tracker.example.com"),
+                "wildcard line");
+        check(HostsParser.normalizeDomain("Example.COM.").equals("example.com"),
+                "domain normalization");
+    }
+
+    private static void blocklistPreset() {
+        check(Blocklists.MAXIMUM.length >= 20, "maximum preset has a broad list set");
+        check(Blocklists.hasAll(Blocklists.presetText()), "preset text contains every list");
+        check(!Blocklists.isLegacyDefault(Blocklists.presetText()),
+                "maximum preset is not the legacy default");
+        check(Blocklists.isLegacyDefault(Blocklists.LEGACY_DEFAULT),
+                "legacy default recognized");
+        check(!Blocklists.isLegacyDefault(""),
+                "an intentionally empty source list is preserved");
+        String merged = Blocklists.mergeMissing(
+                "https://example.com/custom.txt\n" + Blocklists.MAXIMUM[0]);
+        check(merged.contains("https://example.com/custom.txt"),
+                "custom source preserved");
+        check(Blocklists.hasAll(merged), "merge adds missing preset lists");
+        check(merged.indexOf(Blocklists.MAXIMUM[0]) == merged.lastIndexOf(Blocklists.MAXIMUM[0]),
+                "merge does not duplicate an existing preset URL");
+        check(Blocklists.mergeMissing(Blocklists.presetText()).equals(Blocklists.presetText()),
+                "merge is idempotent");
     }
 
     private static DnsPacket.Query parse(String name, int type) {

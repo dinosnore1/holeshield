@@ -15,9 +15,10 @@ SDK command-line tools.
 - **System-wide filtering on the TV.** A local `VpnService` routes IPv4 and
   IPv6 DNS to the embedded resolver. The VPN does not carry video, downloads or
   general LAN traffic.
-- **Embedded gravity database.** Ships with a seed list and downloads
-  hosts/adblock-style lists (StevenBlack's unified hosts by default). Multiple
-  list URLs are supported.
+- **Embedded gravity database.** Ships with a conservative seed list and a
+  maximum preset of 23 maintained ad/tracker/TV-telemetry lists, including
+  Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
+  and classic hosts lists. Multiple list URLs are supported.
 - **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict
   subdomains, not the apex; `/regex/` supports Java regular expressions.
@@ -60,7 +61,7 @@ bundled Pi-hole-green scheme. The app does not force a light theme.
 
 ```bash
 cd ~/pihole-tv
-./tools/test.sh          # 53 desktop checks for DNS/packet code
+./tools/test.sh          # 70 desktop checks for DNS, packet and list code
 ./build.sh               # writes build/pihole-tv.apk
 ```
 
@@ -80,7 +81,7 @@ build. This is a sideload build; there is no Play Store package.
 - Version: **2.0.0** (`versionCode 2`)
 - APK: `build/pihole-tv.apk` (also `build/pihole-tv-2.0.0.apk`)
 - SHA-256:
-  `dd8bb306aebc93458892c339b4e0de8eced358c00940f38d9326463465595157`
+  `5db33a9804eeb883b895317686bb352f7781c9eb3b00896cbeaae3f87a98eeda`
 
 ## First run
 
@@ -93,7 +94,8 @@ build. This is a sideload build; there is no Play Store package.
    `http://192.168.1.19:8080/admin/` (replace with the TV's LAN IP).
 4. Optional but recommended: set a **Web password** in the TV app's Settings
    before exposing the dashboard to your LAN.
-5. Run **Update gravity now** to download the current list.
+5. Run **Update gravity now** to download the maximum preset (about 500k
+   deduplicated domains). The first download can take a few minutes.
 6. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
    return no address) while `example.com` resolves normally.
 
@@ -233,6 +235,7 @@ pause state, CNAME checks and cache as the TV.
 | Web password | Optional dashboard/API password. Empty = open. |
 | LAN DNS server / port | Enable/disable the UDP+TCP LAN listener (default 5354). |
 | Blocklist sources | One hosts/adblock URL per line. |
+| Add maximum blocklists | Append the curated maximum preset without removing custom sources. |
 | Update gravity now | Download all sources and reload the engine. |
 | Test protection | Resolve a known ad domain through the active VPN. |
 
@@ -273,6 +276,7 @@ Gravity/rule changes are applied live.
 | `401 authentication required` | Set/enter the web password, then use the returned `X-FTL-SID` or the v5 `auth=` parameter. |
 | LAN DNS refused | Enable **LAN DNS server**, check the port, and verify the client supports a non-53 DNS port. |
 | Ads still appear | Same-domain ads (YouTube in-stream), app-level DoH, or the query was allowed. Check the query log and test `doubleclick.net`. |
+| A service breaks after maximum lists | The maximum preset is aggressive. Add an exact allow rule for the service's domain instead of disabling all filtering. |
 | No internet while protected | Set fallback to DoH/plain, check Private DNS is Off, and verify the upstream is reachable. |
 | Gravity is 0 / update fails | Check the list URL from the TV's network, then run **Update gravity now** again. |
 | TV forgets protection after reboot | Some firmware blocks background starts; open the app once. |
@@ -289,6 +293,8 @@ src/com/dino/pihole/
   DnsPacket.java             DNS parsing, replies, CNAME/TTL helpers (pure Java)
   IpPacket.java              IPv4/IPv6 UDP reply builder (pure Java)
   Blocklist.java             gravity lists, custom rules, downloads
+  Blocklists.java            maximum preset and existing-install migration
+  HostsParser.java           hosts/adblock line parsing and IP rejection
   Stats.java                 persisted daily counters and query log
   WebServer.java             dashboard HTTP server, v6/v5 API subset, auth
   LanDnsServer.java          UDP + TCP LAN DNS listener
@@ -299,23 +305,23 @@ src/com/dino/pihole/
 assets/blocklist.txt         bundled seed list
 assets/dashboard.html        responsive web dashboard
 res/drawable/                launcher icon, TV banner, notification icon
-tools/TestDns.java           desktop checks for DNS/packet code
+tools/TestDns.java           desktop checks for DNS, packet and list code
 build.sh                     no-Gradle APK build
 ```
 
 ## Tests
 
-`./tools/test.sh` runs **53 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **70 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
 from tun packets, blocked A/AAAA/HTTPS replies, answer-address extraction, TTL
-selection, IPv4/IPv6 UDP replies and checksums, address/port swapping and
-payload preservation.
+selection, IPv4/IPv6 UDP replies and checksums, address/port swapping, payload
+preservation, hosts/adblock line parsing and blocklist preset merging.
 
 The APK has been exercised on a Hisense VU Smart TV (Android 11 / API 30,
 armeabi-v7a, 1920×1080) at `192.168.1.19`:
 
 - dashboard and API over the LAN, including authenticated sessions;
-- gravity update (71,527 domains) and list add/delete;
+- maximum preset update (518,426 deduplicated domains) and list add/delete;
 - TV-originated filtering and LAN DNS over both UDP and TCP;
 - blocked/allow/wildcard/regex rules and CNAME blocking;
 - pause, timed auto-resume and cache flush;
