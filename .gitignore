@@ -1,0 +1,7 @@
+build/
+.test/
+__pycache__/
+*.pyc
+*.apk
+*.aab
+.DS_Store
