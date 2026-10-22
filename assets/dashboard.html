@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Pi-hole TV</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#141a21; --panel2:#1a222b; --line:#26303a;
+  --text:#e9eef3; --muted:#8e9baa; --green:#43d99b; --green2:#2bb57e;
+  --red:#ff5c7a; --amber:#ffbf5a; --blue:#62a8ff; --violet:#b18cff;
+  --shadow:0 14px 40px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(900px 480px at 12% -10%, rgba(67,217,155,.10), transparent 60%),
+    radial-gradient(800px 480px at 100% 0%, rgba(98,168,255,.08), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  min-height:100vh;
+}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 20px 40px}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:13px;min-width:240px}
+.logo{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--green),#1d8a61);
+  color:#062018;font-size:30px;font-weight:800;box-shadow:0 8px 24px rgba(67,217,155,.25);
+  font-family:Georgia,serif;
+}
+h1{font-size:20px;margin:0;letter-spacing:.02em}
+.brand small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.spacer{flex:1}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);
+  background:var(--panel);padding:9px 14px;border-radius:999px;font-weight:700;font-size:12.5px;
+}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+.pill.paused .dot{background:var(--amber);box-shadow:0 0 12px var(--amber)}
+.pill.off .dot{background:var(--red);box-shadow:0 0 12px var(--red)}
+button,.btn{
+  appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  padding:9px 14px;border-radius:10px;font:inherit;font-weight:650;cursor:pointer;
+  transition:transform .08s ease,border-color .15s ease,background .15s ease;
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+button:hover,.btn:hover{border-color:#3a4654;background:#202a35}
+button:active{transform:translateY(1px)}
+button.primary{background:linear-gradient(180deg,var(--green),var(--green2));border-color:transparent;color:#05170f}
+button.primary:hover{filter:brightness(1.05)}
+button.danger{border-color:rgba(255,92,122,.35);color:#ffc2ce;background:rgba(255,92,122,.08)}
+button.small{padding:6px 10px;font-size:12px;border-radius:8px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.hero{
+  background:linear-gradient(135deg,rgba(67,217,155,.12),rgba(20,26,33,.9) 55%);
+  border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;gap:18px;
+  align-items:center;flex-wrap:wrap;box-shadow:var(--shadow);margin-bottom:18px;
+}
+.hero h2{margin:0 0 4px;font-size:23px;letter-spacing:-.01em}
+.hero p{margin:0;color:var(--muted);max-width:640px}
+.hero .actions{display:flex;gap:9px;flex-wrap:wrap;margin-left:auto}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px 16px 14px}
+.card .label{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
+.card b{display:block;font-size:27px;line-height:1.15;margin-top:7px;letter-spacing:-.02em}
+.card small{color:var(--muted);font-size:11.5px}
+.card.green b{color:var(--green)} .card.red b{color:var(--red)}
+.card.amber b{color:var(--amber)} .card.blue b{color:var(--blue)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.grid2{display:grid;grid-template-columns:1.25fr .75fr;gap:12px;margin-bottom:18px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px;min-width:0}
+.panel h3{margin:0 0 12px;font-size:13px;letter-spacing:.04em;color:#cdd8e3}
+.panel-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.panel-head h3{margin:0}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(38,48,58,.6);min-width:0}
+.list li:last-child{border-bottom:0}
+.list .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:#dbe4ec}
+.list b{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
+.list .empty{color:var(--muted);padding:6px 0}
+.bar{height:7px;border-radius:99px;background:#222b35;overflow:hidden;margin-top:6px}
+.bar span{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--blue))}
+.type-row{display:flex;align-items:center;gap:10px;margin:9px 0}
+.type-row .t{width:56px;color:#dbe4ec;font-weight:650;font-size:12px}
+.type-row .bar{flex:1;margin:0}
+.type-row b{width:44px;text-align:right;color:var(--muted);font-size:12px}
+.scroll{overflow:auto;max-height:520px;border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th{position:sticky;top:0;background:#141a21;text-align:left;color:var(--muted);font-size:11px;
+  text-transform:uppercase;letter-spacing:.08em;padding:10px 10px;border-bottom:1px solid var(--line);z-index:1}
+td{padding:9px 10px;border-bottom:1px solid rgba(38,48,58,.55);vertical-align:top;font-size:12.8px}
+tr:hover td{background:rgba(255,255,255,.02)}
+td.domain{font-weight:650;color:#eef4f9;word-break:break-word}
+td.mono{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.04em}
+.badge.blocked{background:rgba(255,92,122,.13);color:#ff9db0;border:1px solid rgba(255,92,122,.28)}
+.badge.allowed,.badge.forwarded{background:rgba(67,217,155,.11);color:#8ff0c8;border:1px solid rgba(67,217,155,.25)}
+.badge.cached{background:rgba(98,168,255,.12);color:#a9ceff;border:1px solid rgba(98,168,255,.25)}
+.badge.error{background:rgba(255,191,90,.12);color:#ffd696;border:1px solid rgba(255,191,90,.3)}
+.badge.allow{background:rgba(67,217,155,.11);color:#8ff0c8;border:1px solid rgba(67,217,155,.25)}
+.badge.deny{background:rgba(255,92,122,.13);color:#ff9db0;border:1px solid rgba(255,92,122,.28)}
+.filters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.filters input{
+  background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;
+  padding:8px 11px;font:inherit;min-width:190px;outline:none;
+}
+.filters input:focus{border-color:var(--green2)}
+.filters button{padding:6px 10px;font-size:12px}
+.filters button.active{border-color:rgba(67,217,155,.5);background:rgba(67,217,155,.12);color:#a9f5d6}
+form.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select{
+  background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;
+  padding:9px 11px;font:inherit;outline:none;
+}
+input:focus,select:focus{border-color:var(--green2)}
+form.row input[type=text]{flex:1;min-width:180px}
+.note{color:var(--muted);font-size:12px;line-height:1.55}
+.note code{background:#0f141a;border:1px solid var(--line);padding:1px 5px;border-radius:5px;color:#cfe7dc}
+.msg{margin-top:10px;font-size:12.5px;min-height:18px;color:var(--muted)}
+.msg.ok{color:var(--green)} .msg.err{color:var(--red)}
+.rule{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(38,48,58,.55)}
+.rule:last-child{border-bottom:0}
+.rule code{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dbe7f1;font-size:12px}
+.rule .badge{flex:0 0 auto}
+.tag{font-size:10.5px;color:var(--muted);border:1px solid var(--line);padding:2px 7px;border-radius:99px}
+.server{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.server .box{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px}
+.server .box span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.server .box b{font-size:13.5px;word-break:break-all;color:#e7f0f7;font-weight:650}
+footer{color:#66717e;font-size:11.5px;text-align:center;margin-top:22px}
+.hidden{display:none!important}
+.overlay{position:fixed;inset:0;background:rgba(4,7,10,.78);backdrop-filter:blur(8px);
+  display:grid;place-items:center;z-index:50;padding:20px}
+.login{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  padding:24px;box-shadow:var(--shadow)}
+.login h2{margin:0 0 4px;font-size:20px}
+.login p{margin:0 0 18px;color:var(--muted);font-size:13px}
+.login input{width:100%;margin-bottom:10px}
+.login button{width:100%}
+@media (max-width:1050px){
+  .cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid2{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .wrap{padding:16px 12px 30px}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid{grid-template-columns:1fr}
+  .hero{padding:18px}
+  .hero .actions{margin-left:0}
+  .card b{font-size:23px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">π</div>
+      <div>
+        <h1>Pi-hole TV</h1>
+        <small>Built-in DNS filter · <span id="hostline">loading…</span></small>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div id="status" class="pill"><span class="dot"></span><span id="statusText">Checking…</span></div>
+    <button id="refresh" title="Refresh now">Refresh</button>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h2 id="heroTitle">Pi-hole is starting…</h2>
+      <p id="heroSub">Loading the embedded resolver and dashboard.</p>
+    </div>
+    <div class="actions">
+      <button data-pause="300">Pause 5m</button>
+      <button data-pause="1800">Pause 30m</button>
+      <button data-pause="0">Pause</button>
+      <button id="resume" class="primary">Resume</button>
+    </div>
+  </section>
+
+  <section class="cards">
+    <div class="card"><div class="label">Total queries</div><b id="total">0</b><small>today</small></div>
+    <div class="card red"><div class="label">Blocked</div><b id="blocked">0</b><small>by gravity &amp; rules</small></div>
+    <div class="card green"><div class="label">Block rate</div><b id="rate">0%</b><small>of all queries</small></div>
+    <div class="card blue"><div class="label">Domains on lists</div><b id="gravity">0</b><small id="updated">never updated</small></div>
+    <div class="card amber"><div class="label">Active clients</div><b id="clients">0</b><small>today</small></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <h3>Top blocked domains</h3>
+      <ul class="list" id="topBlocked"><li class="empty">No blocked queries yet.</li></ul>
+    </div>
+    <div class="panel">
+      <h3>Top permitted domains</h3>
+      <ul class="list" id="topAllowed"><li class="empty">No permitted queries yet.</li></ul>
+    </div>
+    <div class="panel">
+      <h3>Top clients</h3>
+      <ul class="list" id="topClients"><li class="empty">No clients yet.</li></ul>
+    </div>
+    <div class="panel">
+      <h3>Query types</h3>
+      <div id="types"><div class="note">No queries yet.</div></div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:18px">
+    <div class="panel-head">
+      <h3>Query log</h3>
+      <div class="filters">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="blocked">Blocked</button>
+        <button data-filter="allowed">Allowed</button>
+        <input id="search" type="search" placeholder="Filter domain or client" autocomplete="off">
+      </div>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Time</th><th>Client</th><th>Domain</th><th>Type</th><th>Status</th><th>Upstream</th><th>ms</th></tr></thead>
+        <tbody id="queries"><tr><td colspan="7" class="note">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h3>Allow or block a domain</h3>
+      <form id="ruleForm" class="row">
+        <select id="ruleType">
+          <option value="deny">Block</option>
+          <option value="allow">Allow</option>
+        </select>
+        <select id="ruleKind">
+          <option value="exact">Exact</option>
+          <option value="wildcard">Wildcard (subdomains)</option>
+          <option value="regex">Regex</option>
+        </select>
+        <input id="ruleDomain" type="text" placeholder="ads.example.com" autocomplete="off" spellcheck="false">
+        <button class="primary" type="submit">Add rule</button>
+      </form>
+      <div id="ruleMsg" class="msg"></div>
+      <h3 style="margin-top:18px">Custom rules</h3>
+      <div id="rules"><div class="note">No custom rules yet.</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>Lists &amp; actions</h3>
+      <ul class="list" id="lists"><li class="empty">No blocklist sources.</li></ul>
+      <form id="listForm" class="row" style="margin-top:12px">
+        <input id="listUrl" type="text" placeholder="https://example.com/hosts" autocomplete="off" spellcheck="false">
+        <button type="submit">Add list</button>
+      </form>
+      <div id="listMsg" class="msg"></div>
+      <div class="row" style="margin-top:14px">
+        <button id="gravityBtn">Update gravity</button>
+        <button id="flushBtn">Flush DNS cache</button>
+      </div>
+      <div id="actionMsg" class="msg"></div>
+      <p class="note" style="margin-top:14px">
+        The TV itself uses port 53 through the VPN. Other devices must use the
+        high LAN DNS port shown below; Android blocks port 53 without root.
+      </p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Server</h3>
+    <div class="server" id="serverInfo">
+      <div class="box"><span>Dashboard</span><b>loading…</b></div>
+    </div>
+  </section>
+
+  <footer>Pi-hole TV · embedded DNS filter · <span id="footVersion">2.0.0</span></footer>
+</div>
+
+<div id="login" class="overlay hidden">
+  <form class="login" id="loginForm">
+    <h2>Pi-hole TV</h2>
+    <p>Enter the web password set on the TV. If no password is configured, just refresh.</p>
+    <input id="password" type="password" placeholder="Web password" autocomplete="current-password" autofocus>
+    <button class="primary" type="submit">Unlock dashboard</button>
+    <div id="loginMsg" class="msg"></div>
+  </form>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var state = {
+    sid: localStorage.getItem("pihole_tv_sid") || "",
+    filter: "all",
+    search: "",
+    timer: null
+  };
+  var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function fmt(n){
+    n = Number(n || 0);
+    return n.toLocaleString(undefined, {maximumFractionDigits:0});
+  }
+  function pct(n){ return (Number(n || 0)).toFixed(1) + "%"; }
+  function ago(ms){
+    if(!ms) return "never updated";
+    var s = Math.max(0, Math.floor((Date.now() - Number(ms)) / 1000));
+    if(s < 60) return "updated " + s + "s ago";
+    if(s < 3600) return "updated " + Math.floor(s/60) + "m ago";
+    if(s < 86400) return "updated " + Math.floor(s/3600) + "h ago";
+    return "updated " + Math.floor(s/86400) + "d ago";
+  }
+  function clock(t){
+    try { return new Date(Number(t) * 1000).toLocaleTimeString(); }
+    catch(e){ return ""; }
+  }
+  function showLogin(){
+    $("#login").classList.remove("hidden");
+    setTimeout(function(){ try{ $("#password").focus(); }catch(e){} }, 40);
+  }
+  function hideLogin(){ $("#login").classList.add("hidden"); }
+
+  function api(path, opts){
+    opts = opts || {};
+    var headers = Object.assign({"Content-Type":"application/json"}, opts.headers || {});
+    if(state.sid) headers["X-FTL-SID"] = state.sid;
+    opts.headers = headers;
+    return fetch(path, opts).then(function(res){
+      return res.text().then(function(text){
+        var data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch(e) { data = {raw:text}; }
+        if(res.status === 401){ showLogin(); throw new Error("Authentication required"); }
+        if(!res.ok){
+          throw new Error((data && (data.error || data.message)) || ("HTTP " + res.status));
+        }
+        return data;
+      });
+    });
+  }
+
+  function safe(path){
+    return api(path).catch(function(e){
+      if(e && e.message === "Authentication required") return null;
+      console.warn(path, e);
+      return null;
+    });
+  }
+
+  function renderList(sel, items, key, countKey, empty){
+    var el = $(sel);
+    if(!items || !items.length){
+      el.innerHTML = '<li class="empty">' + esc(empty) + '</li>';
+      return;
+    }
+    el.innerHTML = items.map(function(x){
+      return '<li><span class="name">' + esc(x[key]) + '</span><b>' + fmt(x[countKey]) + '</b></li>';
+    }).join("");
+  }
+
+  function renderSummary(s){
+    if(!s) return;
+    var q = s.queries || {}, g = s.gravity || {}, c = s.clients || {};
+    $("#total").textContent = fmt(q.total);
+    $("#blocked").textContent = fmt(q.blocked);
+    $("#rate").textContent = pct(q.percent_blocked);
+    $("#gravity").textContent = fmt(g.domains_being_blocked);
+    $("#clients").textContent = fmt(c.active);
+    $("#updated").textContent = ago(g.last_update_ms || (g.last_update ? Number(g.last_update) * 1000 : 0));
+    var on = !!s.blocking;
+    var status = $("#status");
+    status.className = "pill" + (on ? "" : " paused");
+    $("#statusText").textContent = on ? "Blocking enabled" : "Blocking paused";
+    $("#heroTitle").textContent = on ? "Pi-hole is blocking" : "Blocking is paused";
+    $("#heroSub").textContent = on
+      ? "Every DNS lookup is checked against the embedded gravity database and your rules."
+      : "DNS still resolves, but gravity and block rules are temporarily off.";
+    $("#resume").disabled = on;
+    $$("[data-pause]").forEach(function(b){ b.disabled = !on; });
+  }
+
+  function renderQueries(data){
+    var rows = (data && data.queries) || [];
+    var body = $("#queries");
+    if(!rows.length){
+      body.innerHTML = '<tr><td colspan="7" class="note">No matching queries.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(q){
+      var st = String(q.status || "").toLowerCase();
+      var cls = st === "blocked" ? "blocked" : st === "cached" ? "cached" :
+                st === "error" ? "error" : st === "allowed" ? "allowed" : "forwarded";
+      var c = q.client || {};
+      return '<tr>' +
+        '<td class="mono">' + esc(clock(q.time)) + '</td>' +
+        '<td>' + esc(c.name || c.ip || "?") + '<div class="note" style="font-size:10.5px">' + esc(c.ip || "") + '</div></td>' +
+        '<td class="domain">' + esc(q.domain) + '</td>' +
+        '<td><span class="tag">' + esc(q.type) + '</span></td>' +
+        '<td><span class="badge ' + cls + '">' + esc(q.status || "?") + '</span></td>' +
+        '<td class="mono">' + esc(q.upstream || "—") + '</td>' +
+        '<td class="mono">' + esc(q.reply && q.reply.time != null ? (Number(q.reply.time)*1000).toFixed(1) : "—") + '</td>' +
+      '</tr>';
+    }).join("");
+  }
+
+  function renderTypes(data){
+    var rows = (data && data.types) || [];
+    var el = $("#types");
+    if(!rows.length){ el.innerHTML = '<div class="note">No queries yet.</div>'; return; }
+    var max = rows.reduce(function(m, x){ return Math.max(m, Number(x.count)||0); }, 0) || 1;
+    el.innerHTML = rows.map(function(x){
+      var w = Math.max(2, Math.round((Number(x.count)||0) / max * 100));
+      return '<div class="type-row"><span class="t">' + esc(x.type) + '</span>' +
+        '<span class="bar"><span style="width:' + w + '%"></span></span><b>' + fmt(x.count) + '</b></div>';
+    }).join("");
+  }
+
+  function renderInfo(data){
+    var h = (data && data.host) || {};
+    var ip = h.ip || "TV-IP";
+    var web = "http://" + ip + ":" + (h.web_port || 8080) + "/admin/";
+    var dns = ip + ":" + (h.lan_dns_port || 5354);
+    $("#hostline").textContent = web.replace("http://", "");
+    $("#serverInfo").innerHTML =
+      '<div class="box"><span>Dashboard</span><b>' + esc(web) + '</b></div>' +
+      '<div class="box"><span>LAN DNS (UDP/TCP)</span><b>' + esc(dns) + '</b></div>' +
+      '<div class="box"><span>LAN DNS status</span><b>' + (h.lan_dns_running ? "Listening" : "Off") + '</b></div>' +
+      '<div class="box"><span>Web password</span><b>' + (h.web_password ? "Set" : "Not set") + '</b></div>' +
+      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.0.0") + '</b></div>';
+    $("#footVersion").textContent = h.version || "2.0.0";
+    if(h.lan_dns_error) {
+      $("#serverInfo").insertAdjacentHTML("beforeend",
+        '<div class="box"><span>LAN DNS note</span><b>' + esc(h.lan_dns_error) + '</b></div>');
+    }
+  }
+
+  function renderLists(data){
+    var lists = (data && data.lists) || [];
+    var el = $("#lists");
+    if(!lists.length){ el.innerHTML = '<li class="empty">No blocklist sources.</li>'; return; }
+    el.innerHTML = lists.map(function(l){
+      return '<li><span class="name">' + esc(l.address) + '</span>' +
+        '<button class="small danger" data-list="' + esc(l.id) + '">Remove</button></li>';
+    }).join("");
+  }
+
+  function renderRules(data){
+    var rules = (data && data.domains) || [];
+    var el = $("#rules");
+    if(!rules.length){ el.innerHTML = '<div class="note">No custom rules yet.</div>'; return; }
+    el.innerHTML = rules.map(function(r){
+      var cls = r.type === "allow" ? "allow" : "deny";
+      return '<div class="rule"><span class="badge ' + cls + '">' + esc(r.type) + '</span>' +
+        '<code>' + esc(r.domain) + '</code><span class="tag">' + esc(r.kind) + '</span>' +
+        '<button class="small danger" data-rule-type="' + esc(r.type) + '" data-rule-kind="' + esc(r.kind) +
+        '" data-rule-domain="' + esc(r.domain) + '">Remove</button></div>';
+    }).join("");
+  }
+
+  function loadQueries(){
+    var qs = "length=150";
+    if(state.filter === "blocked") qs += "&blocked=true";
+    if(state.filter === "allowed") qs += "&blocked=false";
+    if(state.search) qs += "&search=" + encodeURIComponent(state.search);
+    safe("/api/queries?" + qs).then(function(d){ if(d) renderQueries(d); });
+  }
+
+  function loadRules(){
+    Promise.all([
+      safe("/api/domains/allow/exact"),
+      safe("/api/domains/allow/wildcard"),
+      safe("/api/domains/allow/regex"),
+      safe("/api/domains/deny/exact"),
+      safe("/api/domains/deny/wildcard"),
+      safe("/api/domains/deny/regex")
+    ]).then(function(all){
+      var merged = {domains:[]};
+      all.forEach(function(d){
+        if(d && d.domains) merged.domains = merged.domains.concat(d.domains);
+      });
+      merged.domains.sort(function(a,b){ return (a.type+a.domain).localeCompare(b.type+b.domain); });
+      renderRules(merged);
+    });
+  }
+
+  function loadAll(){
+    Promise.all([
+      safe("/api/stats/summary"),
+      safe("/api/stats/top_domains?blocked=true&count=8"),
+      safe("/api/stats/top_domains?blocked=false&count=8"),
+      safe("/api/stats/top_clients?count=8"),
+      safe("/api/stats/query_types"),
+      safe("/api/queries?length=150"),
+      safe("/api/info/host"),
+      safe("/api/lists")
+    ]).then(function(a){
+      renderSummary(a[0]);
+      if(a[1]) renderList("#topBlocked", a[1].domains, "domain", "count", "No blocked queries yet.");
+      if(a[2]) renderList("#topAllowed", a[2].domains, "domain", "count", "No permitted queries yet.");
+      if(a[3]) renderList("#topClients", (a[3].clients||[]).map(function(x){
+        return {name: x.name && x.name !== x.ip ? x.name + " · " + x.ip : x.ip, count: x.count};
+      }), "name", "count", "No clients yet.");
+      if(a[4]) renderTypes(a[4]);
+      if(a[5]) renderQueries(a[5]);
+      if(a[6]) renderInfo(a[6]);
+      if(a[7]) renderLists(a[7]);
+    });
+  }
+
+  function setBlocking(blocking, timer){
+    api("/api/dns/blocking", {
+      method: "POST",
+      body: JSON.stringify({blocking: blocking, timer: timer || 0})
+    }).then(function(){
+      loadAll();
+    }).catch(function(e){ alert(e.message); });
+  }
+
+  function msg(sel, text, ok){
+    var el = $(sel);
+    el.textContent = text;
+    el.className = "msg " + (ok === false ? "err" : ok ? "ok" : "");
+  }
+
+  $$("[data-pause]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var t = Number(b.getAttribute("data-pause")) || 0;
+      setBlocking(false, t);
+    });
+  });
+  $("#resume").addEventListener("click", function(){ setBlocking(true, 0); });
+  $("#refresh").addEventListener("click", loadAll);
+
+  $$("[data-filter]").forEach(function(b){
+    b.addEventListener("click", function(){
+      state.filter = b.getAttribute("data-filter");
+      $$("[data-filter]").forEach(function(x){ x.classList.toggle("active", x === b); });
+      loadQueries();
+    });
+  });
+  var searchTimer = null;
+  $("#search").addEventListener("input", function(){
+    state.search = this.value.trim();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadQueries, 250);
+  });
+
+  $("#ruleForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var type = $("#ruleType").value;
+    var kind = $("#ruleKind").value;
+    var domain = $("#ruleDomain").value.trim();
+    if(!domain){ msg("#ruleMsg", "Enter a domain or regex first.", false); return; }
+    api("/api/domains/" + type + "/" + kind, {
+      method: "POST",
+      body: JSON.stringify({domain: domain})
+    }).then(function(){
+      msg("#ruleMsg", (type === "allow" ? "Allowed " : "Blocked ") + domain, true);
+      $("#ruleDomain").value = "";
+      loadRules(); loadAll();
+    }).catch(function(e){ msg("#ruleMsg", e.message, false); });
+  });
+
+  $("#rules").addEventListener("click", function(ev){
+    var b = ev.target.closest("button[data-rule-domain]");
+    if(!b) return;
+    var type = b.getAttribute("data-rule-type");
+    var kind = b.getAttribute("data-rule-kind");
+    var domain = b.getAttribute("data-rule-domain");
+    api("/api/domains/" + type + "/" + kind + "?domain=" + encodeURIComponent(domain), {
+      method: "DELETE"
+    }).then(function(){ loadRules(); loadAll(); })
+      .catch(function(e){ msg("#ruleMsg", e.message, false); });
+  });
+
+  $("#listForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var url = $("#listUrl").value.trim();
+    if(!url) return;
+    api("/api/lists", {method:"POST", body:JSON.stringify({address:url, type:"block"})})
+      .then(function(){ $("#listUrl").value=""; msg("#listMsg","List added. Update gravity to apply it.", true); loadAll(); })
+      .catch(function(e){ msg("#listMsg", e.message, false); });
+  });
+
+  $("#lists").addEventListener("click", function(ev){
+    var b = ev.target.closest("button[data-list]");
+    if(!b) return;
+    api("/api/lists/" + encodeURIComponent(b.getAttribute("data-list")), {method:"DELETE"})
+      .then(function(){ msg("#listMsg","List removed.", true); loadAll(); })
+      .catch(function(e){ msg("#listMsg", e.message, false); });
+  });
+
+  $("#gravityBtn").addEventListener("click", function(){
+    msg("#actionMsg", "Starting gravity update…", null);
+    api("/api/action/gravity", {method:"POST"}).then(function(){
+      msg("#actionMsg", "Gravity update started. This can take a minute.", true);
+      setTimeout(loadAll, 3000);
+    }).catch(function(e){ msg("#actionMsg", e.message, false); });
+  });
+
+  $("#flushBtn").addEventListener("click", function(){
+    api("/api/action/flush", {method:"POST"}).then(function(){
+      msg("#actionMsg", "DNS cache flushed.", true);
+    }).catch(function(e){ msg("#actionMsg", e.message, false); });
+  });
+
+  $("#loginForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var pw = $("#password").value;
+    fetch("/api/auth", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({password: pw})
+    }).then(function(res){
+      return res.json().then(function(data){
+        if(!res.ok || !data.session || !data.session.valid){
+          throw new Error((data.session && data.session.message) || "Password incorrect");
+        }
+        state.sid = data.session.sid || "";
+        localStorage.setItem("pihole_tv_sid", state.sid);
+        hideLogin();
+        $("#password").value = "";
+        msg("#loginMsg", "", null);
+        loadAll();
+        loadRules();
+      });
+    }).catch(function(e){ msg("#loginMsg", e.message, false); });
+  });
+
+  // If a password is configured, an API call will reveal it with a 401.
+  loadAll();
+  loadRules();
+  setInterval(function(){
+    if(document.hidden) return;
+    if(!$("#login").classList.contains("hidden")) return;
+    loadAll();
+  }, 5000);
+})();
+</script>
+</body>
+</html>
