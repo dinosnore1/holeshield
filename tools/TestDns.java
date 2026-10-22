@@ -1,0 +1,311 @@
+package com.dino.pihole;
+
+import java.net.InetAddress;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Desktop checks for the pure-Java DNS and packet code.
+ * Build/run with tools/test.sh — no Android device needed.
+ */
+public final class TestDns {
+
+    private static int passed = 0;
+
+    public static void main(String[] args) throws Exception {
+        queryParsing();
+        blockedAnswers();
+        ttl();
+        answerAddresses();
+        cnameParsing();
+        metadata();
+        ipv4Reply();
+        ipv6Reply();
+        sourceAddresses();
+        System.out.println("OK — " + passed + " checks passed");
+    }
+
+    private static void check(boolean condition, String what) {
+        if (!condition) throw new AssertionError("FAILED: " + what);
+        passed++;
+    }
+
+    private static void queryParsing() {
+        byte[] q = DnsPacket.buildQuery(0x1234, "Ads.DoubleClick.NET", DnsPacket.TYPE_A);
+        DnsPacket.Query parsed = DnsPacket.parseQuery(q, q.length);
+        check(parsed != null, "query parses");
+        check(parsed.id == 0x1234, "id");
+        check(parsed.name.equals("ads.doubleclick.net"), "name lowercased: " + parsed.name);
+        check(parsed.type == DnsPacket.TYPE_A, "type");
+        check(parsed.questionEnd == q.length, "question end");
+
+        // A response must not be mistaken for a query.
+        byte[] reply = DnsPacket.blockedReply(parsed);
+        check(DnsPacket.parseQuery(reply, reply.length) == null, "response rejected as query");
+
+        // Only standard queries (opcode 0) are handled.
+        byte[] update = q.clone();
+        update[2] = 0x28;                                // opcode 5, QR still 0
+        check(DnsPacket.parseQuery(update, update.length) == null,
+                "non-standard opcode rejected");
+    }
+
+    private static void blockedAnswers() {
+        DnsPacket.Query a = parse("doubleclick.net", DnsPacket.TYPE_A);
+        byte[] answer = DnsPacket.blockedReply(a);
+        check((DnsPacket.u16(answer, 2) & 0x8000) != 0, "QR set");
+        check(DnsPacket.u16(answer, 6) == 1, "one A answer");
+        check(DnsPacket.u16(answer, answer.length - 6) == 4, "A rdata is 4 bytes");
+        check(answer[answer.length - 4] == 0 && answer[answer.length - 3] == 0
+                && answer[answer.length - 2] == 0 && answer[answer.length - 1] == 0, "0.0.0.0");
+
+        DnsPacket.Query aaaa = parse("doubleclick.net", DnsPacket.TYPE_AAAA);
+        byte[] noData = DnsPacket.blockedReply(aaaa);
+        check(DnsPacket.u16(noData, 6) == 0, "AAAA gets NODATA");
+        check((DnsPacket.u16(noData, 2) & 0x0F) == 0, "AAAA rcode 0");
+
+        DnsPacket.Query https = parse("doubleclick.net", DnsPacket.TYPE_HTTPS);
+        byte[] nx = DnsPacket.blockedReply(https);
+        check((DnsPacket.u16(nx, 2) & 0x0F) == 3, "HTTPS gets NXDOMAIN");
+    }
+
+    private static void ttl() {
+        DnsPacket.Query q = parse("example.com", DnsPacket.TYPE_A);
+        byte[] answer = DnsPacket.blockedReply(q);
+        check(DnsPacket.minTtl(answer, answer.length) == 60, "blocked TTL 60");
+
+        // Two answers, TTLs 300 and 45.
+        byte[] two = Arrays.copyOf(answer, answer.length + 16);
+        DnsPacket.put16(two, 6, 2);
+        DnsPacket.put32(two, answer.length - 10, 300);
+        int o = answer.length;
+        two[o] = (byte) 0xC0; two[o + 1] = 0x0C;
+        DnsPacket.put16(two, o + 2, 1);
+        DnsPacket.put16(two, o + 4, 1);
+        DnsPacket.put32(two, o + 6, 45);
+        DnsPacket.put16(two, o + 10, 4);
+        two[o + 12] = 93; two[o + 13] = (byte) 184;
+        two[o + 14] = (byte) 216; two[o + 15] = 34;
+        check(DnsPacket.minTtl(two, two.length) == 45, "minimum TTL");
+    }
+
+    private static void answerAddresses() {
+        DnsPacket.Query a = parse("example.com", DnsPacket.TYPE_A);
+        byte[] answer = DnsPacket.blockedReply(a);
+        List<InetAddress> v4 = DnsPacket.addresses(answer, answer.length);
+        check(v4.size() == 1 && "0.0.0.0".equals(v4.get(0).getHostAddress()),
+                "A answer parsed");
+
+        DnsPacket.Query q6 = parse("example.com", DnsPacket.TYPE_AAAA);
+        byte[] base = DnsPacket.blockedReply(q6);        // NODATA: no answers
+        byte[] with6 = Arrays.copyOf(base, base.length + 28);
+        DnsPacket.put16(with6, 6, 1);
+        int o = base.length;
+        with6[o] = (byte) 0xC0;
+        with6[o + 1] = 0x0C;
+        DnsPacket.put16(with6, o + 2, DnsPacket.TYPE_AAAA);
+        DnsPacket.put16(with6, o + 4, 1);
+        DnsPacket.put32(with6, o + 6, 60);
+        DnsPacket.put16(with6, o + 10, 16);
+        with6[o + 12] = 0x20;
+        with6[o + 13] = 0x01;
+        with6[o + 14] = 0x0d;
+        with6[o + 15] = (byte) 0xb8;
+        with6[o + 27] = 1;                               // 2001:db8::1
+        List<InetAddress> v6 = DnsPacket.addresses(with6, with6.length);
+        check(v6.size() == 1 && "2001:db8:0:0:0:0:0:1".equals(v6.get(0).getHostAddress()),
+                "AAAA answer parsed");
+    }
+
+    private static void ipv4Reply() {
+        byte[] query = DnsPacket.buildQuery(7, "doubleclick.net", DnsPacket.TYPE_A);
+        DnsPacket.Query q = DnsPacket.parseQuery(query, query.length);
+        byte[] dns = DnsPacket.blockedReply(q);
+
+        int total = 20 + 8 + query.length;
+        byte[] request = new byte[total];
+        request[0] = 0x45;
+        DnsPacket.put16(request, 2, total);
+        request[8] = 64;
+        request[9] = 17;
+        // src 192.168.1.10, dst 10.111.221.1
+        request[12] = (byte) 192; request[13] = 1; request[14] = 1; request[15] = 10;
+        request[16] = 10; request[17] = 111; request[18] = (byte) 221; request[19] = 1;
+        DnsPacket.put16(request, 20, 45678);
+        DnsPacket.put16(request, 22, 53);
+        DnsPacket.put16(request, 24, 8 + query.length);
+        System.arraycopy(query, 0, request, 28, query.length);
+
+        byte[] payload = IpPacket.udpPayload(request, request.length);
+        check(payload != null, "ipv4 payload found");
+        check(Arrays.equals(payload, query), "ipv4 payload intact");
+        DnsPacket.Query parsed = DnsPacket.parseQuery(payload, payload.length);
+        check(parsed != null && parsed.name.equals("doubleclick.net"),
+                "ipv4 payload parses as DNS");
+
+        byte[] reply = IpPacket.udpReply(request, request.length, dns);
+        check(reply != null, "ipv4 reply built");
+        check((reply[0] & 0xFF) == 0x45 && (reply[9] & 0xFF) == 17, "ipv4 header");
+        check(u32(reply, 12) == u32(request, 16), "src swapped");
+        check(u32(reply, 16) == u32(request, 12), "dst swapped");
+        check(DnsPacket.u16(reply, 20) == 53, "source port 53");
+        check(DnsPacket.u16(reply, 22) == 45678, "dest port");
+        check(DnsPacket.u16(reply, 24) == 8 + dns.length, "udp length");
+        check(java.util.Arrays.equals(
+                Arrays.copyOfRange(reply, 28, reply.length), dns), "payload intact");
+        check(headerChecksum(reply) == 0xFFFF, "ipv4 checksum");
+    }
+
+    private static void ipv6Reply() {
+        byte[] query = DnsPacket.buildQuery(9, "ads.example.com", DnsPacket.TYPE_AAAA);
+        DnsPacket.Query q = DnsPacket.parseQuery(query, query.length);
+        byte[] dns = DnsPacket.blockedReply(q);
+
+        int total = 40 + 8 + query.length;
+        byte[] request = new byte[total];
+        request[0] = 0x60;
+        DnsPacket.put16(request, 4, 8 + query.length);
+        request[6] = 17;
+        request[7] = 64;
+        byte[] src = ipv6("fd00::10");
+        byte[] dst = ipv6("fd00::1");
+        System.arraycopy(src, 0, request, 8, 16);
+        System.arraycopy(dst, 0, request, 24, 16);
+        DnsPacket.put16(request, 40, 5555);
+        DnsPacket.put16(request, 42, 53);
+        DnsPacket.put16(request, 44, 8 + query.length);
+        System.arraycopy(query, 0, request, 48, query.length);
+
+        byte[] payload = IpPacket.udpPayload(request, request.length);
+        check(payload != null, "ipv6 payload found");
+        check(Arrays.equals(payload, query), "ipv6 payload intact");
+        check(DnsPacket.parseQuery(payload, payload.length) != null,
+                "ipv6 payload parses as DNS");
+
+        byte[] reply = IpPacket.udpReply(request, request.length, dns);
+        check(reply != null, "ipv6 reply built");
+        check((reply[0] & 0xF0) == 0x60 && (reply[6] & 0xFF) == 17, "ipv6 header");
+        check(Arrays.equals(Arrays.copyOfRange(reply, 8, 24), dst), "v6 src swapped");
+        check(Arrays.equals(Arrays.copyOfRange(reply, 24, 40), src), "v6 dst swapped");
+        check(DnsPacket.u16(reply, 40) == 53, "v6 source port");
+        check(DnsPacket.u16(reply, 42) == 5555, "v6 dest port");
+        check(udp6Checksum(reply) == 0, "ipv6 udp checksum");
+    }
+
+    private static void cnameParsing() {
+        byte[] query = DnsPacket.buildQuery(3, "www.example.com", DnsPacket.TYPE_A);
+        DnsPacket.Query q = DnsPacket.parseQuery(query, query.length);
+        byte[] target = wireName("tracker.example.net");
+        int answerLen = 12 + target.length;
+        byte[] response = Arrays.copyOf(query, query.length + answerLen);
+        response[2] = (byte) 0x81;                       // response, recursion available
+        response[3] = (byte) 0x80;
+        DnsPacket.put16(response, 6, 1);                 // one answer
+        int o = query.length;
+        response[o] = (byte) 0xC0;                       // owner = question name
+        response[o + 1] = 0x0C;
+        DnsPacket.put16(response, o + 2, 5);             // CNAME
+        DnsPacket.put16(response, o + 4, 1);
+        DnsPacket.put32(response, o + 6, 60);
+        DnsPacket.put16(response, o + 10, target.length);
+        System.arraycopy(target, 0, response, o + 12, target.length);
+
+        List<String> names = DnsPacket.cnameTargets(response, response.length);
+        check(names.size() == 1 && names.get(0).equals("tracker.example.net"),
+                "CNAME target parsed");
+        check(DnsPacket.cnameTargets(query, query.length).isEmpty(),
+                "queries have no CNAME targets");
+
+        DnsPacket.Query qt = DnsPacket.parseQuery(DnsPacket.buildQuery(4,
+                "example.com", DnsPacket.TYPE_A), 0);
+        check(qt == null, "zero length query rejected");
+        check(q != null && q.name.equals("www.example.com"), "CNAME question intact");
+    }
+
+    private static void metadata() {
+        check(DnsPacket.typeName(1).equals("A"), "type A");
+        check(DnsPacket.typeName(28).equals("AAAA"), "type AAAA");
+        check(DnsPacket.typeName(65).equals("HTTPS"), "type HTTPS");
+        check(DnsPacket.typeName(99).equals("TYPE99"), "unknown type");
+        check(DnsPacket.rcodeName(0).equals("NOERROR"), "rcode NOERROR");
+        check(DnsPacket.rcodeName(3).equals("NXDOMAIN"), "rcode NXDOMAIN");
+
+        byte[] q = DnsPacket.buildQuery(5, "example.com", DnsPacket.TYPE_A);
+        DnsPacket.Query parsed = DnsPacket.parseQuery(q, q.length);
+        byte[] nx = DnsPacket.errorReply(parsed, 3);
+        check(DnsPacket.rcode(nx, nx.length) == 3, "rcode parsed");
+    }
+
+    private static byte[] wireName(String name) {
+        String[] labels = name.split("\\.");
+        int len = 1;
+        for (String label : labels) len += 1 + label.length();
+        byte[] out = new byte[len];
+        int o = 0;
+        for (String label : labels) {
+            out[o++] = (byte) label.length();
+            for (int i = 0; i < label.length(); i++) out[o++] = (byte) label.charAt(i);
+        }
+        out[o] = 0;
+        return out;
+    }
+
+    private static void sourceAddresses() {
+        byte[] v4 = new byte[28];
+        v4[0] = 0x45;
+        v4[9] = 17;
+        v4[12] = (byte) 192; v4[13] = (byte) 168; v4[14] = 1; v4[15] = 10;
+        check(IpPacket.sourceAddress(v4, v4.length).equals("192.168.1.10"),
+                "ipv4 source address");
+
+        byte[] v6 = new byte[48];
+        v6[0] = 0x60;
+        System.arraycopy(ipv6("fd00::10"), 0, v6, 8, 16);
+        check(IpPacket.sourceAddress(v6, v6.length).startsWith("fd00"),
+                "ipv6 source address");
+    }
+
+    private static DnsPacket.Query parse(String name, int type) {
+        byte[] q = DnsPacket.buildQuery(1, name, type);
+        return DnsPacket.parseQuery(q, q.length);
+    }
+
+    private static int u32(byte[] d, int off) {
+        return ((d[off] & 0xFF) << 24) | ((d[off + 1] & 0xFF) << 16)
+                | ((d[off + 2] & 0xFF) << 8) | (d[off + 3] & 0xFF);
+    }
+
+    private static int headerChecksum(byte[] d) {
+        int sum = 0;
+        for (int i = 0; i < 20; i += 2) {
+            sum += ((d[i] & 0xFF) << 8) | (d[i + 1] & 0xFF);
+        }
+        while ((sum >> 16) != 0) sum = (sum & 0xFFFF) + (sum >> 16);
+        return sum;
+    }
+
+    private static byte[] ipv6(String text) {
+        try {
+            return java.net.InetAddress.getByName(text).getAddress();
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static int udp6Checksum(byte[] reply) {
+        int ulen = DnsPacket.u16(reply, 44);
+        int sum = 0;
+        for (int i = 8; i < 40; i += 2) sum += ((reply[i] & 0xFF) << 8) | (reply[i + 1] & 0xFF);
+        sum += (ulen >> 16) & 0xFFFF;
+        sum += ulen & 0xFFFF;
+        sum += 17;
+        int i = 40;
+        int end = 40 + ulen;
+        for (; i + 1 < end; i += 2) {
+            sum += ((reply[i] & 0xFF) << 8) | (reply[i + 1] & 0xFF);
+        }
+        if (i < end) sum += (reply[i] & 0xFF) << 8;
+        while ((sum >> 16) != 0) sum = (sum & 0xFFFF) + (sum >> 16);
+        return (~sum) & 0xFFFF;
+    }
+}
