@@ -36,6 +36,17 @@ SDK command-line tools.
 - **Pi-hole-compatible API subset** for dashboards and scripts (see below).
 - **D-pad-first TV UI**, boot auto-start, force-DNS capture and Private DNS
   warnings.
+- **Material You theme.** Dark Material 3 surfaces, large tonal cards, pill
+  buttons and primary focus rings. Android 12+ uses the system's dynamic color
+  palette; older TVs use a matching scheme generated from Pi-hole green.
+
+## Design
+
+The TV app, web dashboard, launcher icon and TV banner share one Material 3 dark
+palette. The interface stays dark for lean-back viewing and uses D-pad focus
+states instead of touch ripples. On Android 12+ the app reads the system's
+dynamic tonal palettes by resource name; on Android 8–11 it falls back to the
+bundled Pi-hole-green scheme. The app does not force a light theme.
 
 ## Requirements
 

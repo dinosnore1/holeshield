@@ -20,7 +20,7 @@
         android:icon="@drawable/ic_launcher"
         android:label="Pi-hole TV"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+        android:theme="@style/Theme.PiholeTV"
         android:usesCleartextTraffic="true">
 
         <activity

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 dark scheme generated from the Pi-hole green seed (#34D399). -->
+    <color name="m3_primary">#FF8ED5B2</color>
+    <color name="m3_on_primary">#FF003825</color>
+    <color name="m3_primary_container">#FF005137</color>
+    <color name="m3_on_primary_container">#FFA9F2CD</color>
+    <color name="m3_secondary">#FFB4CCBD</color>
+    <color name="m3_secondary_container">#FF364B40</color>
+    <color name="m3_tertiary">#FFA5CCDE</color>
+    <color name="m3_tertiary_container">#FF244C5A</color>
+    <color name="m3_error">#FFFFB4AB</color>
+    <color name="m3_surface">#FF0F1511</color>
+    <color name="m3_on_surface">#FFDEE4DE</color>
+    <color name="m3_on_surface_variant">#FFBFC9C1</color>
+    <color name="m3_surface_container">#FF1B211D</color>
+    <color name="m3_surface_container_high">#FF252B28</color>
+    <color name="m3_outline">#FF8A938C</color>
+    <color name="m3_outline_variant">#FF404943</color>
+</resources>

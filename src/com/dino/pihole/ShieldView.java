@@ -10,7 +10,7 @@ import android.graphics.Shader;
 import android.os.SystemClock;
 import android.view.View;
 
-/** A drawn shield: green with a check when protected, slate with a pause bar when off. */
+/** A drawn shield: primary when protected, muted surface with a pause bar when off. */
 final class ShieldView extends View {
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -39,6 +39,7 @@ final class ShieldView extends View {
     void setOn(boolean value) {
         if (on == value) return;
         on = value;
+        if (w > 0 && h > 0) build();
         invalidate();
     }
 
@@ -46,6 +47,10 @@ final class ShieldView extends View {
         super.onSizeChanged(width, height, oldw, oldh);
         w = Math.max(1, width);
         h = Math.max(1, height);
+        build();
+    }
+
+    private void build() {
         float s = Math.min(w, h) * 0.86f;
         float ox = (w - s) / 2f;
         float oy = (h - s) / 2f;
@@ -71,15 +76,15 @@ final class ShieldView extends View {
         dot.set(ox + s * 0.50f - r, oy + s * 0.70f - r,
                 ox + s * 0.50f + r, oy + s * 0.70f + r);
 
-        int top = on ? 0xFF6EE7B7 : 0xFF64748B;
-        int bottom = on ? 0xFF047857 : 0xFF1E293B;
+        int top = on ? Ui.PRIMARY : Ui.SURFACE_CONTAINER_HIGH;
+        int bottom = on ? Ui.PRIMARY_CONTAINER : Ui.SURFACE_CONTAINER_LOWEST;
         fill.setShader(new LinearGradient(0, oy, 0, oy + s, top, bottom, Shader.TileMode.CLAMP));
         stroke.setStrokeWidth(Math.max(2f, s * 0.012f));
-        stroke.setColor(on ? 0x8034D399 : 0x3364748B);
+        stroke.setColor(on ? Ui.withAlpha(Ui.PRIMARY, 0x99) : Ui.withAlpha(Ui.OUTLINE, 0x66));
         mark.setStrokeWidth(s * 0.085f);
-        mark.setColor(0xFFF8FAFC);
+        mark.setColor(on ? Ui.ON_PRIMARY : Ui.ON_SURFACE_VARIANT);
         halo.setStrokeWidth(Math.max(2f, s * 0.010f));
-        halo.setColor(Ui.GREEN);
+        halo.setColor(Ui.PRIMARY);
     }
 
     @Override protected void onDraw(Canvas canvas) {

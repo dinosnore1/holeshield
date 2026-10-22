@@ -126,6 +126,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        Ui.init(this);
         prefs = Prefs.load(this);
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!DnsVpnService.running && !DnsVpnService.starting) {
@@ -175,6 +176,10 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (Ui.init(this) && root != null) {
+            setContentView(createShell());
+            show(screen);
+        }
         prefs = Prefs.load(this);
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!autoStarted && prefs.protectionWanted && !DnsVpnService.running
@@ -327,11 +332,15 @@ public class MainActivity extends Activity {
         LinearLayout hero = Ui.row(this);
         GradientDrawable heroBg = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{0xFF11252B, 0xFF0B1420, 0xFF0D1725});
-        heroBg.setCornerRadius(Ui.dp(this, 26));
-        heroBg.setStroke(Ui.dp(this, 1), 0x3334D399);
+                new int[]{
+                        Ui.mix(Ui.BG, Ui.PRIMARY_CONTAINER, 0.55f),
+                        Ui.mix(Ui.SURFACE_CONTAINER, Ui.BG, 0.35f),
+                        Ui.mix(Ui.BG, Ui.TERTIARY_CONTAINER, 0.30f)
+                });
+        heroBg.setCornerRadius(Ui.dp(this, 32));
+        heroBg.setStroke(Ui.dp(this, 1), Ui.withAlpha(Ui.PRIMARY, 0x55));
         hero.setBackground(heroBg);
-        hero.setPadding(Ui.dp(this, 30), Ui.dp(this, 24), Ui.dp(this, 30), Ui.dp(this, 24));
+        hero.setPadding(Ui.dp(this, 34), Ui.dp(this, 28), Ui.dp(this, 34), Ui.dp(this, 28));
 
         shield = new ShieldView(this);
         shield.setLayoutParams(Ui.lp(Ui.dp(this, 152), Ui.dp(this, 152)));
@@ -430,13 +439,14 @@ public class MainActivity extends Activity {
         if (!"hostname".equals(mode)) return;
 
         LinearLayout warn = Ui.row(this);
-        warn.setBackground(Ui.rounded(this, 0x1AFBBF24, 18, 1, 0x66FBBF24));
-        warn.setPadding(Ui.dp(this, 22), Ui.dp(this, 16),
-                Ui.dp(this, 22), Ui.dp(this, 16));
+        warn.setBackground(Ui.rounded(this, Ui.TERTIARY_CONTAINER, 24, 1,
+                Ui.withAlpha(Ui.TERTIARY, 0x66)));
+        warn.setPadding(Ui.dp(this, 24), Ui.dp(this, 18),
+                Ui.dp(this, 24), Ui.dp(this, 18));
 
         LinearLayout text = Ui.column(this);
         TextView title = Ui.caption(this, "PRIVATE DNS IS ON");
-        title.setTextColor(Ui.AMBER);
+        title.setTextColor(Ui.ON_TERTIARY_CONTAINER);
         text.addView(title);
         String name = host == null || host.trim().isEmpty()
                 ? "a private DNS hostname" : host.trim();
@@ -454,8 +464,8 @@ public class MainActivity extends Activity {
 
     private TextView statCard(LinearLayout parent, String label, String sub) {
         LinearLayout c = Ui.column(this);
-        c.setBackground(Ui.rounded(this, Ui.CARD, 20, 1, Ui.STROKE));
-        c.setPadding(Ui.dp(this, 22), Ui.dp(this, 18), Ui.dp(this, 22), Ui.dp(this, 16));
+        c.setBackground(Ui.rounded(this, Ui.CARD, 24, 1, Ui.STROKE));
+        c.setPadding(Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 18));
 
         TextView cap = Ui.caption(this, label);
         c.addView(cap);
@@ -473,9 +483,9 @@ public class MainActivity extends Activity {
 
     private LinearLayout card(int padding) {
         LinearLayout l = Ui.column(this);
-        l.setBackground(Ui.rounded(this, Ui.CARD, 22, 1, Ui.STROKE));
-        l.setPadding(Ui.dp(this, padding), Ui.dp(this, 20),
-                Ui.dp(this, padding), Ui.dp(this, 20));
+        l.setBackground(Ui.rounded(this, Ui.CARD, 28, 1, Ui.STROKE));
+        l.setPadding(Ui.dp(this, padding), Ui.dp(this, 22),
+                Ui.dp(this, padding), Ui.dp(this, 22));
         return l;
     }
 
@@ -485,6 +495,11 @@ public class MainActivity extends Activity {
         if (screen == Screen.HOME) updateHomeLive();
         if (screen == Screen.PIHOLE) updatePiholeLive();
         if (screen == Screen.LISTS) updateListsLive();
+    }
+
+    private void pausedChip(String label) {
+        Ui.setChip(chip, label, Ui.ON_TERTIARY_CONTAINER,
+                Ui.TERTIARY_CONTAINER, Ui.withAlpha(Ui.TERTIARY, 0x66));
     }
 
     private void updateHomeLive() {
@@ -498,29 +513,19 @@ public class MainActivity extends Activity {
 
         if (chip != null) {
             if (running && !prefs.blockingActive()) {
-                chip.setText("PAUSED");
-                chip.setTextColor(Ui.AMBER);
-                chip.setBackground(Ui.rounded(this, 0x1AFBBF24, 999, 1, 0x55FBBF24));
+                pausedChip("PAUSED");
             } else if (running) {
-                chip.setText("PROTECTED");
-                chip.setTextColor(Ui.GREEN);
-                chip.setBackground(Ui.rounded(this, 0x1A34D399, 999, 1, 0x5534D399));
+                Ui.setChip(chip, "PROTECTED", Ui.ON_PRIMARY_CONTAINER,
+                        Ui.PRIMARY_CONTAINER, Ui.withAlpha(Ui.PRIMARY, 0x66));
             } else if (DnsVpnService.starting) {
-                chip.setText("STARTING");
-                chip.setTextColor(Ui.AMBER);
-                chip.setBackground(Ui.rounded(this, 0x1AFBBF24, 999, 1, 0x55FBBF24));
+                pausedChip("STARTING");
             } else if (!prefs.protectionWanted) {
-                chip.setText("OFF");
-                chip.setTextColor(Ui.DIM);
-                chip.setBackground(Ui.rounded(this, 0x14FFFFFF, 999, 1, 0x33FFFFFF));
+                Ui.setChip(chip, "OFF", Ui.DIM, Ui.SURFACE_CONTAINER_HIGH,
+                        Ui.OUTLINE_VARIANT);
             } else if (vpnConsentNeeded) {
-                chip.setText("SETUP NEEDED");
-                chip.setTextColor(Ui.AMBER);
-                chip.setBackground(Ui.rounded(this, 0x1AFBBF24, 999, 1, 0x55FBBF24));
+                pausedChip("SETUP NEEDED");
             } else {
-                chip.setText(DnsVpnService.lastError.isEmpty() ? "STARTING" : "SETUP NEEDED");
-                chip.setTextColor(Ui.AMBER);
-                chip.setBackground(Ui.rounded(this, 0x1AFBBF24, 999, 1, 0x55FBBF24));
+                pausedChip(DnsVpnService.lastError.isEmpty() ? "STARTING" : "SETUP NEEDED");
             }
         }
 
@@ -995,7 +1000,7 @@ public class MainActivity extends Activity {
                 "Allow wildcard (*.example.com)",
                 "Allow regex (/pattern/)"
         };
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        Ui.builder(this)
                 .setTitle("Add a custom rule")
                 .setItems(items, (d, which) -> {
                     boolean allow = which >= 3;
@@ -1053,7 +1058,7 @@ public class MainActivity extends Activity {
     }
 
     private void clearCustom() {
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        Ui.builder(this)
                 .setTitle("Clear custom rules?")
                 .setMessage("Your added block and allow entries will be removed. "
                         + "The downloaded list stays.")
@@ -1271,7 +1276,7 @@ public class MainActivity extends Activity {
                     restartIfRunning();
                     Ui.toast(this, DnsVpnService.running ? "Restarting…" : "Protection is off");
                 }), rowLp(0));
-        sys.addView(settingRow("About Pi-hole TV", "Version 2.0.0 · no analytics",
+        sys.addView(settingRow("About Pi-hole TV", "Version 2.0.0 · Material You · no analytics",
                 "", this::about), rowLp(1));
         add(col, sys, 8);
 
@@ -1293,7 +1298,7 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout settingRow(String title, String subtitle, String value, Runnable action) {
-        LinearLayout r = Ui.focusableCard(this, 16);
+        LinearLayout r = Ui.focusableCard(this, 20);
         r.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout text = Ui.column(this);
         TextView t = Ui.text(this, title, 16, Ui.TEXT, true);
@@ -1568,7 +1573,7 @@ public class MainActivity extends Activity {
     private void showDiscovered(List<String> hosts, List<String> labels) {
         if (isFinishing() || isDestroyed()) return;
         if (hosts.isEmpty()) {
-            new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            Ui.builder(this)
                     .setTitle("No Pi-hole answered")
                     .setMessage("Tried pi.hole, common mDNS names, the gateway and the TV's "
                             + "current DNS servers on port 80.\n\nIf Pi-hole uses another port "
@@ -1579,7 +1584,7 @@ public class MainActivity extends Activity {
             return;
         }
         String[] items = labels.toArray(new String[0]);
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        Ui.builder(this)
                 .setTitle(hosts.size() == 1 ? "Pi-hole found" : "Choose your Pi-hole")
                 .setItems(items, (d, which) -> useDiscovered(hosts.get(which)))
                 .setNegativeButton("Cancel", null)
@@ -1636,11 +1641,11 @@ public class MainActivity extends Activity {
         input.setHint(hint != null ? hint
                 : secret ? "Leave empty to keep the saved password" : current);
         input.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        Ui.styleInput(input);
         box.addView(input, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        AlertDialog dialog = new AlertDialog.Builder(this,
-                android.R.style.Theme_Material_Dialog_Alert)
+        AlertDialog dialog = Ui.builder(this)
                 .setTitle(title)
                 .setView(box)
                 .setPositiveButton("Save", (d, w) -> {
@@ -1660,6 +1665,7 @@ public class MainActivity extends Activity {
         dialog.getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
         dialog.show();
+        Ui.tintDialog(dialog);
         input.requestFocus();
     }
 
@@ -1677,10 +1683,11 @@ public class MainActivity extends Activity {
         input.setInputType(InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         input.setHint("https://example.com/hosts");
+        Ui.styleInput(input);
         box.addView(input, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 Ui.dp(this, 170)));
 
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        Ui.builder(this)
                 .setTitle(title)
                 .setView(box)
                 .setPositiveButton("Save", (d, w) ->
@@ -1728,8 +1735,7 @@ public class MainActivity extends Activity {
                     + "may be allowing it, or an app is using DNS-over-TLS.";
             handler.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                new AlertDialog.Builder(this,
-                        android.R.style.Theme_Material_Dialog_Alert)
+                Ui.builder(this)
                         .setTitle("Protection test")
                         .setMessage(message)
                         .setPositiveButton("OK", null)
@@ -1749,7 +1755,7 @@ public class MainActivity extends Activity {
                 + "use the high LAN DNS port. DNS blocking cannot remove ads served from "
                 + "the same domain as the content (YouTube in-stream ads, for example). "
                 + "Some apps use DNS-over-TLS and need the capture option enabled.";
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+        Ui.builder(this)
                 .setTitle("About")
                 .setMessage(message)
                 .setPositiveButton("Close", null)

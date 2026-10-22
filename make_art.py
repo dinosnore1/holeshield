@@ -156,36 +156,36 @@ def icon_color(x, y):
     if not inside_round_rect(x, y, w, h, 40):
         return (0, 0, 0, 0)
     t = y / h
-    col = lerp((17, 34, 46), (4, 7, 10), t)
+    col = lerp((27, 33, 29), (10, 15, 12), t)
     d = math.hypot(x - 96, y - 68)
-    col = blend(col, (52, 211, 153), 0.09 * max(0.0, 1 - d / 155))
+    col = blend(col, (142, 213, 178), 0.10 * max(0.0, 1 - d / 155))
 
     s = 138
     cx, cy = 96, 98
     pts = shield(cx, cy, s)
     if (dist_seg(x, y, cx - 0.20 * s, cy + 0.03 * s, cx - 0.05 * s, cy + 0.18 * s) < 0.040 * s
             or dist_seg(x, y, cx - 0.05 * s, cy + 0.18 * s, cx + 0.24 * s, cy - 0.12 * s) < 0.040 * s):
-        return (248, 250, 252)
+        return (0, 56, 37)
     if inside_poly(x, y, pts):
-        return lerp((110, 231, 183), (4, 120, 87), (y - (cy - 0.47 * s)) / s)
+        return lerp((142, 213, 178), (0, 81, 55), (y - (cy - 0.47 * s)) / s)
     return col
 
 
 def banner_color(x, y):
-    col = lerp((8, 17, 28), (4, 8, 13), y / 180)
+    col = lerp((15, 21, 17), (10, 15, 12), y / 180)
     d1 = math.hypot(x - 36, y - 22)
-    col = blend(col, (52, 211, 153), 0.16 * max(0.0, 1 - d1 / 150))
+    col = blend(col, (142, 213, 178), 0.16 * max(0.0, 1 - d1 / 150))
     d2 = math.hypot(x - 292, y - 168)
-    col = blend(col, (96, 165, 250), 0.15 * max(0.0, 1 - d2 / 160))
+    col = blend(col, (165, 204, 222), 0.14 * max(0.0, 1 - d2 / 160))
 
     pts = shield(160, 58, 82)
     s = 82
     cx, cy = 160, 58
     if (dist_seg(x, y, cx - 0.20 * s, cy + 0.03 * s, cx - 0.05 * s, cy + 0.18 * s) < 0.040 * s
             or dist_seg(x, y, cx - 0.05 * s, cy + 0.18 * s, cx + 0.24 * s, cy - 0.12 * s) < 0.040 * s):
-        return (248, 250, 252)
+        return (0, 56, 37)
     if inside_poly(x, y, pts):
-        return lerp((110, 231, 183), (4, 120, 87), (y - 20) / 82)
+        return lerp((142, 213, 178), (0, 81, 55), (y - 20) / 82)
     return col
 
 
@@ -198,7 +198,7 @@ def main():
     rects = text_rects("PI-HOLE TV", 71, 130, 3)
     def banner(x, y):
         if in_rects(x, y, rects):
-            return (241, 245, 249)
+            return (222, 228, 222)
         return banner_color(x, y)
     banner_px = render(320, 180, banner, ss=2)
     write_png(os.path.join(out, "banner.png"), 320, 180, banner_px)

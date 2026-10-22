@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PiholeTV" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/m3_surface</item>
+        <item name="android:colorBackground">@color/m3_surface</item>
+        <item name="android:colorForeground">@color/m3_on_surface</item>
+        <item name="android:colorAccent">@color/m3_primary</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.PiholeTV.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">@color/m3_primary</item>
+        <item name="android:colorBackground">@color/m3_surface_container_high</item>
+        <item name="android:colorForeground">@color/m3_on_surface</item>
+        <item name="android:textColorPrimary">@color/m3_on_surface</item>
+        <item name="android:textColorSecondary">@color/m3_on_surface_variant</item>
+        <item name="android:windowBackground">@drawable/m3_dialog</item>
+        <item name="android:backgroundDimAmount">0.68</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
