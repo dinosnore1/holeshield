@@ -72,14 +72,14 @@ phones. The package and settings are shared, so upgrades keep the same data.
 ```bash
 cd ~/pihole-tv
 ./tools/test.sh          # 70 desktop checks for DNS, packet and list code
-./build.sh               # writes build/pihole-tv.apk
+./build.sh               # writes build/pihole.apk
 ```
 
 Install over the network or over USB:
 
 ```bash
 adb connect DEVICE_IP:5555        # wireless debugging/TV; or just use USB
-adb install -r build/pihole-tv.apk
+adb install -r build/pihole.apk
 adb shell am start -n com.dino.pihole/.MainActivity
 ```
 
@@ -89,7 +89,7 @@ build. This is a sideload build; there is no Play Store package.
 **Current build**
 
 - Version: **2.0.0** (`versionCode 2`)
-- APK: `build/pihole-tv.apk` (also `build/pihole-tv-2.0.0.apk`)
+- APK: `build/pihole.apk` (also `build/pihole-2.0.0.apk`)
 - SHA-256:
   `dbad61a0129c50bae929ab31b6822b116f8ac87ff5da8e5f39821ee34d885e2b`
 

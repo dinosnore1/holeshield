@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds pihole-tv.apk with the Android SDK command-line tools (no Gradle,
+# Builds pihole.apk with the Android SDK command-line tools (no Gradle,
 # no AndroidX, no third-party libraries).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -50,7 +50,7 @@ if [ ! -f "$KEYSTORE" ]; then
 fi
 
 "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:android --key-pass pass:android \
-  --out "$OUT/pihole-tv.apk" "$OUT/aligned.apk"
-"$BT/apksigner" verify "$OUT/pihole-tv.apk"
-cp "$OUT/pihole-tv.apk" "$OUT/pihole-tv-2.0.0.apk"
-echo "built: $(pwd)/$OUT/pihole-tv.apk ($(du -h "$OUT/pihole-tv.apk" | cut -f1))"
+  --out "$OUT/pihole.apk" "$OUT/aligned.apk"
+"$BT/apksigner" verify "$OUT/pihole.apk"
+cp "$OUT/pihole.apk" "$OUT/pihole-2.0.0.apk"
+echo "built: $(pwd)/$OUT/pihole.apk ($(du -h "$OUT/pihole.apk" | cut -f1))"
