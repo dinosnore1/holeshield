@@ -1,9 +1,9 @@
-# Pi-hole TV
+# Pi-hole for Android TV and phones
 
-A self-contained, Pi-hole-style DNS filter for Android TV / Google TV. The app
-runs its own gravity engine, query log, statistics, web dashboard/API and an
-optional LAN DNS listener. It also runs a DNS-only VPN on the TV so every app's
-lookups are filtered without root.
+A self-contained, Pi-hole-style DNS filter for Android TV, Google TV and Android
+phones. The app runs its own gravity engine, query log, statistics, web
+dashboard/API and an optional LAN DNS listener. It also runs a DNS-only VPN on
+the device so every app's lookups are filtered without root.
 
 No Gradle, AndroidX or third-party libraries. Pure Java, built with the Android
 SDK command-line tools.
@@ -12,9 +12,9 @@ SDK command-line tools.
 
 ## What it does
 
-- **System-wide filtering on the TV.** A local `VpnService` routes IPv4 and
-  IPv6 DNS to the embedded resolver. The VPN does not carry video, downloads or
-  general LAN traffic.
+- **System-wide filtering on the device.** A local `VpnService` routes IPv4
+  and IPv6 DNS to the embedded resolver. The VPN does not carry video, downloads
+  or general LAN traffic.
 - **Embedded gravity database.** Ships with a conservative seed list and a
   maximum preset of 23 maintained ad/tracker/TV-telemetry lists, including
   Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
@@ -31,27 +31,37 @@ SDK command-line tools.
 - **Query log and counters** for queries, blocks, cache hits, forwards, errors,
   clients, types, top domains and upstreams. The log survives app restarts and
   is rolled over daily.
-- **Web dashboard** at `http://TV-IP:8080/admin/`, with optional password login.
+- **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional password
+  login.
 - **LAN DNS server** on UDP and TCP port **5354** for other devices on the LAN
   (IPv4).
 - **Pi-hole-compatible API subset** for dashboards and scripts (see below).
-- **D-pad-first TV UI**, boot auto-start, force-DNS capture and Private DNS
-  warnings.
-- **Material You theme.** Dark Material 3 surfaces, large tonal cards, pill
-  buttons and primary focus rings. Android 12+ uses the system's dynamic color
-  palette; older TVs use a matching scheme generated from Pi-hole green.
+- **D-pad and touch UI.** The same screens work with a TV remote and with a
+  finger. TV keeps its focus rings and immersive fullscreen; phones use a compact
+  layout, show the system bars and rebuild cleanly between portrait and
+  landscape.
+- **Material You theme.** Dark Material 3 surfaces, tonal cards, pill buttons
+  and focus rings. Android 12+ uses the system's dynamic accent colors while the
+  surfaces stay dark; older devices use a matching scheme generated from Pi-hole
+  green.
 
 ## Design
 
-The TV app, web dashboard, launcher icon and TV banner share one Material 3 dark
-palette. The interface stays dark for lean-back viewing and uses D-pad focus
-states instead of touch ripples. On Android 12+ the app reads the system's
-dynamic tonal palettes by resource name; on Android 8–11 it falls back to the
-bundled Pi-hole-green scheme. The app does not force a light theme.
+The TV and phone app, web dashboard, launcher icon and TV banner share one
+Material 3 dark palette. The interface stays dark in both system light and dark
+mode. On TV it preserves D-pad focus states and immersive fullscreen; on phones
+it uses compact spacing, touch-sized controls, visible status/navigation bars and
+a responsive portrait/landscape layout. On Android 12+ the app reads the
+system's dynamic accent colors by resource name; on Android 8–11 it falls back to
+the bundled Pi-hole-green scheme.
+
+The launcher label is **Pi-hole TV** on television devices and **Pi-hole** on
+phones. The package and settings are shared, so upgrades keep the same data.
 
 ## Requirements
 
-- Android TV / Google TV on **Android 8.0 (API 26) or newer**.
+- Android TV / Google TV or an Android phone on **Android 8.0 (API 26) or
+  newer**.
 - No root. Root is only needed if you want to serve DNS on the standard **port
   53**; unrooted Android cannot bind it, so this app uses **5354** for LAN DNS.
 - To build: JDK 17 and Android SDK platform 30 + build-tools. The build script
@@ -65,10 +75,10 @@ cd ~/pihole-tv
 ./build.sh               # writes build/pihole-tv.apk
 ```
 
-Install over the network:
+Install over the network or over USB:
 
 ```bash
-adb connect 192.168.1.19:5555
+adb connect DEVICE_IP:5555        # wireless debugging/TV; or just use USB
 adb install -r build/pihole-tv.apk
 adb shell am start -n com.dino.pihole/.MainActivity
 ```
@@ -81,31 +91,37 @@ build. This is a sideload build; there is no Play Store package.
 - Version: **2.0.0** (`versionCode 2`)
 - APK: `build/pihole-tv.apk` (also `build/pihole-tv-2.0.0.apk`)
 - SHA-256:
-  `5db33a9804eeb883b895317686bb352f7781c9eb3b00896cbeaae3f87a98eeda`
+  `dbad61a0129c50bae929ab31b6822b116f8ac87ff5da8e5f39821ee34d885e2b`
 
 ## First run
 
-1. Open **Pi-hole TV** and select **Turn on protection**. Approve Android's VPN
-   prompt. This is a one-time permission; boot auto-start uses it afterwards.
-2. In the TV's network settings, set **Private DNS** to **Off**. A strict DoT
-   hostname bypasses the VPN and can break filtering; the app shows an amber
+1. Open **Pi-hole TV** on a television or **Pi-hole** on a phone, then select
+   **Turn on protection**. Approve Android's VPN prompt. This is a one-time
+   permission; boot auto-start uses it afterwards.
+2. In the device's network settings, set **Private DNS** to **Off**. A strict
+   DoT hostname bypasses the VPN and can break filtering; the app shows an amber
    warning while it is on.
 3. Open the dashboard:
-   `http://192.168.1.19:8080/admin/` (replace with the TV's LAN IP).
-4. Optional but recommended: set a **Web password** in the TV app's Settings
+   `http://DEVICE_IP:8080/admin/` (replace with the device's LAN IP).
+4. Optional but recommended: set a **Web password** in the app's Settings
    before exposing the dashboard to your LAN.
 5. Run **Update gravity now** to download the maximum preset (about 500k
    deduplicated domains). The first download can take a few minutes.
 6. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
    return no address) while `example.com` resolves normally.
 
+On phones, Android shows a VPN key in the status bar while protection is on. The
+app asks for the VPN permission only once; it does not route normal traffic
+through a remote server.
+
 The app remembers protection and can resume it after a reboot. Some TV firmware
-limits background starts; opening the app once after a reboot works around that.
+and phone battery managers limit background starts; opening the app once after a
+reboot works around that.
 
 ## How resolution works
 
 ```
-TV app
+Device app
   │  DNS query
   ▼
 tun 10.111.221.1 / [fd00:111:221::1]:53
@@ -119,8 +135,8 @@ DnsEngine
         └─ inspect CNAME targets and block if needed
 ```
 
-The LAN DNS listener uses the same engine, so the TV and LAN clients share rules,
-statistics and the cache.
+The LAN DNS listener uses the same engine, so the device and LAN clients share
+rules, statistics and the cache.
 
 Resolution order is intentionally simple: **allow rules → gravity/deny →
 cache → DoH → plain DNS**. If the local gravity engine is off or blocking is
@@ -129,29 +145,29 @@ are checked only when blocking is active and the original query was not allowed.
 
 ## Dashboard and API
 
-Default dashboard: `http://TV-IP:8080/admin/`
+Default dashboard: `http://DEVICE-IP:8080/admin/`
 
-Default LAN DNS: `TV-IP:5354` (UDP and TCP)
+Default LAN DNS: `DEVICE-IP:5354` (UDP and TCP)
 
 Set a web password under **Settings → Web password**. Empty means no password
-and the dashboard/API is open to anyone who can reach the TV's LAN address.
+and the dashboard/API is open to anyone who can reach the device's LAN address.
 When a password is set:
 
 ```bash
 # Exchange the password for a session ID
-curl -s -X POST http://192.168.1.19:8080/api/auth \
+curl -s -X POST http://192.168.1.50:8080/api/auth \
   -H 'Content-Type: application/json' \
   -d '{"password":"your-password"}'
 
 # Use the returned sid as X-FTL-SID (or as a sid cookie)
 curl -s -H 'X-FTL-SID: <sid>' \
-  http://192.168.1.19:8080/api/stats/summary
+  http://192.168.1.50:8080/api/stats/summary
 ```
 
 The v5 compatibility endpoint accepts `auth=password`:
 
 ```bash
-curl -s 'http://192.168.1.19:8080/admin/api.php?summaryRaw&auth=your-password'
+curl -s 'http://192.168.1.50:8080/admin/api.php?summaryRaw&auth=your-password'
 ```
 
 ### API endpoints
@@ -203,11 +219,11 @@ dashboard/API; this app deliberately remains self-contained.
 
 ## LAN DNS
 
-The TV's own DNS goes through the VPN on port 53. For other devices, enable
+The device's own DNS goes through the VPN on port 53. For other devices, enable
 **Settings → LAN DNS server** and point them at:
 
 ```
-DNS server: 192.168.1.19
+DNS server: 192.168.1.50
 Port:       5354
 ```
 
@@ -217,14 +233,16 @@ router/firewall redirect from 53 to 5354, or run a small forwarder on another
 machine. The dashboard shows the current listener state and port.
 
 The LAN listener is IPv4 (`0.0.0.0`). It uses the same blocklists, rules,
-pause state, CNAME checks and cache as the TV.
+pause state, CNAME checks and cache as the device. On a phone, keep Wi-Fi
+connected and use the phone's Wi-Fi address; the VPN address is not reachable
+from other LAN devices.
 
 ## Settings
 
 | Setting | Meaning |
 |---|---|
 | Protection | Turn the DNS-only VPN on or off. |
-| Start at boot | Resume protection after the TV restarts. |
+| Start at boot | Resume protection after the device restarts. |
 | Gravity blocking | Apply downloaded lists and custom rules. Off = resolve everything. |
 | Block subdomains of list entries | Match `ads.example.com` when `example.com` is on a gravity list. |
 | Block CNAME targets | Inspect upstream CNAMEs and block answers pointing at blocked names. |
@@ -257,7 +275,7 @@ Gravity/rule changes are applied live.
 
 - DNS queries go to the configured DoH endpoint (HTTPS). If DoH is selected but
   fails, or if plain fallback is selected, they go to plain DNS (`1.1.1.1`,
-  `8.8.8.8`, `9.9.9.9`). Local gravity matching happens on the TV.
+  `8.8.8.8`, `9.9.9.9`). Local gravity matching happens on the device.
 - Blocklist downloads go only to the URLs you configure.
 - The dashboard/API listens on the LAN over **plain HTTP**. There is no TLS.
   Use it only on a trusted LAN. Set a web password if other people or untrusted
@@ -272,22 +290,22 @@ Gravity/rule changes are applied live.
 
 | Symptom | Check |
 |---|---|
-| Dashboard does not load | Confirm protection is on, the TV IP is correct, and the web dashboard is enabled. Try `curl http://TV-IP:8080/api/health`. |
+| Dashboard does not load | Confirm protection is on, the device IP is correct, and the web dashboard is enabled. Try `curl http://DEVICE-IP:8080/api/health`. |
 | `401 authentication required` | Set/enter the web password, then use the returned `X-FTL-SID` or the v5 `auth=` parameter. |
 | LAN DNS refused | Enable **LAN DNS server**, check the port, and verify the client supports a non-53 DNS port. |
 | Ads still appear | Same-domain ads (YouTube in-stream), app-level DoH, or the query was allowed. Check the query log and test `doubleclick.net`. |
 | A service breaks after maximum lists | The maximum preset is aggressive. Add an exact allow rule for the service's domain instead of disabling all filtering. |
 | No internet while protected | Set fallback to DoH/plain, check Private DNS is Off, and verify the upstream is reachable. |
-| Gravity is 0 / update fails | Check the list URL from the TV's network, then run **Update gravity now** again. |
-| TV forgets protection after reboot | Some firmware blocks background starts; open the app once. |
+| Gravity is 0 / update fails | Check the list URL from the device's network, then run **Update gravity now** again. |
+| Protection does not resume after reboot | Some TV firmware and phone battery managers block background starts; open the app once. |
 
 ## Project layout
 
 ```
 AndroidManifest.xml          leanback entry, VPN service, boot receiver
 src/com/dino/pihole/
-  MainActivity.java          TV UI, settings, rules, query log
-  DnsVpnService.java         tun lifecycle, packet loop, notification
+  MainActivity.java          TV/phone UI, settings, rules, query log
+  DnsVpnService.java         device tun lifecycle, packet loop, notification
   DnsEngine.java             allow/gravity/CNAME resolution, logging
   DnsUpstream.java           cache, DoH, plain DNS, startup IP seeding
   DnsPacket.java             DNS parsing, replies, CNAME/TTL helpers (pure Java)
@@ -299,12 +317,14 @@ src/com/dino/pihole/
   WebServer.java             dashboard HTTP server, v6/v5 API subset, auth
   LanDnsServer.java          UDP + TCP LAN DNS listener
   Prefs.java                 persisted settings and pause state
-  NetInfo.java               LAN IP and dashboard URL
+  NetInfo.java               LAN IP (Wi-Fi/Ethernet preferred) and dashboard URL
+  Device.java                TV/phone detection and labels
   PiholeClient.java          legacy external-Pi-hole client (inactive)
   Ui.java, Backdrop.java, ShieldView.java
 assets/blocklist.txt         bundled seed list
 assets/dashboard.html        responsive web dashboard
 res/drawable/                launcher icon, TV banner, notification icon
+res/values*/                 phone/TV launcher labels and theme colours
 tools/TestDns.java           desktop checks for DNS, packet and list code
 build.sh                     no-Gradle APK build
 ```
@@ -317,17 +337,35 @@ from tun packets, blocked A/AAAA/HTTPS replies, answer-address extraction, TTL
 selection, IPv4/IPv6 UDP replies and checksums, address/port swapping, payload
 preservation, hosts/adblock line parsing and blocklist preset merging.
 
-The APK has been exercised on a Hisense VU Smart TV (Android 11 / API 30,
-armeabi-v7a, 1920×1080) at `192.168.1.19`:
+The APK has been exercised on:
 
-- dashboard and API over the LAN, including authenticated sessions;
-- maximum preset update (518,426 deduplicated domains) and list add/delete;
-- TV-originated filtering and LAN DNS over both UDP and TCP;
+- a Hisense VU Smart TV (Android 11 / API 30, armeabi-v7a, 1920×1080) at
+  `192.168.1.19`;
+- a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
+  and landscape.
+
+Verified on both device types:
+
+- dashboard and API over the LAN (the TV was also exercised with an
+  authenticated session);
+- maximum preset update (519,040 deduplicated domains on the phone; 518,426 on
+  the TV) and list add/delete;
+- device-originated filtering and LAN DNS over both UDP and TCP;
 - blocked/allow/wildcard/regex rules and CNAME blocking;
 - pause, timed auto-resume and cache flush;
 - DoH upstream (`doh`) and plain fallback;
 - v5 compatibility (`summaryRaw`, status, enable/disable);
-- boot/protection restart and the D-pad TV UI.
+- protection restart on relaunch and the D-pad TV UI.
+
+Phone-specific checks:
+
+- USB install and the one-time VPN permission flow;
+- foreground VPN service, notification and automatic restart after relaunch;
+- touch navigation through Home, Settings, Pi-hole, Gravity & rules and Query log;
+- `doubleclick.net`, `googleadservices.com` and `ads.youtube.com` blocked;
+  `example.com` resolves normally;
+- dashboard at `http://PHONE-IP:8080/admin/` and LAN DNS on port 5354;
+- portrait/landscape rebuild without clipping.
 
 `PiholeClient` is retained only as legacy source; the active UI and resolver use
 the embedded engine. An old `usePihole` preference is ignored so upgrades cannot

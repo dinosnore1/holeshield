@@ -264,7 +264,7 @@ final class Stats {
 
     /** Compatibility helper for callers that only know block/allow. */
     static synchronized void onQuery(boolean wasBlocked, String name) {
-        onQuery(new Entry(System.currentTimeMillis(), "this TV", name,
+        onQuery(new Entry(System.currentTimeMillis(), "this device", name,
                 DnsPacket.TYPE_A, wasBlocked ? "BLOCKED" : "FORWARDED",
                 "local", 0, 0L, "", wasBlocked, false));
     }

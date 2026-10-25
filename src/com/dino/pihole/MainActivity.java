@@ -6,6 +6,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
+import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.LinkProperties;
@@ -45,9 +48,10 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
- * One activity, four screens, no fragments and no libraries. Built for a
- * remote: every action is a focusable row or button, and the system handles
- * D-pad movement.
+ * One activity, five screens, no fragments and no libraries. Every action is a
+ * focusable row or button, so the same UI works with a TV remote, a D-pad and
+ * touch. The layout compacts itself on phones and uses a fullscreen immersive
+ * presentation only on television devices.
  */
 public class MainActivity extends Activity {
 
@@ -56,6 +60,7 @@ public class MainActivity extends Activity {
     private static final int REQ_VPN = 41;
 
     private Prefs prefs;
+    private boolean isTv;
     private Screen screen = Screen.HOME;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newFixedThreadPool(2);
@@ -126,6 +131,11 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        isTv = isTelevision(this);
+        Ui.setCompact(!isTv);
+        setRequestedOrientation(isTv
+                ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         Ui.init(this);
         prefs = Prefs.load(this);
         vpnConsentNeeded = VpnService.prepare(this) != null;
@@ -133,8 +143,11 @@ public class MainActivity extends Activity {
             Stats.load(this);
         }
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        if (isTv) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        }
         immersive();
         setContentView(createShell());
         show(Screen.HOME);
@@ -152,13 +165,23 @@ public class MainActivity extends Activity {
     }
 
     private void immersive() {
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        if (isTv) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            return;
+        }
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Ui.BG);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    }
+
+    private static boolean isTelevision(Context c) {
+        return Device.isTv(c);
     }
 
     private View createShell() {
@@ -173,8 +196,9 @@ public class MainActivity extends Activity {
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         page = Ui.column(this);
-        int h = Ui.dp(this, 44);
-        page.setPadding(h, Ui.dp(this, 34), h, Ui.dp(this, 34));
+        int h = Ui.dp(this, isTv ? 44 : 20);
+        int v = Ui.dp(this, isTv ? 34 : 20);
+        page.setPadding(h, v, h, v);
         scroll.addView(page, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, new FrameLayout.LayoutParams(
@@ -186,6 +210,8 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        isTv = isTelevision(this);
+        Ui.setCompact(!isTv);
         if (Ui.init(this) && root != null) {
             setContentView(createShell());
             show(screen);
@@ -213,6 +239,20 @@ public class MainActivity extends Activity {
             unregisterReceiver(stateReceiver);
         } catch (Exception ignored) { }
         super.onStop();
+    }
+
+    @Override public void onConfigurationChanged(Configuration config) {
+        super.onConfigurationChanged(config);
+        isTv = isTelevision(this);
+        Ui.setCompact(!isTv);
+        setRequestedOrientation(isTv
+                ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        Ui.init(this);
+        if (root != null) {
+            setContentView(createShell());
+            show(screen);
+        }
     }
 
     @Override protected void onPause() {
@@ -314,33 +354,51 @@ public class MainActivity extends Activity {
     private LinearLayout homeScreen() {
         LinearLayout col = Ui.column(this);
 
-        LinearLayout header = Ui.row(this);
         ShieldView logo = new ShieldView(this);
         logo.setOn(true);
-        logo.setLayoutParams(Ui.lp(Ui.dp(this, 42), Ui.dp(this, 42)));
+        logo.setLayoutParams(Ui.lp(Ui.dp(this, isTv ? 42 : 36),
+                Ui.dp(this, isTv ? 42 : 36)));
         LinearLayout brand = Ui.column(this);
-        TextView name = Ui.text(this, "PI-HOLE TV", 19, Ui.TEXT, true);
+        TextView name = Ui.text(this, isTv ? "PI-HOLE TV" : "PI-HOLE",
+                isTv ? 19 : 17, Ui.TEXT, true);
         name.setLetterSpacing(0.10f);
         brand.addView(name);
         TextView tag = Ui.caption(this, "SYSTEM-WIDE DNS FILTER");
         tag.setTextSize(9.5f);
         brand.addView(tag);
-        header.addView(logo);
-        header.addView(brand, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 14), 0, 0, 0));
-        header.addView(new View(this), Ui.lp(0, 1, 1f));
 
-        chip = Ui.chip(this);
-        header.addView(chip);
         TextView settings = Ui.button(this, "Settings", false);
-        settings.setMinWidth(Ui.dp(this, 120));
+        settings.setMinWidth(Ui.dp(this, isTv ? 120 : 0));
         settings.setOnClickListener(v -> show(Screen.SETTINGS));
-        header.addView(settings, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 16), 0, 0, 0));
-        add(col, header, 0);
+        chip = Ui.chip(this);
+
+        if (isTv) {
+            LinearLayout header = Ui.row(this);
+            header.addView(logo);
+            header.addView(brand, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 14), 0, 0, 0));
+            header.addView(new View(this), Ui.lp(0, 1, 1f));
+            header.addView(chip);
+            header.addView(settings, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 16), 0, 0, 0));
+            add(col, header, 0);
+        } else {
+            LinearLayout header = Ui.column(this);
+            LinearLayout top = Ui.row(this);
+            top.addView(logo);
+            top.addView(brand, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+            top.addView(new View(this), Ui.lp(0, 1, 1f));
+            top.addView(settings);
+            header.addView(top);
+            header.addView(chip, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
+            add(col, header, 0);
+        }
 
         // Hero
-        LinearLayout hero = Ui.row(this);
+        LinearLayout hero = isTv ? Ui.row(this) : Ui.column(this);
+        if (!isTv) hero.setGravity(Gravity.CENTER_HORIZONTAL);
         GradientDrawable heroBg = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 new int[]{
@@ -348,51 +406,69 @@ public class MainActivity extends Activity {
                         Ui.mix(Ui.SURFACE_CONTAINER, Ui.BG, 0.35f),
                         Ui.mix(Ui.BG, Ui.TERTIARY_CONTAINER, 0.30f)
                 });
-        heroBg.setCornerRadius(Ui.dp(this, 32));
+        heroBg.setCornerRadius(Ui.dp(this, isTv ? 32 : 24));
         heroBg.setStroke(Ui.dp(this, 1), Ui.withAlpha(Ui.PRIMARY, 0x55));
         hero.setBackground(heroBg);
-        hero.setPadding(Ui.dp(this, 34), Ui.dp(this, 28), Ui.dp(this, 34), Ui.dp(this, 28));
+        int heroPad = isTv ? 34 : 20;
+        hero.setPadding(Ui.dp(this, heroPad), Ui.dp(this, isTv ? 28 : 18),
+                Ui.dp(this, heroPad), Ui.dp(this, isTv ? 28 : 18));
 
         shield = new ShieldView(this);
-        shield.setLayoutParams(Ui.lp(Ui.dp(this, 152), Ui.dp(this, 152)));
+        int shieldSize = isTv ? 152 : 88;
+        shield.setLayoutParams(Ui.lp(Ui.dp(this, shieldSize), Ui.dp(this, shieldSize)));
         hero.addView(shield);
 
         LinearLayout heroText = Ui.column(this);
         heroText.addView(Ui.caption(this, "PROTECTION"));
-        heroTitle = Ui.text(this, "", 32, Ui.TEXT, true);
+        heroTitle = Ui.text(this, "", isTv ? 32 : 26, Ui.TEXT, true);
         heroTitle.setLetterSpacing(-0.01f);
         heroText.addView(heroTitle, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 6), 0, 0));
-        heroSub = Ui.text(this, "", 14, Ui.DIM, false);
-        heroSub.setLineSpacing(Ui.dp(this, 4), 1f);
-        heroSub.setMaxWidth(Ui.dp(this, 760));
+        heroSub = Ui.text(this, "", isTv ? 14 : 13, Ui.DIM, false);
+        heroSub.setLineSpacing(Ui.dp(this, isTv ? 4 : 3), 1f);
+        if (isTv) heroSub.setMaxWidth(Ui.dp(this, 760));
         heroText.addView(heroSub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
 
-        LinearLayout heroButtons = Ui.row(this);
+        LinearLayout heroButtons = isTv ? Ui.row(this) : Ui.column(this);
         TextView primary = Ui.button(this, "", true);
         primaryLabel = primary;
         primary.setOnClickListener(v -> toggleProtection());
-        heroButtons.addView(primary);
         TextView setup = Ui.button(this, "Open Pi-hole", false);
         setup.setOnClickListener(v -> show(Screen.PIHOLE));
-        heroButtons.addView(setup, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 12), 0, 0, 0));
-        heroText.addView(heroButtons, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 18), 0, 0));
-        hero.addView(heroText, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-                Ui.dp(this, 28), 0, 0, 0));
-        add(col, hero, 22);
+        if (isTv) {
+            heroButtons.addView(primary);
+            heroButtons.addView(setup, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 12), 0, 0, 0));
+        } else {
+            heroButtons.addView(primary, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            heroButtons.addView(setup, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
+        }
+        heroText.addView(heroButtons, Ui.margins(Ui.lp(isTv
+                        ? ViewGroup.LayoutParams.WRAP_CONTENT
+                        : ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, isTv ? 18 : 14), 0, 0));
+        if (isTv) {
+            hero.addView(heroText, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                    Ui.dp(this, 28), 0, 0, 0));
+        } else {
+            hero.addView(heroText, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 14), 0, 0));
+        }
+        add(col, hero, isTv ? 22 : 16);
         initialFocus = primary;
 
         addPrivateDnsWarning(col);
 
         // Stats row
         LinearLayout stats = Ui.row(this);
-        statQueries = statCard(stats, "DNS QUERIES", "today, all clients");
+        statQueries = statCard(stats, isTv ? "DNS QUERIES" : "QUERIES",
+                "today, all clients");
         statBlocked = statCard(stats, "BLOCKED", "by gravity & rules");
         statRate = statCard(stats, "BLOCK RATE", "of all lookups");
-        add(col, stats, 18);
+        add(col, stats, isTv ? 18 : 14);
 
         // Pi-hole card
         LinearLayout net = card(22);
@@ -404,16 +480,16 @@ public class MainActivity extends Activity {
         open.setOnClickListener(v -> show(Screen.PIHOLE));
         netHead.addView(open);
         net.addView(netHead);
-        netTitle = Ui.text(this, "", 22, Ui.TEXT, true);
+        netTitle = Ui.text(this, "", isTv ? 22 : 20, Ui.TEXT, true);
         net.addView(netTitle, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
-        netDetail = Ui.text(this, "", 14, Ui.DIM, false);
+        netDetail = Ui.text(this, "", isTv ? 14 : 13, Ui.DIM, false);
         net.addView(netDetail, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 5), 0, 0));
-        netHint = Ui.text(this, "", 12, Ui.FAINT, false);
+        netHint = Ui.text(this, "", isTv ? 12 : 11, Ui.FAINT, false);
         net.addView(netHint, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 4), 0, 0));
-        add(col, net, 18);
+        add(col, net, isTv ? 18 : 14);
 
         // Recently blocked
         LinearLayout recent = card(22);
@@ -428,13 +504,14 @@ public class MainActivity extends Activity {
         recentBox = Ui.column(this);
         recent.addView(recentBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
-        add(col, recent, 18);
+        add(col, recent, isTv ? 18 : 14);
 
-        TextView footer = Ui.text(this,
-                "OK select   ·   ← → move   ·   BACK return   ·   MENU settings",
+        TextView footer = Ui.text(this, isTv
+                        ? "OK select   ·   ← → move   ·   BACK return   ·   MENU settings"
+                        : "Tap a row to change it   ·   BACK returns",
                 11, Ui.FAINT, false);
         footer.setGravity(Gravity.CENTER);
-        add(col, footer, 22);
+        add(col, footer, isTv ? 22 : 18);
 
         updateHomeLive();
         return col;
@@ -452,8 +529,9 @@ public class MainActivity extends Activity {
         LinearLayout warn = Ui.row(this);
         warn.setBackground(Ui.rounded(this, Ui.TERTIARY_CONTAINER, 24, 1,
                 Ui.withAlpha(Ui.TERTIARY, 0x66)));
-        warn.setPadding(Ui.dp(this, 24), Ui.dp(this, 18),
-                Ui.dp(this, 24), Ui.dp(this, 18));
+        int warnPad = isTv ? 24 : 16;
+        warn.setPadding(Ui.dp(this, warnPad), Ui.dp(this, isTv ? 18 : 14),
+                Ui.dp(this, warnPad), Ui.dp(this, isTv ? 18 : 14));
 
         LinearLayout text = Ui.column(this);
         TextView title = Ui.caption(this, "PRIVATE DNS IS ON");
@@ -461,11 +539,11 @@ public class MainActivity extends Activity {
         text.addView(title);
         String name = host == null || host.trim().isEmpty()
                 ? "a private DNS hostname" : host.trim();
-        TextView body = Ui.text(this, "The TV is set to " + name
-                + ". Turn Private DNS off in the TV's network settings; otherwise "
+        TextView body = Ui.text(this, "This device is set to " + name
+                + ". Turn Private DNS off in the device's network settings; otherwise "
                 + "DNS filtering may stop working.", 13, Ui.TEXT, false);
         body.setLineSpacing(Ui.dp(this, 3), 1f);
-        body.setMaxWidth(Ui.dp(this, 1050));
+        if (isTv) body.setMaxWidth(Ui.dp(this, 1050));
         text.addView(body, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 6), 0, 0));
         warn.addView(text);
@@ -475,18 +553,19 @@ public class MainActivity extends Activity {
 
     private TextView statCard(LinearLayout parent, String label, String sub) {
         LinearLayout c = Ui.column(this);
-        c.setBackground(Ui.rounded(this, Ui.CARD, 24, 1, Ui.STROKE));
-        c.setPadding(Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 18));
+        c.setBackground(Ui.rounded(this, Ui.CARD, isTv ? 24 : 20, 1, Ui.STROKE));
+        c.setPadding(Ui.dp(this, isTv ? 24 : 16), Ui.dp(this, isTv ? 20 : 14),
+                Ui.dp(this, isTv ? 24 : 16), Ui.dp(this, isTv ? 18 : 12));
 
         TextView cap = Ui.caption(this, label);
         c.addView(cap);
-        TextView value = Ui.text(this, "0", 34, Ui.TEXT, true);
+        TextView value = Ui.text(this, "0", isTv ? 34 : 26, Ui.TEXT, true);
         c.addView(value, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
-        c.addView(Ui.text(this, sub, 12, Ui.FAINT, false));
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, isTv ? 10 : 7), 0, 0));
+        c.addView(Ui.text(this, sub, isTv ? 12 : 11, Ui.FAINT, false));
 
         LinearLayout.LayoutParams lp = Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        lp.rightMargin = Ui.dp(this, 14);
+        lp.rightMargin = Ui.dp(this, isTv ? 14 : 8);
         if (parent.getChildCount() == 2) lp.rightMargin = 0;
         parent.addView(c, lp);
         return value;
@@ -494,9 +573,10 @@ public class MainActivity extends Activity {
 
     private LinearLayout card(int padding) {
         LinearLayout l = Ui.column(this);
-        l.setBackground(Ui.rounded(this, Ui.CARD, 28, 1, Ui.STROKE));
-        l.setPadding(Ui.dp(this, padding), Ui.dp(this, 22),
-                Ui.dp(this, padding), Ui.dp(this, 22));
+        int p = isTv ? padding : Math.min(18, padding);
+        l.setBackground(Ui.rounded(this, Ui.CARD, isTv ? 28 : 22, 1, Ui.STROKE));
+        l.setPadding(Ui.dp(this, p), Ui.dp(this, isTv ? 22 : 16),
+                Ui.dp(this, p), Ui.dp(this, isTv ? 22 : 16));
         return l;
     }
 
@@ -544,7 +624,7 @@ public class MainActivity extends Activity {
             if (running && !prefs.blockingActive()) {
                 heroTitle.setText("Pi-hole blocking is paused");
             } else if (running) {
-                heroTitle.setText("Pi-hole is filtering this TV");
+                heroTitle.setText("Pi-hole is filtering this device");
             } else if (!prefs.protectionWanted) {
                 heroTitle.setText("Protection is off");
             } else if (vpnConsentNeeded) {
@@ -561,14 +641,14 @@ public class MainActivity extends Activity {
                 heroSub.setText("DNS still resolves through the embedded upstream, but "
                         + "gravity and custom block rules are off until you resume.");
             } else if (running) {
-                heroSub.setText("Every app on this TV uses the built-in Pi-hole. Gravity, "
-                        + "allow/deny rules and the query log run on the TV itself.");
+                heroSub.setText("Every app on this device uses the built-in Pi-hole. Gravity, "
+                        + "allow/deny rules and the query log run on the device itself.");
             } else if (!prefs.protectionWanted) {
                 heroSub.setText("One switch stops ad and tracker DNS lookups for every app, "
                         + "including the home screen. No root needed.");
             } else if (vpnConsentNeeded) {
                 heroSub.setText("Android asks for VPN permission once. It is only used to "
-                        + "filter DNS on this TV; no traffic is forwarded anywhere else.");
+                        + "filter DNS on this device; no traffic is forwarded anywhere else.");
             } else if (!DnsVpnService.lastError.isEmpty()) {
                 heroSub.setText(DnsVpnService.lastError);
             } else {
@@ -588,7 +668,7 @@ public class MainActivity extends Activity {
                 netTitle.setText("Pi-hole blocking is paused");
                 netTitle.setTextColor(Ui.AMBER);
             } else {
-                netTitle.setText("Pi-hole is running on this TV");
+                netTitle.setText("Pi-hole is running on this device");
                 netTitle.setTextColor(Ui.GREEN);
             }
         }
@@ -659,29 +739,39 @@ public class MainActivity extends Activity {
         add(col, subHeader("Pi-hole", "Embedded DNS filter · dashboard · query log"), 0);
 
         LinearLayout status = card(26);
-        piholeTitle = Ui.text(this, "Pi-hole is starting…", 27, Ui.TEXT, true);
+        piholeTitle = Ui.text(this, "Pi-hole is starting…", isTv ? 27 : 24, Ui.TEXT, true);
         status.addView(piholeTitle);
-        piholeSub = Ui.text(this, "", 13, Ui.DIM, false);
+        piholeSub = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
         status.addView(piholeSub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 5), 0, 0));
-        piholeError = Ui.text(this, "", 12, Ui.AMBER, false);
+        piholeError = Ui.text(this, "", isTv ? 12 : 11.5f, Ui.AMBER, false);
         piholeError.setLineSpacing(Ui.dp(this, 3), 1f);
         status.addView(piholeError, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
-        piholeServer = Ui.text(this, "", 13, Ui.DIM, false);
+        piholeServer = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
         piholeServer.setLineSpacing(Ui.dp(this, 4), 1f);
         status.addView(piholeServer, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
-        add(col, status, 20);
+        add(col, status, isTv ? 20 : 14);
 
-        LinearLayout stats = Ui.row(this);
-        piholeQ = statCard(stats, "QUERIES", "today, all clients");
-        piholeB = statCard(stats, "BLOCKED", "gravity & rules");
-        piholePct = statCard(stats, "PERCENT", "of all queries");
-        piholeGravity = statCard(stats, "ON LISTS", "domains");
-        add(col, stats, 18);
+        if (isTv) {
+            LinearLayout stats = Ui.row(this);
+            piholeQ = statCard(stats, "QUERIES", "today, all clients");
+            piholeB = statCard(stats, "BLOCKED", "gravity & rules");
+            piholePct = statCard(stats, "PERCENT", "of all queries");
+            piholeGravity = statCard(stats, "ON LISTS", "domains");
+            add(col, stats, 18);
+        } else {
+            LinearLayout stats1 = Ui.row(this);
+            piholeQ = statCard(stats1, "QUERIES", "today, all clients");
+            piholeB = statCard(stats1, "BLOCKED", "gravity & rules");
+            add(col, stats1, 14);
+            LinearLayout stats2 = Ui.row(this);
+            piholePct = statCard(stats2, "PERCENT", "of all queries");
+            piholeGravity = statCard(stats2, "ON LISTS", "domains");
+            add(col, stats2, 8);
+        }
 
-        LinearLayout actions = Ui.row(this);
         TextView pause5 = Ui.button(this, "Pause 5 min", false);
         pause5.setOnClickListener(v -> setPiholeBlocking(false, 300));
         TextView pause30 = Ui.button(this, "Pause 30 min", false);
@@ -692,16 +782,35 @@ public class MainActivity extends Activity {
         resume.setOnClickListener(v -> setPiholeBlocking(true, 0));
         TextView update = Ui.button(this, "Update gravity", false);
         update.setOnClickListener(v -> updateBlocklist());
-        actions.addView(pause5);
-        actions.addView(pause30, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
-        actions.addView(pause, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
-        actions.addView(resume, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
-        actions.addView(update, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
-        add(col, actions, 18);
+        if (isTv) {
+            LinearLayout actions = Ui.row(this);
+            actions.addView(pause5);
+            actions.addView(pause30, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+            actions.addView(pause, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+            actions.addView(resume, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+            actions.addView(update, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+            add(col, actions, 18);
+        } else {
+            LinearLayout actions = Ui.column(this);
+            LinearLayout first = Ui.row(this);
+            first.addView(pause5);
+            first.addView(pause30, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+            actions.addView(first);
+            LinearLayout second = Ui.row(this);
+            second.addView(pause);
+            second.addView(resume, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+            actions.addView(second, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+            actions.addView(update, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+            add(col, actions, 14);
+        }
         initialFocus = pause5;
 
         LinearLayout top = card(22);
@@ -709,41 +818,52 @@ public class MainActivity extends Activity {
         piholeTopBox = Ui.column(this);
         top.addView(piholeTopBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
-        add(col, top, 18);
+        add(col, top, isTv ? 18 : 14);
 
         LinearLayout clients = card(22);
         clients.addView(Ui.caption(this, "TOP CLIENTS"));
         piholeClientBox = Ui.column(this);
         clients.addView(piholeClientBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
-        add(col, clients, 18);
+        add(col, clients, isTv ? 18 : 14);
 
         LinearLayout help = card(22);
         help.addView(Ui.caption(this, "EMBEDDED SERVER"));
-        TextView body = Ui.text(this, "The TV filters its own DNS through the VPN on port 53. "
+        TextView body = Ui.text(this, "This device filters its own DNS through the VPN on port 53. "
                 + "The dashboard and API listen on the web port, and other devices can use "
                 + "the LAN DNS port. Android does not allow an unrooted app to bind port 53, "
                 + "so LAN clients must use the high port shown above. Allow rules always win "
                 + "over block rules. Pausing stops gravity and custom blocks for every client "
                 + "but keeps DNS resolving.", 13, Ui.DIM, false);
-        body.setLineSpacing(Ui.dp(this, 4), 1f);
+        body.setLineSpacing(Ui.dp(this, isTv ? 4 : 3), 1f);
         help.addView(body, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
-        LinearLayout buttons = Ui.row(this);
+        LinearLayout buttons = isTv ? Ui.row(this) : Ui.column(this);
         TextView rules = Ui.button(this, "Add a rule", false);
         rules.setOnClickListener(v -> show(Screen.LISTS));
-        buttons.addView(rules);
         TextView log = Ui.button(this, "Query log", false);
         log.setOnClickListener(v -> show(Screen.LOG));
-        buttons.addView(log, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
         TextView edit = Ui.button(this, "Settings", false);
         edit.setOnClickListener(v -> show(Screen.SETTINGS));
-        buttons.addView(edit, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
-        help.addView(buttons, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+        if (isTv) {
+            buttons.addView(rules);
+            buttons.addView(log, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+            buttons.addView(edit, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+        } else {
+            buttons.addView(rules, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            buttons.addView(log, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+            buttons.addView(edit, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+        }
+        help.addView(buttons, Ui.margins(Ui.lp(isTv
+                        ? ViewGroup.LayoutParams.WRAP_CONTENT
+                        : ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 16), 0, 0));
-        add(col, help, 18);
+        add(col, help, isTv ? 18 : 14);
 
         updatePiholeLive();
         return col;
@@ -913,22 +1033,24 @@ public class MainActivity extends Activity {
         LinearLayout top = Ui.row(this);
         LinearLayout left = Ui.column(this);
         left.addView(Ui.caption(this, "GRAVITY"));
-        listCount = Ui.text(this, Ui.count(Blocklist.blockedCount()) + " domains", 30, Ui.TEXT, true);
+        listCount = Ui.text(this, Ui.count(Blocklist.blockedCount()) + " domains",
+                isTv ? 30 : 26, Ui.TEXT, true);
         left.addView(listCount, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 6), 0, 0));
-        listUpdated = Ui.text(this, "updated " + Ui.ago(prefs.lastUpdate), 12, Ui.FAINT, false);
+        listUpdated = Ui.text(this, "updated " + Ui.ago(prefs.lastUpdate),
+                isTv ? 12 : 11.5f, Ui.FAINT, false);
         left.addView(listUpdated);
         top.addView(left, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView update = Ui.button(this, "Update now", true);
         update.setOnClickListener(v -> updateBlocklist());
         top.addView(update);
         summary.addView(top);
-        add(col, summary, 20);
+        add(col, summary, isTv ? 20 : 14);
         initialFocus = update;
 
         LinearLayout rows = Ui.column(this);
         rows.addView(settingRow("Gravity blocking",
-                "Apply downloaded lists and custom rules on this TV",
+                "Apply downloaded lists and custom rules on this device",
                 prefs.localBlocking ? "On" : "Off", () -> {
                     prefs.localBlocking = !prefs.localBlocking;
                     prefs.save(this);
@@ -974,7 +1096,7 @@ public class MainActivity extends Activity {
                 + "add an exact allow rule. DNS filtering removes most banner, pre-roll and "
                 + "tracker requests. It cannot remove ads served from the same domain as the "
                 + "video, such as YouTube in-stream ads. It also cannot hide the holes left by "
-                + "a blocked request. The downloaded list is stored on the TV; nothing is "
+                + "a blocked request. The downloaded list is stored on the device; nothing is "
                 + "uploaded.", 13, Ui.DIM, false);
         body.setLineSpacing(Ui.dp(this, 4), 1f);
         note.addView(body, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1123,7 +1245,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout logScreen() {
         LinearLayout col = Ui.column(this);
-        add(col, subHeader("Query log", "Newest first · the last 2,000 lookups stay on the TV"), 0);
+        add(col, subHeader("Query log", "Newest first · the last 2,000 lookups stay on the device"), 0);
 
         LinearLayout actions = Ui.row(this);
         TextView clear = Ui.button(this, "Clear log", false);
@@ -1132,7 +1254,7 @@ public class MainActivity extends Activity {
             show(Screen.LOG);
         });
         actions.addView(clear);
-        add(col, actions, 8);
+        add(col, actions, isTv ? 8 : 6);
 
         List<Stats.Entry> entries = Stats.log(200);
         LinearLayout list = card(22);
@@ -1146,34 +1268,65 @@ public class MainActivity extends Activity {
             SimpleDateFormat fmt = new SimpleDateFormat("HH:mm:ss", Locale.US);
             for (int i = 0; i < entries.size(); i++) {
                 Stats.Entry e = entries.get(i);
-                LinearLayout row = Ui.row(this);
-                row.addView(Ui.text(this, fmt.format(new Date(e.at)), 11, Ui.FAINT, false));
                 int color = e.blocked ? Ui.RED : "CACHED".equals(e.status) ? Ui.BLUE
                         : "ERROR".equals(e.status) ? Ui.AMBER : Ui.GREEN;
-                TextView status = Ui.text(this, e.status, 10, color, true);
-                status.setMinWidth(Ui.dp(this, 86));
-                row.addView(status, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
-                TextView name = Ui.text(this, e.domain, 14, Ui.TEXT, false);
-                name.setSingleLine(true);
-                row.addView(name, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-                        Ui.dp(this, 10), 0, 0, 0));
-                row.addView(Ui.text(this, e.typeName(), 10, Ui.FAINT, false));
-                TextView client = Ui.text(this, DnsEngine.clientName(e.client), 10, Ui.FAINT, false);
-                client.setMinWidth(Ui.dp(this, 90));
-                client.setGravity(Gravity.END);
-                row.addView(client, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 12), 0, 0, 0));
-                list.addView(row, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT), 0, i == 0 ? 0 : Ui.dp(this, 8), 0, 0));
+                if (isTv) {
+                    LinearLayout row = Ui.row(this);
+                    row.addView(Ui.text(this, fmt.format(new Date(e.at)), 11, Ui.FAINT, false));
+                    TextView status = Ui.text(this, e.status, 10, color, true);
+                    status.setMinWidth(Ui.dp(this, 86));
+                    row.addView(status, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+                    TextView name = Ui.text(this, e.domain, 14, Ui.TEXT, false);
+                    name.setSingleLine(true);
+                    row.addView(name, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                            Ui.dp(this, 10), 0, 0, 0));
+                    row.addView(Ui.text(this, e.typeName(), 10, Ui.FAINT, false));
+                    TextView client = Ui.text(this, DnsEngine.clientName(e.client),
+                            10, Ui.FAINT, false);
+                    client.setMinWidth(Ui.dp(this, 90));
+                    client.setGravity(Gravity.END);
+                    row.addView(client, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 12), 0, 0, 0));
+                    list.addView(row, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), 0,
+                            i == 0 ? 0 : Ui.dp(this, 8), 0, 0));
+                } else {
+                    LinearLayout entry = Ui.column(this);
+                    LinearLayout meta = Ui.row(this);
+                    meta.addView(Ui.text(this, fmt.format(new Date(e.at)),
+                            10.5f, Ui.FAINT, false));
+                    TextView status = Ui.text(this, e.status, 9.5f, color, true);
+                    meta.addView(status, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+                    meta.addView(Ui.text(this, e.typeName(), 9.5f, Ui.FAINT, false),
+                            Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+                    meta.addView(new View(this), Ui.lp(0, 1, 1f));
+                    TextView client = Ui.text(this, DnsEngine.clientName(e.client),
+                            9.5f, Ui.FAINT, false);
+                    client.setSingleLine(true);
+                    client.setMaxWidth(Ui.dp(this, 120));
+                    client.setGravity(Gravity.END);
+                    meta.addView(client);
+                    entry.addView(meta);
+                    TextView name = Ui.text(this, e.domain, 14, Ui.TEXT, false);
+                    name.setSingleLine(true);
+                    name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    entry.addView(name, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 4), 0, 0));
+                    list.addView(entry, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), 0,
+                            i == 0 ? 0 : Ui.dp(this, 10), 0, 0));
+                }
             }
         }
-        add(col, list, 20);
+        add(col, list, isTv ? 20 : 14);
 
         TextView note = Ui.text(this, "Counts reset at midnight. The dashboard keeps the same "
                 + "log on its Query log table and exposes it at /api/queries.",
-                12, Ui.FAINT, false);
-        add(col, note, 16);
+                isTv ? 12 : 11.5f, Ui.FAINT, false);
+        add(col, note, isTv ? 16 : 12);
         return col;
     }
 
@@ -1181,22 +1334,24 @@ public class MainActivity extends Activity {
 
     private LinearLayout settingsScreen() {
         LinearLayout col = Ui.column(this);
-        add(col, subHeader("Settings", "D-pad: up/down moves, OK changes"), 0);
+        add(col, subHeader("Settings", isTv
+                ? "D-pad: up/down moves, OK changes"
+                : "Tap a row to change it"), 0);
 
         col.addView(section("PROTECTION"));
         LinearLayout p = Ui.column(this);
-        p.addView(settingRow("Protection", "DNS filtering for every app on this TV",
+        p.addView(settingRow("Protection", "DNS filtering for every app on this device",
                 DnsVpnService.running ? "On" : "Off", () -> {
                     toggleProtection();
                     show(Screen.HOME);
                 }), rowLp(0));
-        p.addView(settingRow("Start at boot", "Resume after the TV restarts",
+        p.addView(settingRow("Start at boot", "Resume after the device restarts",
                 prefs.startOnBoot ? "On" : "Off", () -> {
                     prefs.startOnBoot = !prefs.startOnBoot;
                     prefs.save(this);
                     show(Screen.SETTINGS);
                 }), rowLp(1));
-        p.addView(settingRow("Gravity blocking", "Apply downloaded lists and custom rules on this TV",
+        p.addView(settingRow("Gravity blocking", "Apply downloaded lists and custom rules on this device",
                 prefs.localBlocking ? "On" : "Off", () -> {
                     prefs.localBlocking = !prefs.localBlocking;
                     prefs.save(this);
@@ -1313,7 +1468,8 @@ public class MainActivity extends Activity {
                     restartIfRunning();
                     Ui.toast(this, DnsVpnService.running ? "Restarting…" : "Protection is off");
                 }), rowLp(0));
-        sys.addView(settingRow("About Pi-hole TV", "Version 2.0.0 · Material You · no analytics",
+        sys.addView(settingRow(isTv ? "About Pi-hole TV" : "About Pi-hole",
+                "Version 2.0.0 · Material You · no analytics",
                 "", this::about), rowLp(1));
         add(col, sys, 8);
 
@@ -1330,32 +1486,32 @@ public class MainActivity extends Activity {
     private TextView section(String title) {
         TextView t = Ui.caption(this, title);
         t.setTextSize(11);
-        t.setPadding(0, Ui.dp(this, 20), 0, Ui.dp(this, 8));
+        t.setPadding(0, Ui.dp(this, isTv ? 20 : 14), 0, Ui.dp(this, isTv ? 8 : 6));
         return t;
     }
 
     private LinearLayout settingRow(String title, String subtitle, String value, Runnable action) {
-        LinearLayout r = Ui.focusableCard(this, 20);
+        LinearLayout r = Ui.focusableCard(this, isTv ? 20 : 18);
         r.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout text = Ui.column(this);
-        TextView t = Ui.text(this, title, 16, Ui.TEXT, true);
+        TextView t = Ui.text(this, title, isTv ? 16 : 15, Ui.TEXT, true);
         text.addView(t);
         if (subtitle != null && !subtitle.isEmpty()) {
-            TextView s = Ui.text(this, subtitle, 11.5f, Ui.FAINT, false);
+            TextView s = Ui.text(this, subtitle, isTv ? 11.5f : 11, Ui.FAINT, false);
             text.addView(s, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
         }
         r.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         if (value != null && !value.isEmpty()) {
-            TextView v = Ui.text(this, value, 13, Ui.GREEN, true);
+            TextView v = Ui.text(this, value, isTv ? 13 : 12.5f, Ui.GREEN, true);
             v.setSingleLine(true);
-            v.setMaxWidth(Ui.dp(this, 360));
+            v.setMaxWidth(Ui.dp(this, isTv ? 360 : 200));
             r.addView(v, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 16), 0, 0, 0));
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 16 : 10), 0, 0, 0));
         }
-        TextView arrow = Ui.text(this, "›", 22, Ui.FAINT, false);
+        TextView arrow = Ui.text(this, "›", isTv ? 22 : 20, Ui.FAINT, false);
         r.addView(arrow, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 10 : 6), 0, 0, 0));
         r.setOnClickListener(v -> action.run());
         return r;
     }
@@ -1363,22 +1519,22 @@ public class MainActivity extends Activity {
     private LinearLayout.LayoutParams rowLp(int index) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Ui.dp(this, index == 0 ? 0 : 8);
+        lp.topMargin = Ui.dp(this, index == 0 ? 0 : isTv ? 8 : 6);
         return lp;
     }
 
     private LinearLayout subHeader(String title, String subtitle) {
         LinearLayout head = Ui.row(this);
         TextView back = Ui.button(this, "‹ Back", false);
-        back.setMinWidth(Ui.dp(this, 104));
+        back.setMinWidth(Ui.dp(this, isTv ? 104 : 80));
         back.setOnClickListener(v -> show(Screen.HOME));
         head.addView(back);
         LinearLayout text = Ui.column(this);
-        TextView t = Ui.text(this, title, 28, Ui.TEXT, true);
+        TextView t = Ui.text(this, title, isTv ? 28 : 24, Ui.TEXT, true);
         text.addView(t);
-        text.addView(Ui.text(this, subtitle, 12, Ui.FAINT, false));
+        text.addView(Ui.text(this, subtitle, isTv ? 12 : 11.5f, Ui.FAINT, false));
         head.addView(text, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-                Ui.dp(this, 20), 0, 0, 0));
+                Ui.dp(this, isTv ? 20 : 12), 0, 0, 0));
         return head;
     }
 
@@ -1612,7 +1768,7 @@ public class MainActivity extends Activity {
         if (hosts.isEmpty()) {
             Ui.builder(this)
                     .setTitle("No Pi-hole answered")
-                    .setMessage("Tried pi.hole, common mDNS names, the gateway and the TV's "
+                    .setMessage("Tried pi.hole, common mDNS names, the gateway and the device's "
                             + "current DNS servers on port 80.\n\nIf Pi-hole uses another port "
                             + "or HTTPS, enter its address manually in Settings.")
                     .setPositiveButton("Enter address", (d, w) -> show(Screen.SETTINGS))
@@ -1782,10 +1938,11 @@ public class MainActivity extends Activity {
     }
 
     private void about() {
-        String message = "Pi-hole TV 2.0.0\n\n"
-                + "A self-contained Pi-hole-style DNS filter for Android TV. The app runs "
-                + "the gravity engine, query log, dashboard/API and an optional LAN DNS "
-                + "server. The TV's own DNS is captured through a local, DNS-only VPN.\n\n"
+        String message = (isTv ? "Pi-hole TV 2.0.0" : "Pi-hole 2.0.0") + "\n\n"
+                + "A self-contained Pi-hole-style DNS filter for Android TV and Android "
+                + "phones. The app runs the gravity engine, query log, dashboard/API and "
+                + "an optional LAN DNS server. This device's own DNS is captured through "
+                + "a local, DNS-only VPN.\n\n"
                 + "No analytics, no accounts. The only network traffic is DNS, gravity "
                 + "downloads, and dashboard requests on your LAN.\n\n"
                 + "Limits: Android blocks port 53 for unrooted apps, so other devices must "

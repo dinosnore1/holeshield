@@ -245,7 +245,7 @@ final class WebServer {
         if ("info/version".equals(rest)) {
             JSONObject o = new JSONObject();
             o.put("version", "2.0.0");
-            o.put("name", "Pi-hole TV");
+            o.put("name", Device.appName(context));
             o.put("api", "v6-subset");
             sendJson(out, 200, o.toString());
             return;
@@ -596,13 +596,13 @@ final class WebServer {
     private JSONObject info(Prefs p) throws Exception {
         JSONObject root = new JSONObject();
         JSONObject h = new JSONObject();
-        h.put("hostname", "Pi-hole TV");
+        h.put("hostname", Device.appName(context));
         h.put("ip", host == null ? NetInfo.lanIpv4(context) : host.lanIp());
         h.put("web_port", p.webPort);
         h.put("lan_dns_port", p.lanDnsPort);
         h.put("lan_dns_running", host != null && host.lanRunning());
         h.put("lan_dns_error", host == null ? "" : host.lanError());
-        h.put("lan_dns_note", "Port 53 needs root; use the high port on this TV.");
+        h.put("lan_dns_note", "Port 53 needs root; use the high port on this device.");
         h.put("version", "2.0.0");
         h.put("blocking", p.blockingActive());
         h.put("web_password", !(p.webPassword == null || p.webPassword.isEmpty()));
@@ -908,9 +908,9 @@ final class WebServer {
             while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
             d = new String(b.toByteArray(), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            d = "<!doctype html><meta charset=\"utf-8\"><title>Pi-hole TV</title>"
+            d = "<!doctype html><meta charset=\"utf-8\"><title>Pi-hole</title>"
                     + "<body style=\"font-family:sans-serif;background:#111;color:#eee;"
-                    + "padding:40px\"><h1>Pi-hole TV</h1><p>The dashboard asset is missing.</p>"
+                    + "padding:40px\"><h1>Pi-hole</h1><p>The dashboard asset is missing.</p>"
                     + "<p>API: <a style=\"color:#3c9\" href=\"/api/stats/summary\">"
                     + "/api/stats/summary</a></p></body>";
         }

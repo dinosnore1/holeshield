@@ -186,7 +186,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         final int gen = ++generation;
         try {
             Builder b = new Builder();
-            b.setSession("Pi-hole TV");
+            b.setSession(Device.appName(this));
             b.setMtu(1500);
             b.addAddress(VPN_ADDRESS, 32);
             b.addDnsServer(DNS_ADDRESS);
@@ -415,7 +415,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         NotificationManager nm = getSystemService(NotificationManager.class);
         NotificationChannel ch = new NotificationChannel(
                 CHANNEL, "DNS protection", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("Shows whether Pi-hole TV is filtering this TV's DNS.");
+        ch.setDescription("Shows whether Pi-hole is filtering this device's DNS.");
         ch.setShowBadge(false);
         nm.createNotificationChannel(ch);
     }
@@ -426,7 +426,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Pi-hole TV")
+                .setContentTitle(Device.appName(this))
                 .setContentText(text)
                 .setContentIntent(pi)
                 .setOngoing(true)

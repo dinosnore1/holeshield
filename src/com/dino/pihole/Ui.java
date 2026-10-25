@@ -19,12 +19,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 /**
- * Small helpers for the programmatic, D-pad-first TV UI.
+ * Small helpers for the programmatic, D-pad and touch UI.
  *
  * The colour tokens follow Material 3. On Android 12+ they are taken from the
  * system's dynamic ("Material You") tonal palettes; older devices use a dark
  * Material 3 scheme generated from the Pi-hole green seed colour. The app is
- * deliberately always dark: it is a lean-back TV interface, not a phone app.
+ * deliberately always dark and keeps the same visual language on TV and phone.
  */
 final class Ui {
 
@@ -102,11 +102,18 @@ final class Ui {
 
     private static String paletteKey = "";
 
+    /** Smaller paddings and controls while running on a phone. */
+    static boolean compact = false;
+
     static {
         setFallback();
     }
 
     private Ui() { }
+
+    static void setCompact(boolean on) {
+        compact = on;
+    }
 
     private static void setFallback() {
         PRIMARY = F_PRIMARY;
@@ -160,56 +167,78 @@ final class Ui {
      * differs from the one already applied to this process.
      */
     static boolean init(Context c) {
-        int primary = systemColor(c, "system_accent1_800", F_PRIMARY);
-        int primaryContainer = systemColor(c, "system_accent1_300", F_PRIMARY_CONTAINER);
-        int secondary = systemColor(c, "system_accent2_800", F_SECONDARY);
-        int secondaryContainer = systemColor(c, "system_accent2_300", F_SECONDARY_CONTAINER);
-        int tertiary = systemColor(c, "system_accent3_800", F_TERTIARY);
-        int tertiaryContainer = systemColor(c, "system_accent3_300", F_TERTIARY_CONTAINER);
-        int surface = systemColor(c, "system_neutral1_50", F_SURFACE);
-        int onSurface = systemColor(c, "system_neutral1_900", F_ON_SURFACE);
+        // Keep a dark scheme even when the phone is in light mode. Dynamic
+        // colours are used for the accents; surfaces and text stay on the
+        // fixed dark Material 3 palette so the app always looks like Pi-hole.
+        int primaryLight = systemColor(c, "system_accent1_200", F_PRIMARY);
+        int primaryDark = systemColor(c, "system_accent1_800", F_ON_PRIMARY);
+        int primary = lighter(primaryLight, primaryDark);
+        int onPrimary = darker(primaryLight, primaryDark);
+
+        int secondaryLight = systemColor(c, "system_accent2_200", F_SECONDARY);
+        int secondaryDark = systemColor(c, "system_accent2_800", F_ON_SECONDARY);
+        int secondary = lighter(secondaryLight, secondaryDark);
+        int onSecondary = darker(secondaryLight, secondaryDark);
+
+        int tertiaryLight = systemColor(c, "system_accent3_200", F_TERTIARY);
+        int tertiaryDark = systemColor(c, "system_accent3_800", F_ON_TERTIARY);
+        int tertiary = lighter(tertiaryLight, tertiaryDark);
+        int onTertiary = darker(tertiaryLight, tertiaryDark);
+
+        int errorLight = systemColor(c, "system_error_200", F_ERROR);
+        int errorDark = systemColor(c, "system_error_800", F_ON_ERROR);
+        int error = lighter(errorLight, errorDark);
+        int onError = darker(errorLight, errorDark);
+
+        int surface = F_SURFACE;
+        int onSurface = F_ON_SURFACE;
 
         String key = Integer.toHexString(primary) + ':'
                 + Integer.toHexString(secondary) + ':'
                 + Integer.toHexString(tertiary) + ':'
+                + Integer.toHexString(error) + ':'
                 + Integer.toHexString(surface) + ':'
                 + Integer.toHexString(onSurface);
         boolean changed = !key.equals(paletteKey);
 
         PRIMARY = primary;
-        ON_PRIMARY = systemColor(c, "system_accent1_200", F_ON_PRIMARY);
-        PRIMARY_CONTAINER = primaryContainer;
-        ON_PRIMARY_CONTAINER = systemColor(c, "system_accent1_900", F_ON_PRIMARY_CONTAINER);
+        ON_PRIMARY = onPrimary;
+        PRIMARY_CONTAINER = onPrimary;
+        ON_PRIMARY_CONTAINER = primary;
         SECONDARY = secondary;
-        ON_SECONDARY = systemColor(c, "system_accent2_200", F_ON_SECONDARY);
-        SECONDARY_CONTAINER = secondaryContainer;
-        ON_SECONDARY_CONTAINER = systemColor(c, "system_accent2_900", F_ON_SECONDARY_CONTAINER);
+        ON_SECONDARY = onSecondary;
+        SECONDARY_CONTAINER = onSecondary;
+        ON_SECONDARY_CONTAINER = secondary;
         TERTIARY = tertiary;
-        ON_TERTIARY = systemColor(c, "system_accent3_200", F_ON_TERTIARY);
-        TERTIARY_CONTAINER = tertiaryContainer;
-        ON_TERTIARY_CONTAINER = systemColor(c, "system_accent3_900", F_ON_TERTIARY_CONTAINER);
-        ERROR = systemColor(c, "system_error_800", F_ERROR);
-        ON_ERROR = systemColor(c, "system_error_200", F_ON_ERROR);
-        ERROR_CONTAINER = systemColor(c, "system_error_300", F_ERROR_CONTAINER);
-        ON_ERROR_CONTAINER = systemColor(c, "system_error_900", F_ON_ERROR_CONTAINER);
+        ON_TERTIARY = onTertiary;
+        TERTIARY_CONTAINER = onTertiary;
+        ON_TERTIARY_CONTAINER = tertiary;
+        ERROR = error;
+        ON_ERROR = onError;
+        ERROR_CONTAINER = onError;
+        ON_ERROR_CONTAINER = error;
         SURFACE = surface;
         ON_SURFACE = onSurface;
-        SURFACE_VARIANT = systemColor(c, "system_neutral2_300", F_SURFACE_VARIANT);
-        ON_SURFACE_VARIANT = systemColor(c, "system_neutral2_800", F_ON_SURFACE_VARIANT);
-        SURFACE_CONTAINER_LOWEST = mix(surface, Color.BLACK, 0.32f);
-        SURFACE_CONTAINER_LOW = systemColor(c, "system_neutral1_100",
-                mix(surface, Color.WHITE, 0.035f));
-        SURFACE_CONTAINER = systemColor(c, "system_neutral1_100",
-                mix(surface, Color.WHITE, 0.065f));
-        SURFACE_CONTAINER_HIGH = systemColor(c, "system_neutral1_200",
-                mix(surface, Color.WHITE, 0.11f));
-        SURFACE_CONTAINER_HIGHEST = systemColor(c, "system_neutral1_300",
-                mix(surface, Color.WHITE, 0.16f));
-        OUTLINE = systemColor(c, "system_neutral2_600", F_OUTLINE);
-        OUTLINE_VARIANT = systemColor(c, "system_neutral2_300", F_OUTLINE_VARIANT);
+        SURFACE_VARIANT = F_SURFACE_VARIANT;
+        ON_SURFACE_VARIANT = F_ON_SURFACE_VARIANT;
+        SURFACE_CONTAINER_LOWEST = F_SURFACE_LOWEST;
+        SURFACE_CONTAINER_LOW = F_SURFACE_LOW;
+        SURFACE_CONTAINER = F_SURFACE_CONTAINER;
+        SURFACE_CONTAINER_HIGH = F_SURFACE_HIGH;
+        SURFACE_CONTAINER_HIGHEST = F_SURFACE_HIGHEST;
+        OUTLINE = F_OUTLINE;
+        OUTLINE_VARIANT = F_OUTLINE_VARIANT;
         syncAliases();
         paletteKey = key;
         return changed;
+    }
+
+    private static int lighter(int a, int b) {
+        return Color.luminance(a) >= Color.luminance(b) ? a : b;
+    }
+
+    private static int darker(int a, int b) {
+        return Color.luminance(a) <= Color.luminance(b) ? a : b;
     }
 
     private static int systemColor(Context c, String name, int fallback) {
@@ -311,16 +340,21 @@ final class Ui {
         l.setBackground(focusableBg(c, radiusDp));
         l.setFocusable(true);
         l.setClickable(true);
-        l.setPadding(dp(c, 22), dp(c, 16), dp(c, 22), dp(c, 16));
+        int h = compact ? 16 : 22;
+        int v = compact ? 13 : 16;
+        l.setPadding(dp(c, h), dp(c, v), dp(c, h), dp(c, v));
         focusScale(l);
         return l;
     }
 
     static TextView button(Context c, String label, boolean primary) {
-        TextView b = text(c, label, 15, primary ? ON_PRIMARY : PRIMARY, true);
+        TextView b = text(c, label, compact ? 14 : 15,
+                primary ? ON_PRIMARY : PRIMARY, true);
         b.setGravity(Gravity.CENTER);
-        b.setPadding(dp(c, 28), dp(c, 14), dp(c, 28), dp(c, 14));
-        b.setMinWidth(dp(c, 160));
+        int h = compact ? 18 : 28;
+        int v = compact ? 12 : 14;
+        b.setPadding(dp(c, h), dp(c, v), dp(c, h), dp(c, v));
+        b.setMinWidth(dp(c, compact ? 0 : 160));
         b.setFocusable(true);
         b.setClickable(true);
 
@@ -356,10 +390,12 @@ final class Ui {
     }
 
     static TextView chip(Context c) {
-        TextView t = text(c, "", 11, ON_PRIMARY_CONTAINER, true);
+        TextView t = text(c, "", compact ? 10.5f : 11, ON_PRIMARY_CONTAINER, true);
         t.setLetterSpacing(0.12f);
         t.setGravity(Gravity.CENTER);
-        t.setPadding(dp(c, 15), dp(c, 8), dp(c, 15), dp(c, 8));
+        int h = compact ? 12 : 15;
+        int v = compact ? 6 : 8;
+        t.setPadding(dp(c, h), dp(c, v), dp(c, h), dp(c, v));
         t.setBackground(rounded(c, PRIMARY_CONTAINER, 999, 1,
                 withAlpha(PRIMARY, 0x66)));
         return t;
@@ -372,8 +408,8 @@ final class Ui {
     }
 
     static TextView caption(Context c, String value) {
-        TextView t = text(c, value, 12, FAINT, true);
-        t.setLetterSpacing(0.14f);
+        TextView t = text(c, value, compact ? 11 : 12, FAINT, true);
+        t.setLetterSpacing(compact ? 0.12f : 0.14f);
         return t;
     }
 

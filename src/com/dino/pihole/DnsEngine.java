@@ -106,7 +106,7 @@ final class DnsEngine {
                 || VPN_CLIENT6.equals(ip) || VPN_CLIENT6_FULL.equals(ip)
                 || "fd00:111:221::1".equals(ip)
                 || "fd00:111:221:0:0:0:0:1".equals(ip)) {
-            return "this TV";
+            return "this device";
         }
         if ("127.0.0.1".equals(ip) || "::1".equals(ip)
                 || "0:0:0:0:0:0:0:1".equals(ip)) return "localhost";
