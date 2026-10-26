@@ -90,8 +90,8 @@ GOOD TO KNOW
   hostname that bypasses the local filter.
 • The maximum blocklist preset is aggressive. Add an allow rule if a service
   stops working.
-• Hole Shield is an independent app. It is not affiliated with or endorsed by
-  Pi-hole LLC, and it is not a full Pi-hole server.
+• Hole Shield is an independent app and is not affiliated with any other DNS
+  filtering project.
 
 Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
@@ -309,10 +309,9 @@ ID permissions are requested.
 
 ## Compliance notes
 
-- The app name and listing avoid the Pi-hole trademark. Pi-hole is mentioned
-  only as a compatibility reference in the full description ("Pi-hole-style",
-  "not affiliated with Pi-hole LLC"). Do not use Pi-hole logos or imply
-  endorsement.
+- The app name and listing avoid the Pi-hole trademark entirely. Do not use
+  Pi-hole logos or imply endorsement. The README may describe API compatibility
+  for developers, but the Play listing should not.
 - The privacy policy must stay reachable at the URL above for as long as the app
   is listed.
 - Keep the upload keystore and password backed up. Losing the upload key requires
