@@ -1576,7 +1576,10 @@ public class MainActivity extends Activity {
             startService(stop);
             handler.postDelayed(this::updateLive, 400);
         } else {
-            if (!prefs.vpnDisclosureAccepted) {
+            // Show the disclosure before every system VPN consent request,
+            // even if the user accepted it in an earlier session but later
+            // revoked Android's VPN permission.
+            if (!prefs.vpnDisclosureAccepted || VpnService.prepare(this) != null) {
                 showVpnDisclosure();
                 return;
             }

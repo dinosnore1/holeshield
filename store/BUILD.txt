@@ -1,0 +1,50 @@
+Hole Shield — release build record
+==================================
+
+Version:       2.0.0
+versionCode:   3
+Package:       com.dino.holeshield
+Min SDK:       26 (Android 8.0)
+Target SDK:    36 (Android 16)
+Built:         2026-10-26
+
+Artifacts (local, not committed)
+--------------------------------
+build/holeshield.aab
+  SHA-256 a59bbe06b01946f9bd4acd8cc999b03bc37feb3a9d2bad2b899a73985fe7e9cf
+  Size    122 KB
+
+build/universal/universal.apk
+  SHA-256 3ad06bae1ce24f750d5ec091d8d4c5b1af60981efdf8ef066e2ccf2306e70538
+  Size    129 KB
+
+The universal APK is built from the signed AAB and is for sideload testing of
+the exact Play bundle. Upload the AAB, not the universal APK.
+
+Signing
+-------
+Upload keystore: ~/.android/holeshield-upload.jks
+Alias:           upload
+Certificate SHA-256:
+  5A:5B:F8:8C:A9:98:32:EE:E3:74:A5:EC:B4:D8:12:9D:08:61:64:9A:62:74:7C:F5:1D:E2:5E:E4:B9:04:1B:A4
+
+Back up the keystore and ~/.android/holeshield-upload-password.txt. Losing them
+requires a Play App Signing upload-key reset. Play re-signs the delivered app
+with the app-signing key; this upload certificate will not appear in the
+Play-delivered APK.
+
+Build command
+-------------
+./tools/test.sh
+./tools/build-aab.sh
+
+Verified
+--------
+- 70 desktop checks pass.
+- Fresh install on Android 15 emulator: notification permission prompt,
+  in-app VPN disclosure, Android VPN prompt, protection on.
+- Disclosure Cancel leaves protection off and starts no VPN service.
+- Turning protection off and on again with existing system consent does not
+  repeat the disclosure.
+- Foreground service reports type 0x40000000 (specialUse).
+- Dashboard, query log, gravity/rules and stats screens verified.
