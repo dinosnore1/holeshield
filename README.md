@@ -10,6 +10,13 @@ SDK command-line tools.
 
 ![Hole Shield icon](res/drawable/ic_launcher.png)
 
+## Download
+
+The latest prebuilt Android APK and Play AAB are attached to the
+[GitHub release](https://github.com/dinosnore1/pihole-tv/releases/latest).
+This is the new `com.dino.holeshield` package; uninstall the old
+`com.dino.pihole` app before installing it.
+
 - **Package:** `com.dino.holeshield`
 - **Version:** 2.0.0 (`versionCode 3`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
