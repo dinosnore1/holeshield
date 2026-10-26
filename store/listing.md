@@ -15,8 +15,8 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Category | Tools |
 | Tags | DNS, ad blocker, privacy, network, TV |
 | Contact email | `gaganpachory@gmail.com` |
-| Website | `https://dinosnore1.github.io/pihole-tv/` |
-| Privacy policy | `https://dinosnore1.github.io/pihole-tv/privacy.html` |
+| Website | `https://dinosnore1.github.io/holeshield-privacy/` |
+| Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
 | Version | 2.0.0 (`versionCode 3`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
@@ -93,8 +93,8 @@ GOOD TO KNOW
 • Hole Shield is an independent app. It is not affiliated with or endorsed by
   Pi-hole LLC, and it is not a full Pi-hole server.
 
-Source code and direct APK builds: https://github.com/dinosnore1/pihole-tv
-Privacy policy: https://dinosnore1.github.io/pihole-tv/privacy.html
+Website: https://dinosnore1.github.io/holeshield-privacy/
+Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
 ### Release notes (versionCode 3)
@@ -133,7 +133,7 @@ that misrepresents the app. TV screenshots must show the TV layout.
 
 ### Privacy policy
 
-`https://dinosnore1.github.io/pihole-tv/privacy.html`
+`https://dinosnore1.github.io/holeshield-privacy/privacy.html`
 
 ### Ads
 
