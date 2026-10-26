@@ -292,7 +292,9 @@ Gravity/rule changes are applied live.
 ## Privacy and security
 
 Hole Shield has no accounts, analytics, ads or crash reporting, and does not
-upload query data. The full policy is in [`docs/privacy.html`](docs/privacy.html).
+upload query data. The full policy is in
+[`docs/privacy.html`](docs/privacy.html) and is published at
+<https://dinosnore1.github.io/holeshield-privacy/privacy.html>.
 
 - DNS queries are resolved on the device against local lists, then forwarded to
   the configured DoH endpoint over HTTPS. If DoH is unavailable, or if plain
@@ -322,9 +324,10 @@ Store text, declarations and asset requirements are collected in
    build to **Closed testing**.
 3. Complete the VpnService declaration (device security/firewall, no remote
    tunnel), the `specialUse` foreground-service declaration, Data safety,
-   content rating, ads declaration and privacy policy URL.
-4. Provide the feature graphic, 512×512 icon, phone screenshots and TV
-   screenshots/banner.
+   content rating, ads declaration and the public privacy policy URL.
+4. Provide the feature graphic, 512×512 icon, phone screenshots, TV
+   screenshots/banner and the two unlisted VPN declaration videos in
+   `store/videos/`.
 5. Keep at least 12 testers opted in for 14 continuous days, then apply for
    production access.
 
