@@ -231,12 +231,11 @@ Play Console → **App content → VPN**.
 - Consent: the disclosure has **Agree and continue** and **Cancel**; agreeing
   then opens Android's system VPN prompt. Consent is not bundled with other
   terms.
-- Demo videos: record two short unlisted YouTube videos:
-  1. First run: tap **Turn on protection** → in-app disclosure → **Agree and
-     continue** → Android VPN prompt → approve → protection on.
-  2. The disclosure text itself, scrolled if needed, plus **Settings → VPN
-     disclosure** or the same first-run flow to show how consent can be
-     reviewed. Show that Cancel returns without enabling the VPN.
+- Demo videos: upload `store/videos/01-vpn-consent.mp4` and
+  `store/videos/02-vpn-cancel.mp4` to YouTube as **Unlisted**, then paste the
+  links into the declaration. The first shows the first-run disclosure, Agree,
+  the Android VPN prompt, and protection turning on. The second shows the same
+  disclosure with Cancel, which leaves protection off and starts no VPN service.
 
 Suggested declaration text:
 
