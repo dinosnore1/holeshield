@@ -41,10 +41,12 @@ Build command
 Verified
 --------
 - 70 desktop checks pass.
-- Fresh install on Android 15 emulator: notification permission prompt,
-  in-app VPN disclosure, Android VPN prompt, protection on.
+- Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
+  notification permission prompt, in-app VPN disclosure, Android VPN prompt,
+  protection on.
 - Disclosure Cancel leaves protection off and starts no VPN service.
 - Turning protection off and on again with existing system consent does not
   repeat the disclosure.
-- Foreground service reports type 0x40000000 (specialUse).
+- Foreground service reports type 0x40000000 (specialUse) on API 35 and 36.
+- Start at boot resumes protection on API 35 and API 36.
 - Dashboard, query log, gravity/rules and stats screens verified.

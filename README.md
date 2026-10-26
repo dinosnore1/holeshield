@@ -394,8 +394,8 @@ The app has been exercised on:
   `192.168.1.19`;
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
-- a clean Android 15 / API 35 emulator (1080×1920) for the current `2.0.0`
-  build and the Play screenshots.
+- clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
+  the current `2.0.0` build and the Play screenshots.
 
 Verified across these devices:
 
@@ -417,7 +417,7 @@ Current `2.0.0` build extras verified on the TV with the signed AAB test APK:
 - dashboard host shows `Hole Shield TV`, LAN DNS on 5354, blocking on;
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 
-Current `2.0.0` phone checks on the Android 15 emulator:
+Current `2.0.0` phone checks on the Android 15 and Android 16 emulators:
 
 - notification permission prompt; denying it does not crash the app;
 - first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;
@@ -425,7 +425,9 @@ Current `2.0.0` phone checks on the Android 15 emulator:
 - turning protection off and on again with existing Android consent does not
   repeat the disclosure;
 - `specialUse` foreground service (`types=0x40000000`);
-- edge-to-edge layout on API 35, 1080×1920 portrait;
+- edge-to-edge layout on API 35 and API 36, 1080×1920 portrait;
+- start at boot resumes protection and the `specialUse` service on both API
+  levels;
 - dashboard, query log, gravity/rules and stats screens.
 
 `PiholeClient` is retained only as legacy source; the active UI and resolver use
