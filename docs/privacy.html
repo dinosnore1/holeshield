@@ -50,7 +50,7 @@
     <div class="mark" aria-hidden="true">H</div>
     <h1>Hole Shield — Privacy Policy</h1>
   </header>
-  <p class="meta">Effective 26 October 2026 · Applies to Hole Shield and Hole Shield TV for Android</p>
+  <p class="meta">Effective 26 October 2026 · Applies to Hole Shield for Android, Android TV, iPhone and iPad</p>
 
   <div class="card">
     <strong>Short version:</strong> Hole Shield filters DNS on your device. It has no
@@ -67,23 +67,26 @@
 
   <h2>2. How the app works</h2>
   <p>
-    Hole Shield uses Android's <code>VpnService</code> API to create a local,
-    DNS-only VPN on your device. The VPN does not connect to a remote VPN server
-    operated by us and does not carry your browsing, video, downloads or general
-    network traffic. Android routes DNS lookups through the app so they can be
-    checked against blocklists before they are resolved.
+    On Android, Hole Shield uses the <code>VpnService</code> API to create a
+    local, DNS-only VPN on your device. On iPhone and iPad it uses Apple's Network
+    Extension (<code>NEDNSProxyProvider</code>) as a local DNS proxy. Neither mode
+    connects to a remote VPN server operated by us, and neither carries your
+    browsing, video, downloads or general network traffic. The operating system
+    routes DNS lookups through the app so they can be checked against blocklists
+    before they are resolved.
   </p>
 
   <h2>3. Information the app processes on your device</h2>
   <ul>
     <li><strong>DNS queries and answers.</strong> Domain names, query types, response
       codes and timestamps are processed locally so lists and rules can be applied.
-      A local query log (domain, time and client address) and counters are stored in
-      the app's private storage. You can clear them from the app or by clearing app
+      A local query log (domain, time and client address or app) and counters are
+      stored in the app's private storage or, on iOS, in its shared App Group
+      container. You can clear them from the app or by clearing app
       data.</li>
     <li><strong>Settings and rules.</strong> Your preferences, allow/deny rules,
       blocklist URLs, web password and pause state are stored in the app's private
-      storage.</li>
+      storage or, on iOS, in its shared App Group container.</li>
     <li><strong>Network information.</strong> The app reads the device's local IP
       address to show the dashboard/LAN DNS address. This information is not sent
       to us.</li>
@@ -123,6 +126,11 @@
     encrypted. Enable these features only on a network you trust.
   </p>
   <p>
+    On iPhone and iPad, the dashboard and LAN DNS listener run only while the app
+    is in the foreground. They stop when iOS suspends the app. The DNS proxy
+    continues filtering after the app is suspended.
+  </p>
+  <p>
     When the dashboard is enabled, the app stores the web password in private
     preferences. It is not encrypted at rest.
   </p>
@@ -131,13 +139,18 @@
   <ul>
     <li><strong>Internet / network state:</strong> download blocklists and resolve
       DNS queries.</li>
-    <li><strong>VpnService (BIND_VPN_SERVICE):</strong> run the local DNS-only VPN.</li>
-    <li><strong>Foreground service:</strong> keep filtering active while the app is
-      in the background, with an ongoing notification.</li>
+    <li><strong>VpnService (BIND_VPN_SERVICE):</strong> run the local DNS-only VPN
+      on Android.</li>
+    <li><strong>Network Extension (DNS proxy):</strong> run the local DNS filter
+      on iPhone and iPad.</li>
+    <li><strong>Foreground service:</strong> keep filtering active while the
+      Android app is in the background, with an ongoing notification.</li>
     <li><strong>Notifications:</strong> show the required foreground-service
-      notification and show protection status.</li>
+      notification and show protection status on Android.</li>
     <li><strong>Receive boot completed:</strong> optionally resume protection after
-      a restart, if you enabled "Start at boot".</li>
+      a restart on Android, if you enabled "Start at boot".</li>
+    <li><strong>Local Network (iOS):</strong> optionally serve the dashboard or
+      LAN DNS listener to devices on your Wi-Fi while the app is open.</li>
   </ul>
 
   <h2>7. Data sharing and sale</h2>
@@ -153,16 +166,18 @@
     Query history, settings and rules remain on your device until you clear them in
     the app, clear the app's storage, or uninstall the app. Because we never receive
     this data, there is nothing for us to delete on a server. To remove all app
-    data, uninstall Hole Shield or use Android's
-    <em>Settings → Apps → Hole Shield → Storage → Clear storage</em>.
+    data, uninstall Hole Shield, use Android's
+    <em>Settings → Apps → Hole Shield → Storage → Clear storage</em>, or use
+    <em>Reset local data</em> in the iOS app's Settings screen.
   </p>
 
   <h2>9. Security</h2>
   <p>
-    App data is kept in Android's private app storage. Blocklist downloads and DoH
-    queries use HTTPS. The local dashboard uses HTTP and is disabled by default. No
-    method of storage or transmission is completely secure, and a rooted device or
-    full backup can expose app data.
+    App data is kept in the app's private storage on Android and in its shared
+    App Group container on iOS. Blocklist downloads and DoH queries use HTTPS. The
+    local dashboard uses HTTP and is disabled by default. No method of storage or
+    transmission is completely secure, and a rooted or jailbroken device or a full
+    backup can expose app data.
   </p>
 
   <h2>10. Children</h2>
