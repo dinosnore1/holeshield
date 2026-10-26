@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -28,7 +28,7 @@ import java.util.Set;
 /** Pi-hole-style counters and a bounded, persisted query log. */
 final class Stats {
 
-    private static final String FILE = "pihole_tv_stats";
+    private static final String FILE = "holeshield_stats";
     private static final String RECENT_KEY = "recent";
     private static final String LOG_FILE = "query_log.tsv";
     private static final int RECENT_MAX = 40;

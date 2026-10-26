@@ -1,5 +1,6 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
@@ -7,8 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Insets;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.LinkProperties;
@@ -16,6 +19,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.RouteInfo;
 import android.net.VpnService;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,6 +30,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -58,6 +63,7 @@ public class MainActivity extends Activity {
     private enum Screen { HOME, SETTINGS, LISTS, PIHOLE, LOG }
 
     private static final int REQ_VPN = 41;
+    private static final int REQ_NOTIFICATION = 42;
 
     private Prefs prefs;
     private boolean isTv;
@@ -151,6 +157,7 @@ public class MainActivity extends Activity {
         immersive();
         setContentView(createShell());
         show(Screen.HOME);
+        requestNotificationPermission();
         if (!DnsVpnService.running && !DnsVpnService.starting) {
             loadGravityAsync();
         }
@@ -203,6 +210,14 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (!isTv && Build.VERSION.SDK_INT >= 35) {
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                Insets bars = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
+                scroll.setPadding(0, bars.top, 0, bars.bottom);
+                return insets;
+            });
+        }
         return root;
     }
 
@@ -231,7 +246,11 @@ public class MainActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         IntentFilter f = new IntentFilter(DnsVpnService.ACTION_STATE);
-        registerReceiver(stateReceiver, f);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(stateReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(stateReceiver, f);
+        }
     }
 
     @Override protected void onStop() {
@@ -359,7 +378,7 @@ public class MainActivity extends Activity {
         logo.setLayoutParams(Ui.lp(Ui.dp(this, isTv ? 42 : 36),
                 Ui.dp(this, isTv ? 42 : 36)));
         LinearLayout brand = Ui.column(this);
-        TextView name = Ui.text(this, isTv ? "PI-HOLE TV" : "PI-HOLE",
+        TextView name = Ui.text(this, isTv ? "HOLE SHIELD TV" : "HOLE SHIELD",
                 isTv ? 19 : 17, Ui.TEXT, true);
         name.setLetterSpacing(0.10f);
         brand.addView(name);
@@ -434,7 +453,7 @@ public class MainActivity extends Activity {
         TextView primary = Ui.button(this, "", true);
         primaryLabel = primary;
         primary.setOnClickListener(v -> toggleProtection());
-        TextView setup = Ui.button(this, "Open Pi-hole", false);
+        TextView setup = Ui.button(this, "Open server", false);
         setup.setOnClickListener(v -> show(Screen.PIHOLE));
         if (isTv) {
             heroButtons.addView(primary);
@@ -473,7 +492,7 @@ public class MainActivity extends Activity {
         // Pi-hole card
         LinearLayout net = card(22);
         LinearLayout netHead = Ui.row(this);
-        netHead.addView(Ui.caption(this, "BUILT-IN PI-HOLE"));
+        netHead.addView(Ui.caption(this, "BUILT-IN FILTER"));
         netHead.addView(new View(this), Ui.lp(0, 1, 1f));
         TextView open = Ui.button(this, "Open", false);
         open.setMinWidth(Ui.dp(this, 96));
@@ -622,9 +641,9 @@ public class MainActivity extends Activity {
 
         if (heroTitle != null) {
             if (running && !prefs.blockingActive()) {
-                heroTitle.setText("Pi-hole blocking is paused");
+                heroTitle.setText("Blocking is paused");
             } else if (running) {
-                heroTitle.setText("Pi-hole is filtering this device");
+                heroTitle.setText("Hole Shield is filtering this device");
             } else if (!prefs.protectionWanted) {
                 heroTitle.setText("Protection is off");
             } else if (vpnConsentNeeded) {
@@ -641,7 +660,7 @@ public class MainActivity extends Activity {
                 heroSub.setText("DNS still resolves through the embedded upstream, but "
                         + "gravity and custom block rules are off until you resume.");
             } else if (running) {
-                heroSub.setText("Every app on this device uses the built-in Pi-hole. Gravity, "
+                heroSub.setText("Every app on this device uses the built-in filter. Gravity, "
                         + "allow/deny rules and the query log run on the device itself.");
             } else if (!prefs.protectionWanted) {
                 heroSub.setText("One switch stops ad and tracker DNS lookups for every app, "
@@ -662,13 +681,13 @@ public class MainActivity extends Activity {
 
         if (netTitle != null) {
             if (!running) {
-                netTitle.setText("Built-in Pi-hole is off");
+                netTitle.setText("Built-in filter is off");
                 netTitle.setTextColor(Ui.DIM);
             } else if (!prefs.blockingActive()) {
-                netTitle.setText("Pi-hole blocking is paused");
+                netTitle.setText("Blocking is paused");
                 netTitle.setTextColor(Ui.AMBER);
             } else {
-                netTitle.setText("Pi-hole is running on this device");
+                netTitle.setText("Hole Shield is running on this device");
                 netTitle.setTextColor(Ui.GREEN);
             }
         }
@@ -736,10 +755,10 @@ public class MainActivity extends Activity {
 
     private LinearLayout piholeScreen() {
         LinearLayout col = Ui.column(this);
-        add(col, subHeader("Pi-hole", "Embedded DNS filter · dashboard · query log"), 0);
+        add(col, subHeader("Server", "Embedded DNS filter · dashboard · query log"), 0);
 
         LinearLayout status = card(26);
-        piholeTitle = Ui.text(this, "Pi-hole is starting…", isTv ? 27 : 24, Ui.TEXT, true);
+        piholeTitle = Ui.text(this, "Filter is starting…", isTv ? 27 : 24, Ui.TEXT, true);
         status.addView(piholeTitle);
         piholeSub = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
         status.addView(piholeSub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -874,13 +893,13 @@ public class MainActivity extends Activity {
         boolean running = DnsVpnService.running;
         boolean paused = running && !prefs.blockingActive();
         if (!running) {
-            piholeTitle.setText("Pi-hole is off");
+            piholeTitle.setText("Filter is off");
             piholeTitle.setTextColor(Ui.DIM);
         } else if (paused) {
-            piholeTitle.setText("Pi-hole blocking is paused");
+            piholeTitle.setText("Blocking is paused");
             piholeTitle.setTextColor(Ui.AMBER);
         } else {
-            piholeTitle.setText("Pi-hole is blocking");
+            piholeTitle.setText("Hole Shield is blocking");
             piholeTitle.setTextColor(Ui.GREEN);
         }
 
@@ -995,9 +1014,9 @@ public class MainActivity extends Activity {
         else prefs.pauseBlocking(seconds);
         prefs.save(this);
         reloadService();
-        Ui.toast(this, on ? "Pi-hole blocking resumed"
-                : seconds > 0 ? "Pi-hole paused for " + (seconds / 60) + " min"
-                : "Pi-hole paused until you resume");
+        Ui.toast(this, on ? "Blocking resumed"
+                : seconds > 0 ? "Blocking paused for " + (seconds / 60) + " min"
+                : "Blocking paused until you resume");
         updatePiholeLive();
     }
 
@@ -1027,7 +1046,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout listsScreen() {
         LinearLayout col = Ui.column(this);
-        add(col, subHeader("Gravity & rules", "Pi-hole-style lists, allow/deny and regex"), 0);
+        add(col, subHeader("Gravity & rules", "Blocklist sources, allow/deny and regex"), 0);
 
         LinearLayout summary = card(26);
         LinearLayout top = Ui.row(this);
@@ -1368,7 +1387,7 @@ public class MainActivity extends Activity {
                 }), rowLp(3));
         add(col, p, 8);
 
-        col.addView(section("BUILT-IN PI-HOLE"));
+        col.addView(section("BUILT-IN FILTER"));
         LinearLayout ph = Ui.column(this);
         ph.addView(settingRow("Web dashboard", "Serve the dashboard and API on the LAN",
                 prefs.webEnabled ? "On" : "Off", () -> {
@@ -1420,7 +1439,7 @@ public class MainActivity extends Activity {
                             restartIfRunning();
                             show(Screen.SETTINGS);
                         })), rowLp(4));
-        ph.addView(settingRow("Blocking", "Open the Pi-hole screen to pause or resume",
+        ph.addView(settingRow("Blocking", "Open the server screen to pause or resume",
                 prefs.blockingActive() ? "On" : "Paused", () -> show(Screen.PIHOLE)),
                 rowLp(5));
         add(col, ph, 8);
@@ -1468,14 +1487,14 @@ public class MainActivity extends Activity {
                     restartIfRunning();
                     Ui.toast(this, DnsVpnService.running ? "Restarting…" : "Protection is off");
                 }), rowLp(0));
-        sys.addView(settingRow(isTv ? "About Pi-hole TV" : "About Pi-hole",
+        sys.addView(settingRow(isTv ? "About Hole Shield TV" : "About Hole Shield",
                 "Version 2.0.0 · Material You · no analytics",
                 "", this::about), rowLp(1));
         add(col, sys, 8);
 
         TextView foot = Ui.text(this, "Changing the web/LAN ports, upstream or capture "
                 + "settings restarts the VPN automatically. Port 53 on the LAN needs root; "
-                + "the LAN DNS listener uses the high port shown on the Pi-hole screen.",
+                + "the LAN DNS listener uses the high port shown on the server screen.",
                 12, Ui.FAINT, false);
         add(col, foot, 18);
 
@@ -1557,10 +1576,51 @@ public class MainActivity extends Activity {
             startService(stop);
             handler.postDelayed(this::updateLive, 400);
         } else {
+            if (!prefs.vpnDisclosureAccepted) {
+                showVpnDisclosure();
+                return;
+            }
             prefs.protectionWanted = true;
             prefs.save(this);
             startProtection(true);
             handler.postDelayed(this::updateLive, 600);
+        }
+    }
+
+    private void showVpnDisclosure() {
+        Ui.builder(this)
+                .setTitle("VPN disclosure")
+                .setMessage("Hole Shield uses Android's VpnService to run a local, "
+                        + "DNS-only VPN on this device. It does not connect to a remote "
+                        + "server and does not route your browsing, video or app traffic."
+                        + "\n\nDNS queries are checked on this device against downloaded "
+                        + "blocklists. A local query log (domain, time and client) is kept "
+                        + "on this device for the dashboard and statistics and is never "
+                        + "uploaded. If you enable LAN DNS or the web dashboard, other "
+                        + "devices on your network can query this device."
+                        + "\n\nYou can turn protection off at any time. Tap Agree to "
+                        + "continue to Android's VPN permission prompt.")
+                .setPositiveButton("Agree and continue", (d, w) -> {
+                    prefs = Prefs.load(this);
+                    prefs.vpnDisclosureAccepted = true;
+                    prefs.protectionWanted = true;
+                    prefs.save(this);
+                    startProtection(true);
+                })
+                .setNegativeButton("Cancel", (d, w) -> {
+                    prefs = Prefs.load(this);
+                    prefs.protectionWanted = false;
+                    prefs.save(this);
+                })
+                .show();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    REQ_NOTIFICATION);
         }
     }
 
@@ -1938,8 +1998,8 @@ public class MainActivity extends Activity {
     }
 
     private void about() {
-        String message = (isTv ? "Pi-hole TV 2.0.0" : "Pi-hole 2.0.0") + "\n\n"
-                + "A self-contained Pi-hole-style DNS filter for Android TV and Android "
+        String message = (isTv ? "Hole Shield TV 2.0.0" : "Hole Shield 2.0.0") + "\n\n"
+                + "A self-contained DNS filter for Android TV and Android "
                 + "phones. The app runs the gravity engine, query log, dashboard/API and "
                 + "an optional LAN DNS server. This device's own DNS is captured through "
                 + "a local, DNS-only VPN.\n\n"

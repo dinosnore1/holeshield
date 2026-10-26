@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import org.json.JSONObject;
 

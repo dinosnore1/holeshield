@@ -9,9 +9,9 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 "$JAVA_HOME/bin/javac" -d "$OUT" \
-  src/com/dino/pihole/DnsPacket.java \
-  src/com/dino/pihole/IpPacket.java \
-  src/com/dino/pihole/HostsParser.java \
-  src/com/dino/pihole/Blocklists.java \
+  src/com/dino/holeshield/DnsPacket.java \
+  src/com/dino/holeshield/IpPacket.java \
+  src/com/dino/holeshield/HostsParser.java \
+  src/com/dino/holeshield/Blocklists.java \
   tools/TestDns.java
-"$JAVA_HOME/bin/java" -cp "$OUT" com.dino.pihole.TestDns
+"$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestDns

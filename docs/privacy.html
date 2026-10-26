@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hole Shield — Privacy Policy</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b100d;
+    --surface: #151c18;
+    --text: #dee4de;
+    --muted: #a8b3aa;
+    --accent: #8ed5b2;
+    --line: #2a352e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, #1b2a21 0, var(--bg) 60%);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 22px 80px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .mark {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(#8ed5b2, #005137);
+    display: grid; place-items: center; color: #003b26;
+    font-weight: 800; font-size: 22px;
+  }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0; letter-spacing: -0.02em; }
+  h2 { font-size: 1.15rem; margin: 34px 0 8px; color: var(--accent); }
+  p, li { color: var(--text); }
+  .meta { color: var(--muted); margin: 4px 0 26px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 18px 20px; margin: 20px 0;
+  }
+  .card strong { color: var(--accent); }
+  ul { padding-left: 22px; }
+  a { color: var(--accent); }
+  code { background: #1e2822; padding: 1px 6px; border-radius: 6px; font-size: 0.9em; }
+  footer { border-top: 1px solid var(--line); margin-top: 44px; padding-top: 18px; color: var(--muted); font-size: 0.92rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="mark" aria-hidden="true">H</div>
+    <h1>Hole Shield — Privacy Policy</h1>
+  </header>
+  <p class="meta">Effective 26 October 2026 · Applies to Hole Shield and Hole Shield TV for Android</p>
+
+  <div class="card">
+    <strong>Short version:</strong> Hole Shield filters DNS on your device. It has no
+    accounts, ads, analytics or crash reporting, and the developer does not collect
+    or receive your DNS queries, query history, device identifiers or location.
+    Query history stays in the app's private storage on your device.
+  </div>
+
+  <h2>1. Who we are</h2>
+  <p>
+    Hole Shield is developed and published by an independent developer ("we", "us").
+    Contact: <a href="mailto:gaganpachory@gmail.com">gaganpachory@gmail.com</a>.
+  </p>
+
+  <h2>2. How the app works</h2>
+  <p>
+    Hole Shield uses Android's <code>VpnService</code> API to create a local,
+    DNS-only VPN on your device. The VPN does not connect to a remote VPN server
+    operated by us and does not carry your browsing, video, downloads or general
+    network traffic. Android routes DNS lookups through the app so they can be
+    checked against blocklists before they are resolved.
+  </p>
+
+  <h2>3. Information the app processes on your device</h2>
+  <ul>
+    <li><strong>DNS queries and answers.</strong> Domain names, query types, response
+      codes and timestamps are processed locally so lists and rules can be applied.
+      A local query log (domain, time and client address) and counters are stored in
+      the app's private storage. You can clear them from the app or by clearing app
+      data.</li>
+    <li><strong>Settings and rules.</strong> Your preferences, allow/deny rules,
+      blocklist URLs, web password and pause state are stored in the app's private
+      storage.</li>
+    <li><strong>Network information.</strong> The app reads the device's local IP
+      address to show the dashboard/LAN DNS address. This information is not sent
+      to us.</li>
+    <li><strong>Blocklists.</strong> The app downloads lists from the URLs you or the
+      app's preset specify. The list provider receives the request (including your IP
+      address) directly, as with any download.</li>
+  </ul>
+  <p>
+    This information is not uploaded to us. We have no server that receives it and
+    no ability to read it.
+  </p>
+
+  <h2>4. DNS resolution and third parties</h2>
+  <p>
+    DNS queries that are not blocked are sent to the upstream resolver you choose.
+    By default this is Cloudflare's DNS-over-HTTPS endpoint
+    (<code>https://cloudflare-dns.com/dns-query</code>). If encrypted DNS fails, or
+    if you select plain DNS, queries may be sent unencrypted to a public resolver
+    such as <code>1.1.1.1</code>, <code>8.8.8.8</code> or <code>9.9.9.9</code>.
+  </p>
+  <p>
+    Those resolver operators process the queries under their own privacy policies.
+    We do not receive a copy. You can change the DoH URL or turn the upstream off in
+    Settings.
+  </p>
+  <p>
+    The app does not include advertising SDKs, analytics SDKs, social SDKs or crash
+    reporting SDKs.
+  </p>
+
+  <h2>5. Web dashboard and LAN DNS</h2>
+  <p>
+    The dashboard and LAN DNS listener are <strong>off by default</strong>. If you
+    enable them, other devices on your local network can reach the app over plain
+    HTTP on the configured port (dashboard default 8080, LAN DNS default 5354).
+    Setting a web password restricts dashboard and API access, but traffic is not
+    encrypted. Enable these features only on a network you trust.
+  </p>
+  <p>
+    When the dashboard is enabled, the app stores the web password in private
+    preferences. It is not encrypted at rest.
+  </p>
+
+  <h2>6. Permissions</h2>
+  <ul>
+    <li><strong>Internet / network state:</strong> download blocklists and resolve
+      DNS queries.</li>
+    <li><strong>VpnService (BIND_VPN_SERVICE):</strong> run the local DNS-only VPN.</li>
+    <li><strong>Foreground service:</strong> keep filtering active while the app is
+      in the background, with an ongoing notification.</li>
+    <li><strong>Notifications:</strong> show the required foreground-service
+      notification and show protection status.</li>
+    <li><strong>Receive boot completed:</strong> optionally resume protection after
+      a restart, if you enabled "Start at boot".</li>
+  </ul>
+
+  <h2>7. Data sharing and sale</h2>
+  <p>
+    We do not sell, rent or share personal data. We do not collect personal data
+    from the app. The only network requests the app makes are blocklist downloads
+    and DNS queries to the resolver you configure, plus optional dashboard/LAN DNS
+    traffic on your own network.
+  </p>
+
+  <h2>8. Data retention and deletion</h2>
+  <p>
+    Query history, settings and rules remain on your device until you clear them in
+    the app, clear the app's storage, or uninstall the app. Because we never receive
+    this data, there is nothing for us to delete on a server. To remove all app
+    data, uninstall Hole Shield or use Android's
+    <em>Settings → Apps → Hole Shield → Storage → Clear storage</em>.
+  </p>
+
+  <h2>9. Security</h2>
+  <p>
+    App data is kept in Android's private app storage. Blocklist downloads and DoH
+    queries use HTTPS. The local dashboard uses HTTP and is disabled by default. No
+    method of storage or transmission is completely secure, and a rooted device or
+    full backup can expose app data.
+  </p>
+
+  <h2>10. Children</h2>
+  <p>
+    Hole Shield is a general-purpose network utility and is not directed to children
+    under 13. We do not knowingly collect personal information from children.
+  </p>
+
+  <h2>11. Changes to this policy</h2>
+  <p>
+    If this policy changes, the new version will be posted at this URL with a new
+    effective date. Material changes will also be noted in the app's release notes.
+  </p>
+
+  <h2>12. Contact</h2>
+  <p>
+    Questions about this policy or the app's privacy practices:
+    <a href="mailto:gaganpachory@gmail.com">gaganpachory@gmail.com</a>.
+  </p>
+
+  <footer>
+    Hole Shield · <a href="index.html">home</a> · This page is the privacy policy
+    referenced by the Google Play listing.
+  </footer>
+</main>
+</body>
+</html>

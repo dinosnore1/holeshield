@@ -1,14 +1,20 @@
-# Pi-hole for Android TV and phones
+# Hole Shield for Android TV and phones
 
 A self-contained, Pi-hole-style DNS filter for Android TV, Google TV and Android
-phones. The app runs its own gravity engine, query log, statistics, web
+phones. Hole Shield runs its own gravity engine, query log, statistics, web
 dashboard/API and an optional LAN DNS listener. It also runs a DNS-only VPN on
 the device so every app's lookups are filtered without root.
 
 No Gradle, AndroidX or third-party libraries. Pure Java, built with the Android
 SDK command-line tools.
 
-![Pi-hole TV icon](res/drawable/ic_launcher.png)
+![Hole Shield icon](res/drawable/ic_launcher.png)
+
+- **Package:** `com.dino.holeshield`
+- **Version:** 2.0.0 (`versionCode 3`)
+- **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
+- **Minimum Android:** 8.0 (API 26)
+- **Target/compile SDK:** 36 (Android 16)
 
 ## What it does
 
@@ -42,8 +48,8 @@ SDK command-line tools.
   landscape.
 - **Material You theme.** Dark Material 3 surfaces, tonal cards, pill buttons
   and focus rings. Android 12+ uses the system's dynamic accent colors while the
-  surfaces stay dark; older devices use a matching scheme generated from Pi-hole
-  green.
+  surfaces stay dark; older devices use a matching scheme generated from the
+  Hole Shield green.
 
 ## Design
 
@@ -53,10 +59,12 @@ mode. On TV it preserves D-pad focus states and immersive fullscreen; on phones
 it uses compact spacing, touch-sized controls, visible status/navigation bars and
 a responsive portrait/landscape layout. On Android 12+ the app reads the
 system's dynamic accent colors by resource name; on Android 8–11 it falls back to
-the bundled Pi-hole-green scheme.
+the bundled green scheme.
 
-The launcher label is **Pi-hole TV** on television devices and **Pi-hole** on
-phones. The package and settings are shared, so upgrades keep the same data.
+Hole Shield uses edge-to-edge layout on Android 15+ and pads the content for the
+status bar, navigation bar and keyboard. Android 13+ asks for notification
+permission when the app opens so the ongoing protection notification can be
+shown.
 
 ## Requirements
 
@@ -64,50 +72,59 @@ phones. The package and settings are shared, so upgrades keep the same data.
   newer**.
 - No root. Root is only needed if you want to serve DNS on the standard **port
   53**; unrooted Android cannot bind it, so this app uses **5354** for LAN DNS.
-- To build: JDK 17 and Android SDK platform 30 + build-tools. The build script
-  defaults to `~/Library/Android/sdk` and `/opt/homebrew/opt/openjdk@17`.
+- To build: JDK 17 and Android SDK platform 36 + build-tools 36.x. The build
+  scripts default to `~/Library/Android/sdk` and
+  `/opt/homebrew/opt/openjdk@17`.
 
-## Build and install
+## Build
 
 ```bash
 cd ~/pihole-tv
 ./tools/test.sh          # 70 desktop checks for DNS, packet and list code
-./build.sh               # writes build/pihole.apk
+./build.sh               # writes build/holeshield.apk (sideload signing key)
+./tools/build-aab.sh     # writes build/holeshield.aab (Play upload key) + test APK
 ```
 
-Install over the network or over USB:
+`build.sh` signs with `~/.android/pihole-tv.keystore` (created on first use) and
+is intended for direct APK distribution. `tools/build-aab.sh` signs the Play
+bundle with `~/.android/holeshield-upload.jks`; keep that keystore and the
+password file backed up. The upload key is only an upload identity — Play App
+Signing re-signs the delivered app.
+
+The bundle script also produces `build/universal/universal.apk`, a universal APK
+built from the signed AAB. Use it to test exactly what Play will deliver.
+
+### Install a sideload build
 
 ```bash
 adb connect DEVICE_IP:5555        # wireless debugging/TV; or just use USB
-adb install -r build/pihole.apk
-adb shell am start -n com.dino.pihole/.MainActivity
+adb install -r build/holeshield.apk
+adb shell am start -n com.dino.holeshield/.MainActivity
 ```
 
-The APK is signed with `~/.android/pihole-tv.keystore`, created on the first
-build. This is a sideload build; there is no Play Store package.
-
-**Current build**
-
-- Version: **2.0.0** (`versionCode 2`)
-- APK: `build/pihole.apk` (also `build/pihole-2.0.0.apk`)
-- SHA-256:
-  `dbad61a0129c50bae929ab31b6822b116f8ac87ff5da8e5f39821ee34d885e2b`
+The package changed from `com.dino.pihole` to `com.dino.holeshield`, so Android
+treats this as a new app. Uninstall the old package before installing Hole
+Shield; settings and statistics do not migrate.
 
 ## First run
 
-1. Open **Pi-hole TV** on a television or **Pi-hole** on a phone, then select
-   **Turn on protection**. Approve Android's VPN prompt. This is a one-time
-   permission; boot auto-start uses it afterwards.
-2. In the device's network settings, set **Private DNS** to **Off**. A strict
+1. Open **Hole Shield TV** on a television or **Hole Shield** on a phone, then
+   select **Turn on protection**.
+2. Read the in-app VPN disclosure and tap **Agree and continue**, then approve
+   Android's VPN prompt. This is a one-time permission; boot auto-start uses it
+   afterwards.
+3. Allow notifications when Android asks. The ongoing notification is required
+   for the foreground VPN service.
+4. In the device's network settings, set **Private DNS** to **Off**. A strict
    DoT hostname bypasses the VPN and can break filtering; the app shows an amber
    warning while it is on.
-3. Open the dashboard:
+5. Open the dashboard:
    `http://DEVICE_IP:8080/admin/` (replace with the device's LAN IP).
-4. Optional but recommended: set a **Web password** in the app's Settings
+6. Optional but recommended: set a **Web password** in the app's Settings
    before exposing the dashboard to your LAN.
-5. Run **Update gravity now** to download the maximum preset (about 500k
+7. Run **Update gravity now** to download the maximum preset (about 500k
    deduplicated domains). The first download can take a few minutes.
-6. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
+8. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
    return no address) while `example.com` resolves normally.
 
 On phones, Android shows a VPN key in the status bar while protection is on. The
@@ -201,9 +218,10 @@ compatibility and `gravity.last_update_ms` for the bundled dashboard.
 
 ### Pi-hole compatibility notes
 
-This is a **Pi-hole-style embedded server**, not a full Pi-hole installation.
-The implemented API covers the dashboard, blocking/pause, query log, stats,
-domain rules, lists, gravity and cache. The following are **not** implemented:
+Hole Shield is a **Pi-hole-style embedded server**, not a full Pi-hole
+installation. The implemented API covers the dashboard, blocking/pause, query
+log, stats, domain rules, lists, gravity and cache. The following are **not**
+implemented:
 
 - local DNS records, conditional forwarding, upstream group management;
 - per-client groups and group assignments;
@@ -215,7 +233,7 @@ domain rules, lists, gravity and cache. The following are **not** implemented:
 
 Scripts that only need stats, blocking, rules, lists and query history work.
 If you need full Pi-hole behavior, run Pi-hole on a separate machine and use its
-dashboard/API; this app deliberately remains self-contained.
+dashboard/API; Hole Shield deliberately remains self-contained.
 
 ## LAN DNS
 
@@ -273,10 +291,16 @@ Gravity/rule changes are applied live.
 
 ## Privacy and security
 
-- DNS queries go to the configured DoH endpoint (HTTPS). If DoH is selected but
-  fails, or if plain fallback is selected, they go to plain DNS (`1.1.1.1`,
-  `8.8.8.8`, `9.9.9.9`). Local gravity matching happens on the device.
+Hole Shield has no accounts, analytics, ads or crash reporting, and does not
+upload query data. The full policy is in [`docs/privacy.html`](docs/privacy.html).
+
+- DNS queries are resolved on the device against local lists, then forwarded to
+  the configured DoH endpoint over HTTPS. If DoH is unavailable, or if plain
+  fallback is selected, queries go to plain DNS (`1.1.1.1`, `8.8.8.8`,
+  `9.9.9.9`).
 - Blocklist downloads go only to the URLs you configure.
+- The query log (domain, time, client) and statistics stay on the device. They
+  are never uploaded by the app.
 - The dashboard/API listens on the LAN over **plain HTTP**. There is no TLS.
   Use it only on a trusted LAN. Set a web password if other people or untrusted
   devices share the network.
@@ -284,7 +308,28 @@ Gravity/rule changes are applied live.
   not encrypted at rest. Anyone with root or a full device backup can read it.
 - The VPN is DNS-only. Video, downloads and normal LAN traffic are not routed
   through the app.
-- No analytics, accounts or crash reporting.
+- LAN DNS and the dashboard are off by default. When enabled, other devices on
+  the network can query this device.
+
+## Google Play release
+
+Store text, declarations and asset requirements are collected in
+[`store/listing.md`](store/listing.md). The short version:
+
+1. Create the app in Play Console with the **Hole Shield** name and
+   `com.dino.holeshield` package.
+2. Upload `build/holeshield.aab` to **Internal testing**, then promote the same
+   build to **Closed testing**.
+3. Complete the VpnService declaration (device security/firewall, no remote
+   tunnel), the `specialUse` foreground-service declaration, Data safety,
+   content rating, ads declaration and privacy policy URL.
+4. Provide the feature graphic, 512×512 icon, phone screenshots and TV
+   screenshots/banner.
+5. Keep at least 12 testers opted in for 14 continuous days, then apply for
+   production access.
+
+Play App Signing re-signs the upload; keep the upload keystore safe but do not
+expect its certificate in the Play-delivered APK.
 
 ## Troubleshooting
 
@@ -302,8 +347,8 @@ Gravity/rule changes are applied live.
 ## Project layout
 
 ```
-AndroidManifest.xml          leanback entry, VPN service, boot receiver
-src/com/dino/pihole/
+AndroidManifest.xml          leanback entry, DNS VPN service, boot receiver
+src/com/dino/holeshield/
   MainActivity.java          TV/phone UI, settings, rules, query log
   DnsVpnService.java         device tun lifecycle, packet loop, notification
   DnsEngine.java             allow/gravity/CNAME resolution, logging
@@ -325,7 +370,10 @@ assets/blocklist.txt         bundled seed list
 assets/dashboard.html        responsive web dashboard
 res/drawable/                launcher icon, TV banner, notification icon
 res/values*/                 phone/TV launcher labels and theme colours
+docs/privacy.html            Play-ready privacy policy
+store/                       listing text, declarations and store artwork
 tools/TestDns.java           desktop checks for DNS, packet and list code
+tools/build-aab.sh           signed AAB + universal test APK
 build.sh                     no-Gradle APK build
 ```
 
@@ -337,7 +385,7 @@ from tun packets, blocked A/AAAA/HTTPS replies, answer-address extraction, TTL
 selection, IPv4/IPv6 UDP replies and checksums, address/port swapping, payload
 preservation, hosts/adblock line parsing and blocklist preset merging.
 
-The APK has been exercised on:
+The app has been exercised on:
 
 - a Hisense VU Smart TV (Android 11 / API 30, armeabi-v7a, 1920×1080) at
   `192.168.1.19`;
@@ -357,15 +405,16 @@ Verified on both device types:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Phone-specific checks:
+Current `2.0.0` build extras verified on the TV with the signed AAB test APK:
 
-- USB install and the one-time VPN permission flow;
-- foreground VPN service, notification and automatic restart after relaunch;
-- touch navigation through Home, Settings, Pi-hole, Gravity & rules and Query log;
-- `doubleclick.net`, `googleadservices.com` and `ads.youtube.com` blocked;
-  `example.com` resolves normally;
-- dashboard at `http://PHONE-IP:8080/admin/` and LAN DNS on port 5354;
-- portrait/landscape rebuild without clipping.
+- in-app VPN disclosure before Android's VPN prompt;
+- `specialUse` foreground service starts and stays in the foreground;
+- dashboard host shows `Hole Shield TV`, LAN DNS on 5354, blocking on;
+- `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
+
+Phone-specific checks from the previous build still apply; re-verify the
+notification permission and Android 15+ edge-to-edge layout after reconnecting
+wireless debugging.
 
 `PiholeClient` is retained only as legacy source; the active UI and resolver use
 the embedded engine. An old `usePihole` preference is ignored so upgrades cannot

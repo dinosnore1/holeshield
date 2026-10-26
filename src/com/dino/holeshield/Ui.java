@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import android.app.AlertDialog;
 import android.content.Context;

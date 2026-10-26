@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -6,7 +6,9 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.net.VpnService;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
@@ -25,10 +27,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
 
-    static final String ACTION_STATE = "com.dino.pihole.STATE";
-    static final String ACTION_STOP = "com.dino.pihole.STOP";
-    static final String ACTION_RELOAD = "com.dino.pihole.RELOAD";
-    static final String ACTION_RESTART = "com.dino.pihole.RESTART";
+    static final String ACTION_STATE = "com.dino.holeshield.STATE";
+    static final String ACTION_STOP = "com.dino.holeshield.STOP";
+    static final String ACTION_RELOAD = "com.dino.holeshield.RELOAD";
+    static final String ACTION_RESTART = "com.dino.holeshield.RESTART";
 
     private static final String CHANNEL = "protection";
     private static final int NOTIFICATION_ID = 1;
@@ -136,7 +138,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         if (ACTION_RESTART.equals(action)) {
             prefs = Prefs.load(this);
             teardownTunnel();
-            startForeground(NOTIFICATION_ID, notification("Restarting protection…"));
+            startForegroundCompat(notification("Restarting protection…"));
             startVpn();
             return running ? START_STICKY : START_NOT_STICKY;
         }
@@ -148,7 +150,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
             stopSelf();
             return START_NOT_STICKY;
         }
-        startForeground(NOTIFICATION_ID, notification("Starting protection…"));
+        startForegroundCompat(notification("Starting protection…"));
         if (VpnService.prepare(this) != null) {
             fail("VPN permission is missing");
             return START_NOT_STICKY;
@@ -415,7 +417,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         NotificationManager nm = getSystemService(NotificationManager.class);
         NotificationChannel ch = new NotificationChannel(
                 CHANNEL, "DNS protection", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("Shows whether Pi-hole is filtering this device's DNS.");
+        ch.setDescription("Shows whether Hole Shield is filtering this device's DNS.");
         ch.setShowBadge(false);
         nm.createNotificationChannel(ch);
     }
@@ -435,6 +437,15 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
                 .build();
     }
 
+    private void startForegroundCompat(Notification n) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, n,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIFICATION_ID, n);
+        }
+    }
+
     private void updateNotification() {
         if (!running) return;
         Prefs p = prefs == null ? Prefs.load(this) : prefs;
@@ -444,10 +455,10 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
             text = "Blocking paused · " + blocked;
         } else if (p.webEnabled) {
             String ip = NetInfo.lanIpv4(this);
-            text = "Pi-hole on · " + blocked
+            text = "Hole Shield on · " + blocked
                     + (ip.isEmpty() ? "" : " · " + ip + ":" + p.webPort);
         } else {
-            text = "Pi-hole on · " + blocked;
+            text = "Hole Shield on · " + blocked;
         }
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.notify(NOTIFICATION_ID, notification(text));

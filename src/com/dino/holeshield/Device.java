@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -18,7 +18,7 @@ final class Device {
     }
 
     static String appName(Context c) {
-        return isTv(c) ? "Pi-hole TV" : "Pi-hole";
+        return isTv(c) ? "Hole Shield TV" : "Hole Shield";
     }
 
     static String clientName(Context c) {

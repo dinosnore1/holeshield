@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import java.io.ByteArrayOutputStream;
 import java.net.InetAddress;

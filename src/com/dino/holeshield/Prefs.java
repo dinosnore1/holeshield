@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -9,10 +9,12 @@ import android.content.SharedPreferences;
  */
 final class Prefs {
 
-    private static final String FILE = "pihole_tv";
+    private static final String FILE = "holeshield";
 
     /** True once the user has asked for protection; drives auto-start. */
     boolean protectionWanted = false;
+    /** True once the in-app VpnService disclosure has been accepted. */
+    boolean vpnDisclosureAccepted = false;
     boolean startOnBoot = true;
 
     /** Legacy external-Pi-hole fields; the built-in server is the default now. */
@@ -62,6 +64,8 @@ final class Prefs {
         SharedPreferences p = c.getSharedPreferences(FILE, Context.MODE_PRIVATE);
         Prefs s = new Prefs();
         s.protectionWanted = p.getBoolean("protectionWanted", s.protectionWanted);
+        s.vpnDisclosureAccepted = p.getBoolean("vpnDisclosureAccepted",
+                s.vpnDisclosureAccepted);
         s.startOnBoot = p.getBoolean("startOnBoot", s.startOnBoot);
         // The embedded resolver replaced the legacy external-Pi-hole mode.
         // Ignore an old true value so upgrades cannot route around the
@@ -106,6 +110,7 @@ final class Prefs {
     void save(Context c) {
         c.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
                 .putBoolean("protectionWanted", protectionWanted)
+                .putBoolean("vpnDisclosureAccepted", vpnDisclosureAccepted)
                 .putBoolean("startOnBoot", startOnBoot)
                 .putBoolean("usePihole", usePihole)
                 .putString("piholeHost", piholeHost)

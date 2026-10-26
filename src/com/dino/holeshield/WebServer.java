@@ -1,4 +1,4 @@
-package com.dino.pihole;
+package com.dino.holeshield;
 
 import android.content.Context;
 import android.util.Log;
@@ -908,9 +908,9 @@ final class WebServer {
             while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
             d = new String(b.toByteArray(), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            d = "<!doctype html><meta charset=\"utf-8\"><title>Pi-hole</title>"
+            d = "<!doctype html><meta charset=\"utf-8\"><title>Hole Shield</title>"
                     + "<body style=\"font-family:sans-serif;background:#111;color:#eee;"
-                    + "padding:40px\"><h1>Pi-hole</h1><p>The dashboard asset is missing.</p>"
+                    + "padding:40px\"><h1>Hole Shield</h1><p>The dashboard asset is missing.</p>"
                     + "<p>API: <a style=\"color:#3c9\" href=\"/api/stats/summary\">"
                     + "/api/stats/summary</a></p></body>";
         }
