@@ -11,20 +11,27 @@ Built:         2026-10-26
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 a59bbe06b01946f9bd4acd8cc999b03bc37feb3a9d2bad2b899a73985fe7e9cf
+  SHA-256 0a41d54c98c485a59718a7158edacd138d7e0f6be965084769b63c39de400c3f
   Size    122 KB
+
+build/holeshield.apk
+  SHA-256 5d5afc5e6be1c2c1692ce1f31438694cc63b7e4331b6a2545fef4e995ef8d9d1
+  Size    129 KB
+  Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
   SHA-256 3ad06bae1ce24f750d5ec091d8d4c5b1af60981efdf8ef066e2ccf2306e70538
   Size    129 KB
+  Signed with the upload key; test-only build of the exact Play bundle.
 
-The universal APK is built from the signed AAB and is for sideload testing of
-the exact Play bundle. Upload the AAB, not the universal APK.
+Use build/holeshield.apk for direct GitHub installs. Upload the AAB to Play;
+do not upload the universal APK.
 
 Signing
 -------
 Upload keystore: ~/.android/holeshield-upload.jks
 Alias:           upload
+Sideload APK key: ~/.android/pihole-tv.keystore
 Certificate SHA-256:
   5A:5B:F8:8C:A9:98:32:EE:E3:74:A5:EC:B4:D8:12:9D:08:61:64:9A:62:74:7C:F5:1D:E2:5E:E4:B9:04:1B:A4
 
