@@ -393,9 +393,11 @@ The app has been exercised on:
 - a Hisense VU Smart TV (Android 11 / API 30, armeabi-v7a, 1920×1080) at
   `192.168.1.19`;
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
-  and landscape.
+  and landscape (previous build);
+- a clean Android 15 / API 35 emulator (1080×1920) for the current `2.0.0`
+  build and the Play screenshots.
 
-Verified on both device types:
+Verified across these devices:
 
 - dashboard and API over the LAN (the TV was also exercised with an
   authenticated session);
@@ -415,9 +417,16 @@ Current `2.0.0` build extras verified on the TV with the signed AAB test APK:
 - dashboard host shows `Hole Shield TV`, LAN DNS on 5354, blocking on;
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 
-Phone-specific checks from the previous build still apply; re-verify the
-notification permission and Android 15+ edge-to-edge layout after reconnecting
-wireless debugging.
+Current `2.0.0` phone checks on the Android 15 emulator:
+
+- notification permission prompt; denying it does not crash the app;
+- first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;
+- disclosure Cancel leaves protection off and starts no VPN service;
+- turning protection off and on again with existing Android consent does not
+  repeat the disclosure;
+- `specialUse` foreground service (`types=0x40000000`);
+- edge-to-edge layout on API 35, 1080×1920 portrait;
+- dashboard, query log, gravity/rules and stats screens.
 
 `PiholeClient` is retained only as legacy source; the active UI and resolver use
 the embedded engine. An old `usePihole` preference is ignored so upgrades cannot
