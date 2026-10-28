@@ -1,26 +1,26 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.0.0
-versionCode:   3
+Version:       2.0.1
+versionCode:   4
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-10-26
+Built:         2026-10-29
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 0a41d54c98c485a59718a7158edacd138d7e0f6be965084769b63c39de400c3f
+  SHA-256 04224e1b85baccd2eb516f6a864e9b5d5092d3d62c3ca93955b5b0c88e575a72
   Size    122 KB
 
 build/holeshield.apk
-  SHA-256 5d5afc5e6be1c2c1692ce1f31438694cc63b7e4331b6a2545fef4e995ef8d9d1
+  SHA-256 1dbf2ea47626c533da150f479851e19e3641834b09a732669f4e30d549b0f45f
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 3ad06bae1ce24f750d5ec091d8d4c5b1af60981efdf8ef066e2ccf2306e70538
+  SHA-256 b8805ea4d3ec2b48f7164c9e9edf8fdabbad18b3a5cc6e60f9f1d8ea39308d82
   Size    129 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -56,4 +56,7 @@ Verified
   repeat the disclosure.
 - Foreground service reports type 0x40000000 (specialUse) on API 35 and 36.
 - Start at boot resumes protection on API 35 and API 36.
+- 2.0.1 on a VU/Hisense Android 11 TV (non-blocking tun fd): reader thread idle at
+  0 CPU ticks in 10 s (was 94 % of a core); protection restarted by itself after an
+  app update and after a reboot.
 - Dashboard, query log, gravity/rules and stats screens verified.

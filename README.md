@@ -18,7 +18,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
 `com.dino.pihole` app before installing it.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.0.0 (`versionCode 3`)
+- **Version:** 2.0.1 (`versionCode 4`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
@@ -402,7 +402,7 @@ The app has been exercised on:
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
 - clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
-  the current `2.0.0` build and the Play screenshots.
+  the current `2.0.1` build and the Play screenshots.
 
 Verified across these devices:
 
@@ -417,14 +417,14 @@ Verified across these devices:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Current `2.0.0` build extras verified on the TV with the signed AAB test APK:
+Current `2.0.1` build extras verified on the TV with the signed AAB test APK:
 
 - in-app VPN disclosure before Android's VPN prompt;
 - `specialUse` foreground service starts and stays in the foreground;
 - dashboard host shows `Hole Shield TV`, LAN DNS on 5354, blocking on;
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 
-Current `2.0.0` phone checks on the Android 15 and Android 16 emulators:
+Current `2.0.1` phone checks on the Android 15 and Android 16 emulators:
 
 - notification permission prompt; denying it does not crash the app;
 - first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;

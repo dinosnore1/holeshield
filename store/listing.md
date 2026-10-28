@@ -17,7 +17,7 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Contact email | `gaganpachory@gmail.com` |
 | Website | `https://dinosnore1.github.io/holeshield-privacy/` |
 | Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
-| Version | 2.0.0 (`versionCode 3`) |
+| Version | 2.0.1 (`versionCode 4`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
 | Form factors | Phone, tablet, Android TV |
@@ -97,17 +97,14 @@ Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
-### Release notes (versionCode 3)
+### Release notes (versionCode 4)
 
 ```
-Hole Shield 2.0.0
-• New name and package: Hole Shield / Hole Shield TV.
-• Target Android 16 (API 36) for current Play requirements.
-• In-app VPN disclosure before Android's VPN consent.
-• Notification permission handling on Android 13+.
-• Edge-to-edge layout on Android 15+.
-• Foreground service declared as specialUse for local DNS filtering.
-• Refreshed launcher icon and TV banner.
+Hole Shield 2.0.1
+• Fixed: the DNS filter could keep a whole CPU core busy on some devices; it now idles.
+• Protection restarts by itself after an app update, and retries once if a boot start is refused.
+• A restarted tunnel can no longer leave an old reader thread behind.
+• Settings, rules, blocklists and statistics are kept.
 ```
 
 ## Graphics
