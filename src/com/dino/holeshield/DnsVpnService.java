@@ -12,6 +12,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.system.Os;
+import android.system.OsConstants;
 import android.util.Log;
 
 import java.io.FileInputStream;
@@ -238,11 +240,30 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
     private void readLoop(int gen) {
         FileInputStream in = input;
         if (in == null) return;
+        // The tun fd comes back non-blocking on some firmware (VU/Hisense Android 11): read() then returns 0
+        // at once, and a loop that only `continue`s busy-polls it for ever. That was 94 % of a core, always
+        // (thread "dns-reader", state R, 2026-10-29). Blocking mode makes read() wait for the next packet.
+        try {
+            int flags = Os.fcntlInt(in.getFD(), OsConstants.F_GETFL, 0);
+            Os.fcntlInt(in.getFD(), OsConstants.F_SETFL, flags & ~OsConstants.O_NONBLOCK);
+        } catch (Exception e) {
+            Log.w(TAG, "tun stays non-blocking", e);
+        }
         byte[] buffer = new byte[32768];
-        while (!stopping) {
+        while (!stopping && gen == generation) {
             try {
                 int n = in.read(buffer);
-                if (n <= 0) continue;
+                if (n <= 0) {
+                    // Stopped or replaced by a restart: let this reader go. Otherwise the fd was not made
+                    // blocking after all (or the tun is momentarily empty): yield instead of spinning.
+                    if (stopping || gen != generation) return;
+                    try {
+                        Thread.sleep(2);
+                    } catch (InterruptedException ie) {
+                        return;
+                    }
+                    continue;
+                }
                 final byte[] packet = Arrays.copyOf(buffer, n);
                 if (workers != null) {
                     workers.execute(() -> handle(packet));
@@ -366,6 +387,12 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         } catch (Exception ignored) { }
         input = null;
         output = null;
+        // The reader above is blocked on the stream just closed, or about to read it: stop it here, before
+        // startVpn() clears `stopping` for the next tunnel, so it cannot outlive its own tunnel.
+        if (reader != null) {
+            reader.interrupt();
+            reader = null;
+        }
         try {
             if (tun != null) tun.close();
         } catch (Exception ignored) { }
