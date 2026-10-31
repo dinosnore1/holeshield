@@ -54,6 +54,8 @@ final class Prefs {
     /** Built-in web dashboard. */
     boolean webEnabled = true;
     int webPort = 8080;
+    /** Optional dashboard username; enforced only when a password is set. */
+    String webUsername = "";
     String webPassword = "";
 
     /** LAN DNS listener. Android cannot bind port 53 without root. */
@@ -91,6 +93,7 @@ final class Prefs {
         s.blockingUntil = p.getLong("blockingUntil", s.blockingUntil);
         s.webEnabled = p.getBoolean("webEnabled", s.webEnabled);
         s.webPort = p.getInt("webPort", s.webPort);
+        s.webUsername = p.getString("webUsername", s.webUsername);
         s.webPassword = p.getString("webPassword", s.webPassword);
         s.lanDns = p.getBoolean("lanDns", s.lanDns);
         s.lanDnsPort = p.getInt("lanDnsPort", s.lanDnsPort);
@@ -131,6 +134,7 @@ final class Prefs {
                 .putLong("blockingUntil", blockingUntil)
                 .putBoolean("webEnabled", webEnabled)
                 .putInt("webPort", webPort)
+                .putString("webUsername", webUsername)
                 .putString("webPassword", webPassword)
                 .putBoolean("lanDns", lanDns)
                 .putInt("lanDnsPort", lanDnsPort)

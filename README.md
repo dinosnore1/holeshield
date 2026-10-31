@@ -18,7 +18,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
 `com.dino.pihole` app before installing it.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.0.1 (`versionCode 4`)
+- **Version:** 2.1.0 (`versionCode 5`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
@@ -44,8 +44,8 @@ This is the new `com.dino.holeshield` package; uninstall the old
 - **Query log and counters** for queries, blocks, cache hits, forwards, errors,
   clients, types, top domains and upstreams. The log survives app restarts and
   is rolled over daily.
-- **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional password
-  login.
+- **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional
+  username/password login.
 - **LAN DNS server** on UDP and TCP port **5354** for other devices on the LAN
   (IPv4).
 - **Pi-hole-compatible API subset** for dashboards and scripts (see below).
@@ -87,7 +87,7 @@ shown.
 
 ```bash
 cd ~/pihole-tv
-./tools/test.sh          # 70 desktop checks for DNS, packet and list code
+./tools/test.sh          # 87 desktop checks for DNS, packet, list and web-auth code
 ./build.sh               # writes build/holeshield.apk (sideload signing key)
 ./tools/build-aab.sh     # writes build/holeshield.aab (Play upload key) + test APK
 ```
@@ -127,8 +127,8 @@ Shield; settings and statistics do not migrate.
    warning while it is on.
 5. Open the dashboard:
    `http://DEVICE_IP:8080/admin/` (replace with the device's LAN IP).
-6. Optional but recommended: set a **Web password** in the app's Settings
-   before exposing the dashboard to your LAN.
+6. Optional but recommended: set a **Web username and password** in the app's
+   Settings before exposing the dashboard to your LAN.
 7. Run **Update gravity now** to download the maximum preset (about 500k
    deduplicated domains). The first download can take a few minutes.
 8. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
@@ -175,23 +175,33 @@ Default LAN DNS: `DEVICE-IP:5354` (UDP and TCP)
 
 Set a web password under **Settings → Web password**. Empty means no password
 and the dashboard/API is open to anyone who can reach the device's LAN address.
-When a password is set:
+Optionally set **Settings → Web username** to require both a username and a
+password. A username is only enforced when a password is also set.
+
+When a password is set, log in with both fields if a username is configured:
 
 ```bash
-# Exchange the password for a session ID
+# Password-only login (username left blank)
 curl -s -X POST http://192.168.1.50:8080/api/auth \
   -H 'Content-Type: application/json' \
   -d '{"password":"your-password"}'
+
+# Username + password login
+curl -s -X POST http://192.168.1.50:8080/api/auth \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"your-password"}'
 
 # Use the returned sid as X-FTL-SID (or as a sid cookie)
 curl -s -H 'X-FTL-SID: <sid>' \
   http://192.168.1.50:8080/api/stats/summary
 ```
 
-The v5 compatibility endpoint accepts `auth=password`:
+The v5 compatibility endpoint accepts `auth=password`, or
+`auth=username:password` when a username is configured:
 
 ```bash
 curl -s 'http://192.168.1.50:8080/admin/api.php?summaryRaw&auth=your-password'
+curl -s 'http://192.168.1.50:8080/admin/api.php?summaryRaw&auth=admin:your-password'
 ```
 
 ### API endpoints
@@ -199,7 +209,7 @@ curl -s 'http://192.168.1.50:8080/admin/api.php?summaryRaw&auth=your-password'
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/health` | GET | Liveness check (no auth required). |
-| `/api/auth` | POST | Password → session ID. |
+| `/api/auth` | POST | Username/password → session ID. |
 | `/api/stats/summary` | GET | Query counters, gravity size, clients, blocking state. |
 | `/api/stats/top_domains` | GET | `blocked=true|false`, `count=1..100`. |
 | `/api/stats/top_clients` | GET | Top clients; `count=1..100`. |
@@ -275,6 +285,7 @@ from other LAN devices.
 | Fallback DNS | `Encrypted (DoH)` tries DoH first, then plain DNS; `Plain DNS` uses plain only; `Off` disables upstream resolution. |
 | Encrypted DNS server | DoH URL; Cloudflare by default. |
 | Web dashboard / port | Enable/disable and choose the HTTP port (default 8080). |
+| Web username | Optional dashboard/API username; requires a password. |
 | Web password | Optional dashboard/API password. Empty = open. |
 | LAN DNS server / port | Enable/disable the UDP+TCP LAN listener (default 5354). |
 | Blocklist sources | One hosts/adblock URL per line. |
@@ -313,8 +324,10 @@ upload query data. The full policy is in
 - The dashboard/API listens on the LAN over **plain HTTP**. There is no TLS.
   Use it only on a trusted LAN. Set a web password if other people or untrusted
   devices share the network.
-- The web password is stored in the app's private `SharedPreferences` and is
-  not encrypted at rest. Anyone with root or a full device backup can read it.
+- The web username and password are stored in the app's private
+  `SharedPreferences` and are not encrypted at rest. Anyone with root or a full
+  device backup can read them. Changing the login invalidates existing dashboard
+  sessions.
 - The VPN is DNS-only. Video, downloads and normal LAN traffic are not routed
   through the app.
 - LAN DNS and the dashboard are off by default. When enabled, other devices on
@@ -346,7 +359,7 @@ expect its certificate in the Play-delivered APK.
 | Symptom | Check |
 |---|---|
 | Dashboard does not load | Confirm protection is on, the device IP is correct, and the web dashboard is enabled. Try `curl http://DEVICE-IP:8080/api/health`. |
-| `401 authentication required` | Set/enter the web password, then use the returned `X-FTL-SID` or the v5 `auth=` parameter. |
+| `401 authentication required` | Set/enter the web login, then use the returned `X-FTL-SID` or the v5 `auth=` parameter (`user:pass` when a username is set). |
 | LAN DNS refused | Enable **LAN DNS server**, check the port, and verify the client supports a non-53 DNS port. |
 | Ads still appear | Same-domain ads (YouTube in-stream), app-level DoH, or the query was allowed. Check the query log and test `doubleclick.net`. |
 | A service breaks after maximum lists | The maximum preset is aggressive. Add an exact allow rule for the service's domain instead of disabling all filtering. |
@@ -389,11 +402,12 @@ build.sh                     no-Gradle APK build
 
 ## Tests
 
-`./tools/test.sh` runs **70 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **87 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
 from tun packets, blocked A/AAAA/HTTPS replies, answer-address extraction, TTL
 selection, IPv4/IPv6 UDP replies and checksums, address/port swapping, payload
-preservation, hosts/adblock line parsing and blocklist preset merging.
+preservation, hosts/adblock line parsing, blocklist preset merging and web
+login credential checks.
 
 The app has been exercised on:
 
@@ -402,7 +416,7 @@ The app has been exercised on:
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
 - clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
-  the current `2.0.1` build and the Play screenshots.
+  the current `2.1.0` build and the Play screenshots.
 
 Verified across these devices:
 
@@ -417,14 +431,18 @@ Verified across these devices:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Current `2.0.1` build extras verified on the TV with the signed AAB test APK:
+Current `2.1.0` build extras verified on the TV with the signed AAB test APK:
 
 - in-app VPN disclosure before Android's VPN prompt;
 - `specialUse` foreground service starts and stays in the foreground;
 - dashboard host shows `Hole Shield TV`, LAN DNS on 5354, blocking on;
+- web login with username + password: `/api/auth`, `X-FTL-SID` and v5
+  `auth=user:pass` verified on the TV; wrong user/password rejected;
+- clearing the password also clears the username and reopens the dashboard;
+- version strings now come from the installed package (`2.1.0`);
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 
-Current `2.0.1` phone checks on the Android 15 and Android 16 emulators:
+Current `2.1.0` phone checks on the Android 15 and Android 16 emulators:
 
 - notification permission prompt; denying it does not crash the app;
 - first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;

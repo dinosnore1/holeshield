@@ -277,14 +277,15 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     </div>
   </section>
 
-  <footer>Hole Shield · embedded DNS filter · <span id="footVersion">2.0.0</span></footer>
+  <footer>Hole Shield · embedded DNS filter · <span id="footVersion">2.1.0</span></footer>
 </div>
 
 <div id="login" class="overlay hidden">
   <form class="login" id="loginForm">
     <h2>Hole Shield</h2>
-    <p>Enter the web password set on this device. If no password is configured, just refresh.</p>
-    <input id="password" type="password" placeholder="Web password" autocomplete="current-password" autofocus>
+    <p>Enter the web username and password set on this device. Leave the username blank if only a password is configured. If no login is configured, just refresh.</p>
+    <input id="username" type="text" placeholder="Web username (if set)" autocomplete="username" style="display:none">
+    <input id="password" type="password" placeholder="Web password" autocomplete="current-password">
     <button class="primary" type="submit">Unlock dashboard</button>
     <div id="loginMsg" class="msg"></div>
   </form>
@@ -326,7 +327,17 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
   }
   function showLogin(){
     $("#login").classList.remove("hidden");
-    setTimeout(function(){ try{ $("#password").focus(); }catch(e){} }, 40);
+    fetch("/api/auth", {headers:{"Accept":"application/json"}}).then(function(res){
+      return res.json();
+    }).then(function(data){
+      var needUser = !!(data && data.session && data.session.username_required);
+      $("#username").style.display = needUser ? "block" : "none";
+      setTimeout(function(){
+        try{ (needUser ? $("#username") : $("#password")).focus(); }catch(e){}
+      }, 40);
+    }).catch(function(){
+      setTimeout(function(){ try{ $("#password").focus(); }catch(e){} }, 40);
+    });
   }
   function hideLogin(){ $("#login").classList.add("hidden"); }
 
@@ -434,9 +445,9 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
       '<div class="box"><span>Dashboard</span><b>' + esc(web) + '</b></div>' +
       '<div class="box"><span>LAN DNS (UDP/TCP)</span><b>' + esc(dns) + '</b></div>' +
       '<div class="box"><span>LAN DNS status</span><b>' + (h.lan_dns_running ? "Listening" : "Off") + '</b></div>' +
-      '<div class="box"><span>Web password</span><b>' + (h.web_password ? "Set" : "Not set") + '</b></div>' +
-      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.0.0") + '</b></div>';
-    $("#footVersion").textContent = h.version || "2.0.0";
+      '<div class="box"><span>Web login</span><b>' + (h.web_username ? "User + password" : (h.web_password ? "Password only" : "Not set")) + '</b></div>' +
+      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.1.0") + '</b></div>';
+    $("#footVersion").textContent = h.version || "2.1.0";
     if(h.lan_dns_error) {
       $("#serverInfo").insertAdjacentHTML("beforeend",
         '<div class="box"><span>LAN DNS note</span><b>' + esc(h.lan_dns_error) + '</b></div>');
@@ -615,11 +626,12 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
 
   $("#loginForm").addEventListener("submit", function(ev){
     ev.preventDefault();
+    var user = $("#username").value;
     var pw = $("#password").value;
     fetch("/api/auth", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({password: pw})
+      body: JSON.stringify({username: user, password: pw})
     }).then(function(res){
       return res.json().then(function(data){
         if(!res.ok || !data.session || !data.session.valid){
@@ -628,6 +640,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
         state.sid = data.session.sid || "";
         localStorage.setItem("pihole_tv_sid", state.sid);
         hideLogin();
+        $("#username").value = "";
         $("#password").value = "";
         msg("#loginMsg", "", null);
         loadAll();

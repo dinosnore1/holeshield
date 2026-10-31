@@ -24,6 +24,7 @@ public final class TestDns {
         sourceAddresses();
         hostsParsing();
         blocklistPreset();
+        webAuth();
         System.out.println("OK — " + passed + " checks passed");
     }
 
@@ -284,6 +285,41 @@ public final class TestDns {
                 "wildcard line");
         check(HostsParser.normalizeDomain("Example.COM.").equals("example.com"),
                 "domain normalization");
+    }
+
+    private static void webAuth() {
+        check(WebAuth.valid("", "", "", ""), "open dashboard without credentials");
+        check(WebAuth.valid("", "secret", "", "secret"), "password-only login");
+        check(!WebAuth.valid("", "secret", "", "wrong"), "wrong password rejected");
+        check(!WebAuth.valid("", "secret", "", ""), "empty password rejected");
+
+        check(WebAuth.valid("admin", "secret", "admin", "secret"),
+                "username and password login");
+        check(!WebAuth.valid("admin", "secret", "other", "secret"),
+                "wrong username rejected");
+        check(!WebAuth.valid("admin", "secret", "admin", "wrong"),
+                "wrong password with username rejected");
+        check(!WebAuth.valid("admin", "secret", "", "secret"),
+                "missing username rejected");
+        check(WebAuth.valid("admin", "", "", ""),
+                "username without password leaves dashboard open");
+
+        check(WebAuth.validAuthParam("", "secret", "secret"),
+                "v5 password auth");
+        check(!WebAuth.validAuthParam("", "secret", "wrong"),
+                "v5 wrong password rejected");
+        check(WebAuth.validAuthParam("admin", "secret", "admin:secret"),
+                "v5 username:password auth");
+        check(!WebAuth.validAuthParam("admin", "secret", "admin"),
+                "v5 missing password separator rejected");
+        check(!WebAuth.validAuthParam("admin", "secret", "other:secret"),
+                "v5 wrong username rejected");
+        check(WebAuth.validAuthParam("admin", "p:a", "admin:p:a"),
+                "v5 password containing colon");
+        check(WebAuth.validAuthParam("", "p:a", "p:a"),
+                "v5 password-only with colon");
+        check(!WebAuth.validAuthParam("admin", "secret", ""),
+                "v5 empty auth rejected");
     }
 
     private static void blocklistPreset() {

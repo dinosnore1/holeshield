@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the desktop (no-device) checks for DNS, packet and blocklist code.
+# Runs the desktop (no-device) checks for DNS, packet, blocklist and web-auth code.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -13,5 +13,6 @@ mkdir -p "$OUT"
   src/com/dino/holeshield/IpPacket.java \
   src/com/dino/holeshield/HostsParser.java \
   src/com/dino/holeshield/Blocklists.java \
+  src/com/dino/holeshield/WebAuth.java \
   tools/TestDns.java
 "$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestDns

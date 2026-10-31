@@ -85,7 +85,7 @@
       container. You can clear them from the app or by clearing app
       data.</li>
     <li><strong>Settings and rules.</strong> Your preferences, allow/deny rules,
-      blocklist URLs, web password and pause state are stored in the app's private
+      blocklist URLs, web username/password and pause state are stored in the app's private
       storage or, on iOS, in its shared App Group container.</li>
     <li><strong>Network information.</strong> The app reads the device's local IP
       address to show the dashboard/LAN DNS address. This information is not sent
@@ -122,7 +122,7 @@
     The dashboard and LAN DNS listener are <strong>off by default</strong>. If you
     enable them, other devices on your local network can reach the app over plain
     HTTP on the configured port (dashboard default 8080, LAN DNS default 5354).
-    Setting a web password restricts dashboard and API access, but traffic is not
+    Setting a web username/password restricts dashboard and API access, but traffic is not
     encrypted. Enable these features only on a network you trust.
   </p>
   <p>
@@ -131,7 +131,7 @@
     continues filtering after the app is suspended.
   </p>
   <p>
-    When the dashboard is enabled, the app stores the web password in private
+    When the dashboard is enabled, the app stores the web login in private
     preferences. It is not encrypted at rest.
   </p>
 

@@ -49,7 +49,7 @@ final class WebServer {
     private final Context context;
     private final int port;
     private final Host host;
-    private final ConcurrentHashMap<String, Long> sessions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Session> sessions = new ConcurrentHashMap<>();
     private volatile boolean running;
     private volatile String lastError = "";
     private volatile String dashboard;
@@ -244,7 +244,7 @@ final class WebServer {
         }
         if ("info/version".equals(rest)) {
             JSONObject o = new JSONObject();
-            o.put("version", "2.0.0");
+            o.put("version", Device.versionName(context));
             o.put("name", Device.appName(context));
             o.put("api", "v6-subset");
             sendJson(out, 200, o.toString());
@@ -419,26 +419,32 @@ final class WebServer {
     private void auth(Request r, OutputStream out, Prefs p) throws Exception {
         String password = p.webPassword == null ? "" : p.webPassword;
         if ("GET".equals(r.method)) {
-            boolean ok = password.isEmpty() || authorized(r, p);
+            boolean ok = !WebAuth.passwordRequired(password) || authorized(r, p);
             JSONObject s = new JSONObject();
             s.put("valid", ok);
+            s.put("username_required", WebAuth.usernameRequired(p.webUsername));
+            s.put("password_required", WebAuth.passwordRequired(password));
             JSONObject root = new JSONObject();
             root.put("session", s);
             sendJson(out, ok ? 200 : 401, root.toString());
             return;
         }
-        String supplied = "";
+        String suppliedUser = "";
+        String suppliedPassword = "";
         JSONObject body = bodyJson(r);
-        if (body.has("password")) supplied = body.optString("password", "");
-        if (supplied.isEmpty()) supplied = r.param("password", "");
-        if (!password.isEmpty() && !password.equals(supplied)) {
+        if (body.has("username")) suppliedUser = body.optString("username", "");
+        if (body.has("password")) suppliedPassword = body.optString("password", "");
+        if (suppliedUser.isEmpty()) suppliedUser = r.param("username", "");
+        if (suppliedPassword.isEmpty()) suppliedPassword = r.param("password", "");
+        if (!WebAuth.valid(p.webUsername, password, suppliedUser, suppliedPassword)) {
             sendJson(out, 401, "{\"session\":{\"valid\":false,"
-                    + "\"message\":\"password incorrect\"}}");
+                    + "\"message\":\"username or password incorrect\"}}");
             return;
         }
         String sid = UUID.randomUUID().toString().replace("-", "");
         String csrf = UUID.randomUUID().toString().replace("-", "");
-        sessions.put(sid, System.currentTimeMillis() + SESSION_MS);
+        sessions.put(sid, new Session(System.currentTimeMillis() + SESSION_MS,
+                credentialKey(p)));
         JSONObject s = new JSONObject();
         s.put("valid", true);
         s.put("sid", sid);
@@ -603,9 +609,10 @@ final class WebServer {
         h.put("lan_dns_running", host != null && host.lanRunning());
         h.put("lan_dns_error", host == null ? "" : host.lanError());
         h.put("lan_dns_note", "Port 53 needs root; use the high port on this device.");
-        h.put("version", "2.0.0");
+        h.put("version", Device.versionName(context));
         h.put("blocking", p.blockingActive());
         h.put("web_password", !(p.webPassword == null || p.webPassword.isEmpty()));
+        h.put("web_username", WebAuth.usernameRequired(p.webUsername));
         root.put("host", h);
         root.put("took", 0.001);
         return root;
@@ -675,22 +682,42 @@ final class WebServer {
 
     private boolean authorized(Request r, Prefs p) {
         String password = p.webPassword == null ? "" : p.webPassword;
-        if (password.isEmpty()) return true;
+        if (!WebAuth.passwordRequired(password)) return true;
         String sid = r.header("x-ftl-sid");
         if (sid == null || sid.isEmpty()) sid = r.param("sid", "");
         if (sid == null || sid.isEmpty()) sid = cookie(r, "sid");
         if (sid != null && !sid.isEmpty()) {
-            Long until = sessions.get(sid);
-            if (until != null && until > System.currentTimeMillis()) return true;
+            Session session = sessions.get(sid);
+            if (session != null && session.until > System.currentTimeMillis()
+                    && session.credentials.equals(credentialKey(p))) {
+                return true;
+            }
+            if (session != null) sessions.remove(sid);
         }
-        String auth = r.param("auth", "");
-        return password.equals(auth);
+        return WebAuth.validAuthParam(p.webUsername, password, r.param("auth", ""));
+    }
+
+    /** Sessions are invalidated when the web username or password changes. */
+    private static String credentialKey(Prefs p) {
+        String user = p.webUsername == null ? "" : p.webUsername;
+        String pass = p.webPassword == null ? "" : p.webPassword;
+        return user + "\n" + pass;
+    }
+
+    private static final class Session {
+        final long until;
+        final String credentials;
+
+        Session(long until, String credentials) {
+            this.until = until;
+            this.credentials = credentials;
+        }
     }
 
     private boolean v5Authorized(Request r, Prefs p) {
         String password = p.webPassword == null ? "" : p.webPassword;
-        if (password.isEmpty()) return true;
-        return password.equals(r.param("auth", ""));
+        if (!WebAuth.passwordRequired(password)) return true;
+        return WebAuth.validAuthParam(p.webUsername, password, r.param("auth", ""));
     }
 
     private static String cookie(Request r, String name) {

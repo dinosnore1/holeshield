@@ -932,11 +932,13 @@ public class MainActivity extends Activity {
         piholeError.setText(err.toString());
 
         if (piholeServer != null) {
-            String pass = prefs.webPassword == null || prefs.webPassword.isEmpty()
-                    ? "not set" : "set";
+            String login = prefs.webPassword == null || prefs.webPassword.isEmpty()
+                    ? "not set"
+                    : (prefs.webUsername == null || prefs.webUsername.isEmpty()
+                            ? "password only" : "user + password");
             piholeServer.setText("Dashboard: " + (url.isEmpty() ? "off" : url)
                     + "\nLAN DNS: " + (dns.isEmpty() ? "off" : dns)
-                    + "\nWeb password: " + pass
+                    + "\nWeb login: " + login
                     + "\nWeb server: " + (DnsVpnService.webRunning ? "listening" : "off")
                     + "   ·   LAN DNS: " + (DnsVpnService.lanDnsRunning ? "listening" : "off")
                     + "\nPort 53 on the LAN needs root; use " + prefs.lanDnsPort + " instead.");
@@ -1409,16 +1411,35 @@ public class MainActivity extends Activity {
                             restartIfRunning();
                             show(Screen.SETTINGS);
                         })), rowLp(1));
-        ph.addView(settingRow("Web password", "Optional; the dashboard asks for it",
-                prefs.webPassword == null || prefs.webPassword.isEmpty() ? "not set" : "set",
-                () -> edit("Web password", "", true,
-                        "Leave empty to clear the password", value -> {
-                    prefs.webPassword = value;
+        ph.addView(settingRow("Web username", "Optional; requires a web password",
+                prefs.webUsername == null || prefs.webUsername.isEmpty()
+                        ? "not set" : prefs.webUsername,
+                () -> edit("Web username",
+                        prefs.webUsername == null ? "" : prefs.webUsername,
+                        false, "Leave empty for password-only login", value -> {
+                    String user = value.trim();
+                    if (user.length() > 64 || user.indexOf(':') >= 0
+                            || user.indexOf(' ') >= 0 || user.indexOf('\t') >= 0) {
+                        Ui.toast(this, "Use up to 64 characters; no spaces or ':'");
+                        return;
+                    }
+                    prefs.webUsername = user;
                     prefs.save(this);
-                    Ui.toast(this, value.isEmpty() ? "Web password cleared"
-                            : "Web password saved");
+                    Ui.toast(this, user.isEmpty() ? "Web username cleared"
+                            : "Web username saved");
                     show(Screen.SETTINGS);
                 })), rowLp(2));
+        ph.addView(settingRow("Web password", "Optional; username + password when set",
+                prefs.webPassword == null || prefs.webPassword.isEmpty() ? "not set" : "set",
+                () -> edit("Web password", "", true,
+                        "Leave empty to clear the web login", value -> {
+                    prefs.webPassword = value;
+                    if (value.isEmpty()) prefs.webUsername = "";
+                    prefs.save(this);
+                    Ui.toast(this, value.isEmpty() ? "Web login cleared"
+                            : "Web password saved");
+                    show(Screen.SETTINGS);
+                })), rowLp(3));
         ph.addView(settingRow("LAN DNS server", "UDP and TCP listener for other devices",
                 prefs.lanDns ? "On" : "Off", () -> {
                     prefs.lanDns = !prefs.lanDns;
@@ -1488,7 +1509,7 @@ public class MainActivity extends Activity {
                     Ui.toast(this, DnsVpnService.running ? "Restarting…" : "Protection is off");
                 }), rowLp(0));
         sys.addView(settingRow(isTv ? "About Hole Shield TV" : "About Hole Shield",
-                "Version 2.0.0 · Material You · no analytics",
+                "Version " + Device.versionName(this) + " · Material You · no analytics",
                 "", this::about), rowLp(1));
         add(col, sys, 8);
 
@@ -2001,7 +2022,8 @@ public class MainActivity extends Activity {
     }
 
     private void about() {
-        String message = (isTv ? "Hole Shield TV 2.0.0" : "Hole Shield 2.0.0") + "\n\n"
+        String message = (isTv ? "Hole Shield TV " : "Hole Shield ")
+                + Device.versionName(this) + "\n\n"
                 + "A self-contained DNS filter for Android TV and Android "
                 + "phones. The app runs the gravity engine, query log, dashboard/API and "
                 + "an optional LAN DNS server. This device's own DNS is captured through "

@@ -17,7 +17,7 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Contact email | `gaganpachory@gmail.com` |
 | Website | `https://dinosnore1.github.io/holeshield-privacy/` |
 | Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
-| Version | 2.0.1 (`versionCode 4`) |
+| Version | 2.1.0 (`versionCode 5`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
 | Form factors | Phone, tablet, Android TV |
@@ -97,14 +97,15 @@ Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
-### Release notes (versionCode 4)
+### Release notes (versionCode 5)
 
 ```
-Hole Shield 2.0.1
-• Fixed: the DNS filter could keep a whole CPU core busy on some devices; it now idles.
-• Protection restarts by itself after an app update, and retries once if a boot start is refused.
-• A restarted tunnel can no longer leave an old reader thread behind.
-• Settings, rules, blocklists and statistics are kept.
+Hole Shield 2.1.0
+• The web dashboard can now require a username as well as a password.
+• Password-only login still works; the username is optional.
+• Web login status is shown on the Server screen and dashboard.
+• Changing the web login invalidates existing dashboard sessions.
+• Version strings now come from the installed package.
 ```
 
 ## Graphics

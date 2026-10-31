@@ -24,4 +24,13 @@ final class Device {
     static String clientName(Context c) {
         return isTv(c) ? "this TV" : "this phone";
     }
+
+    /** Version name from the installed package, avoiding duplicated strings. */
+    static String versionName(Context c) {
+        try {
+            return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName;
+        } catch (Exception e) {
+            return "";
+        }
+    }
 }

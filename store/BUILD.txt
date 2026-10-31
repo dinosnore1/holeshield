@@ -1,26 +1,26 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.0.1
-versionCode:   4
+Version:       2.1.0
+versionCode:   5
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-10-29
+Built:         2026-10-31
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 04224e1b85baccd2eb516f6a864e9b5d5092d3d62c3ca93955b5b0c88e575a72
-  Size    122 KB
+  SHA-256 ba1e84ab3d4e873bc5215978061c60aeb91afe9c9fb1bc19329637f4c94bb185
+  Size    123 KB
 
 build/holeshield.apk
-  SHA-256 1dbf2ea47626c533da150f479851e19e3641834b09a732669f4e30d549b0f45f
+  SHA-256 27046905fae6c29359d707865cce05e3378197594ce93037499005926228a3df
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 b8805ea4d3ec2b48f7164c9e9edf8fdabbad18b3a5cc6e60f9f1d8ea39308d82
+  SHA-256 e1030374fa55187b4c2153152f1fcefabbf6d389492169d44da0ecc70a078b9c
   Size    129 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -47,7 +47,7 @@ Build command
 
 Verified
 --------
-- 70 desktop checks pass.
+- 87 desktop checks pass, including web login username/password rules.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,
   protection on.
@@ -59,4 +59,8 @@ Verified
 - 2.0.1 on a VU/Hisense Android 11 TV (non-blocking tun fd): reader thread idle at
   0 CPU ticks in 10 s (was 94 % of a core); protection restarted by itself after an
   app update and after a reboot.
+- 2.1.0 web login verified on the TV: username + password enforced, wrong
+  user/password rejected, SID and v5 `auth=user:pass` accepted, password-only
+  installs remain compatible, and clearing the password reopens the dashboard.
+- Version strings now come from the installed package (`2.1.0`).
 - Dashboard, query log, gravity/rules and stats screens verified.
