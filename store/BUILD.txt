@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 d5f16b7c343e1d3d4d10b2792005b49df2b363c2ae03946101229abe288ab074
+  SHA-256 6e2d4ea9a302b8f96b09d92ba871de86cd2effd21fd0ba781e212b714950df24
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 a01aaf75635f5105c65ee6dd1a3905c5caf0722edae9f3e821cb5ced1135b6e0
+  SHA-256 cbe1f426095c43c8971ef8f11a90c10764bc0ce11ff154f1ab9c367dee640ab2
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 3adf19bf684dec6ce80d1e3a2c2e1ec339c11e4b911d64052ef119c3a3d8aa1e
+  SHA-256 37f0e0a535f947c107c667c2a3aa1fa984d8fe978386b2b33b68f098c992d937
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -78,4 +78,6 @@ Verified
 - The web dashboard has icon-only sun/moon theme and refresh buttons; the theme
   choice is stored in localStorage. Both icons and labels were exercised with
   jsdom.
+- The dashboard pause controls use a duration dropdown (5 min to 24 hours or
+  until resumed) plus Pause/Resume buttons.
 - Dashboard, query log, gravity/rules and stats screens verified.
