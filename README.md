@@ -35,7 +35,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
   added or removed independently. The web dashboard shows Ads, Trackers and
   Malware domain counts, with icon-only sun/moon theme and refresh buttons, and a single
   compact pause pill/dropdown with an in-place countdown and dynamic width, a
-  shield tab icon and a logout button. Multiple list URLs are
+  shield tab icon, a logout button and a simple centered login page. Multiple list URLs are
   supported.
 - **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict

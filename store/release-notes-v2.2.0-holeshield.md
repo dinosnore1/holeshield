@@ -49,6 +49,8 @@ classic hosts lists so they are included when the cap is reached.
   the theme choice is remembered in the browser.
 - The dashboard tab has a shield favicon, and a **Log out** button appears when
   a web login is configured.
+- The login screen is a simple centered form with a large title, Authorization
+  Required divider, pill fields and an arrow submit button.
 - A single compact **Pause** pill (pause icon, dropdown, chevron) pauses
   immediately for 5 minutes through 24 hours, or until resumed. It then shows
   the remaining time and counts down in place; the pill width follows the label,
@@ -60,6 +62,6 @@ classic hosts lists so they are included when the cap is reached.
 ## SHA-256
 
 ```
-47a10d2e9096402c17730a1c80c23da3c8c5cd92078fb269cdf4e49feb54288e  holeshield.aab
-c41c2d7b33348af42ae1d14bcd6b92bfddb5526c01f5a202b0acb690ded228d5  holeshield.apk
+e5e7a88c66ff1938ddeda3b68e311260b0516ab6bdf4895fc8a40dc324bfdc79  holeshield.aab
+307256dbbcc0fa429b92ba7f431404d98ca6c07c120a009d169aa5b21eaba0b4  holeshield.apk
 ```
