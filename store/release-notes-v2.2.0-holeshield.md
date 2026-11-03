@@ -62,6 +62,6 @@ classic hosts lists so they are included when the cap is reached.
 ## SHA-256
 
 ```
-f6354def40f78c20f936a24797fc540376ff1d0622539467884884e3ffe7c96c  holeshield.aab
-08ee40011432253606ddca4f59f855db2786e097739a0b53f5121bd12cafcf90  holeshield.apk
+d8fcb2cdb0693ae5a81b18d04fad717464eb6715bd978cc7096dd0cf7268575f  holeshield.aab
+a36288e370832cd1b2a652e6c8ee62558ba955d99d4b8d43e683a11f9948155b  holeshield.apk
 ```
