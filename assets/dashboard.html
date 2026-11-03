@@ -89,10 +89,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 }
 .hero h2{margin:0 0 4px;font-size:23px;letter-spacing:-.01em}
 .hero p{margin:0;color:var(--muted);max-width:640px}
-.hero .actions{display:flex;gap:9px;flex-wrap:wrap;margin-left:auto;align-items:center}
+.hero .actions{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto;align-items:center}
 .pauseControl{
   position:relative;display:inline-flex;align-items:center;height:38px;
-  padding:0 34px;border-radius:999px;border:1px solid var(--line);
+  padding:0 28px;border-radius:999px;border:1px solid var(--line);
   background:linear-gradient(180deg,var(--panel2),var(--panel));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
   cursor:pointer;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease;
@@ -102,7 +102,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .pauseControl:active{transform:translateY(1px)}
 .pauseControl select{
   appearance:none;-webkit-appearance:none;border:0;background:transparent;
-  color:var(--text);font:inherit;font-weight:650;height:100%;width:160px;
+  color:var(--text);font:inherit;font-weight:650;height:100%;width:136px;
   padding:0;cursor:pointer;outline:none;text-align:left;text-align-last:left;
   line-height:36px;white-space:nowrap;overflow:hidden;
 }
@@ -111,8 +111,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .pauseControl .pauseIcon,.pauseControl .chevron{
   position:absolute;pointer-events:none;color:var(--muted);
 }
-.pauseControl .pauseIcon{left:13px;width:13px;height:13px}
-.pauseControl .chevron{right:12px;width:14px;height:14px}
+.pauseControl .pauseIcon{left:11px;width:12px;height:12px}
+.pauseControl .chevron{right:10px;width:13px;height:13px}
 .pauseControl option{background:var(--panel);color:var(--text)}
 html[data-theme="light"] .pauseControl{box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
 html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27,127,92,.18)}
