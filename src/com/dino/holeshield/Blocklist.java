@@ -18,20 +18,23 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * Pi-hole-style gravity engine.
  *
- * Gravity lists (the bundled seed and downloaded hosts/adblock files) are
- * exact domains. Subdomains are matched too when the "block subdomains"
- * setting is on, which is how most blocklists are meant to behave. Custom
- * rules can be exact, wildcard ("*.example.com") or regular expressions.
- * Allow rules are checked before block rules.
+ * Gravity lists are kept as compact 64-bit hashes with a category bitmask, so
+ * a 600k-domain list uses a few megabytes and Ads/Trackers/Malware can be
+ * switched at runtime without rebuilding anything. Subdomains are matched too
+ * when the "block subdomains" setting is on. Custom rules can be exact,
+ * wildcard ("*.example.com") or regular expressions. Allow rules are checked
+ * before block rules, and per-client rules are checked before global ones.
  */
 final class Blocklist {
 
@@ -39,7 +42,12 @@ final class Blocklist {
     static final int WILDCARD = 1;
     static final int REGEX = 2;
 
-    private static final String DOWNLOAD_FILE = "blocklist_downloaded.txt";
+    private static final String LEGACY_FILE = "blocklist_downloaded.txt";
+    private static final String ADS_FILE = "blocklist_ads.txt";
+    private static final String TRACKER_FILE = "blocklist_trackers.txt";
+    private static final String MALWARE_FILE = "blocklist_malware.txt";
+    private static final String ADULT_FILE = "blocklist_adult.txt";
+    private static final String OTHER_FILE = "blocklist_other.txt";
     private static final int MAX_DOMAINS = 600000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
@@ -67,18 +75,36 @@ final class Blocklist {
         final boolean allowed;
         final String rule;
         final String source;
-        Decision(boolean blocked, boolean allowed, String rule, String source) {
+        final String category;
+        Decision(boolean blocked, boolean allowed, String rule, String source,
+                 String category) {
             this.blocked = blocked;
             this.allowed = allowed;
             this.rule = rule;
             this.source = source;
+            this.category = category == null ? "" : category;
         }
-        static final Decision NONE = new Decision(false, false, "", "");
-        static Decision block(String rule, String source) {
-            return new Decision(true, false, rule, source);
+        static final Decision NONE = new Decision(false, false, "", "", "");
+        static Decision block(String rule, String source, String category) {
+            return new Decision(true, false, rule, source, category);
         }
         static Decision allow(String rule) {
-            return new Decision(false, true, rule, "allowlist");
+            return new Decision(false, true, rule, "allowlist", "Allow");
+        }
+    }
+
+    static final class Health {
+        final String url;
+        final boolean ok;
+        final int count;
+        final String error;
+        final long at;
+        Health(String url, boolean ok, int count, String error, long at) {
+            this.url = url;
+            this.ok = ok;
+            this.count = count;
+            this.error = error == null ? "" : error;
+            this.at = at;
         }
     }
 
@@ -91,14 +117,47 @@ final class Blocklist {
         }
     }
 
-    private static volatile Set<String> gravity = Collections.emptySet();
+    private static final class ClientRules {
+        final Set<String> blocked = new HashSet<>();
+        final Set<String> allowed = new HashSet<>();
+        final Set<String> wildcardBlocked = new HashSet<>();
+        final Set<String> wildcardAllowed = new HashSet<>();
+    }
+
+    private static final class LongBuffer {
+        private long[] data;
+        private int size;
+
+        LongBuffer(int capacity) {
+            data = new long[Math.max(16, capacity)];
+        }
+
+        void add(long value) {
+            if (size == data.length) {
+                long[] bigger = new long[data.length + (data.length >> 1) + 16];
+                System.arraycopy(data, 0, bigger, 0, size);
+                data = bigger;
+            }
+            data[size++] = value;
+        }
+
+        long[] toArray() {
+            long[] out = new long[size];
+            System.arraycopy(data, 0, out, 0, size);
+            return out;
+        }
+    }
+
+    private static volatile Gravity gravity = Gravity.empty();
     private static volatile Set<String> exactBlocked = Collections.emptySet();
     private static volatile Set<String> exactAllowed = Collections.emptySet();
     private static volatile Set<String> wildcardBlocked = Collections.emptySet();
     private static volatile Set<String> wildcardAllowed = Collections.emptySet();
     private static volatile List<Compiled> regexBlocked = Collections.emptyList();
     private static volatile List<Compiled> regexAllowed = Collections.emptyList();
+    private static volatile Map<String, ClientRules> clientRules = Collections.emptyMap();
     private static volatile boolean blockSubdomains = true;
+    private static volatile int categoryMask = Gravity.ALL;
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
 
@@ -131,7 +190,6 @@ final class Blocklist {
     }
 
     private static void reloadLocked(Context c) {
-        HashSet<String> grav = new HashSet<>(131072);
         HashSet<String> eb = new HashSet<>(128);
         HashSet<String> ea = new HashSet<>(64);
         HashSet<String> wb = new HashSet<>(128);
@@ -139,37 +197,124 @@ final class Blocklist {
         ArrayList<Compiled> rb = new ArrayList<>();
         ArrayList<Compiled> ra = new ArrayList<>();
 
-        try (InputStream in = c.getAssets().open("blocklist.txt");
-             BufferedReader r = new BufferedReader(
-                     new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            readHosts(r, grav);
-        } catch (Exception ignored) {
-            // A missing seed list is not fatal.
-        }
-
-        try (BufferedReader r = new BufferedReader(new InputStreamReader(
-                new FileInputStream(new File(c.getFilesDir(), DOWNLOAD_FILE)),
-                StandardCharsets.UTF_8))) {
-            readHosts(r, grav);
-        } catch (Exception ignored) { }
-
         Prefs p = Prefs.load(c);
         blockSubdomains = p.blockSubdomains;
+        categoryMask = p.categoryMask();
         readCustom(p.customBlocked, false, eb, wb, rb);
         readCustom(p.customAllowed, true, ea, wa, ra);
+        Map<String, ClientRules> clients = parseClientRules(p.clientRules);
 
-        gravity = grav;
+        Gravity fresh = loadGravity(c, p);
+        gravity = fresh;
         exactBlocked = eb;
         exactAllowed = ea;
         wildcardBlocked = wb;
         wildcardAllowed = wa;
         regexBlocked = rb;
         regexAllowed = ra;
+        clientRules = clients;
+    }
+
+    private static Gravity loadGravity(Context c, Prefs p) {
+        long[] malware = readCategory(c, MALWARE_FILE);
+        long[] trackers = readCategory(c, TRACKER_FILE);
+        long[] ads = readCategory(c, ADS_FILE);
+        long[] adult = readCategory(c, ADULT_FILE);
+        long[] other = readCategory(c, OTHER_FILE);
+
+        // Seed list shipped in the APK. It is ads-oriented.
+        LongBuffer seed = new LongBuffer(131072);
+        try (InputStream in = c.getAssets().open("blocklist.txt");
+             BufferedReader r = new BufferedReader(
+                     new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            readHostsHashed(r, seed);
+        } catch (Exception ignored) {
+            // A missing seed list is not fatal.
+        }
+
+        boolean anyCategoryFile = malware.length > 0 || trackers.length > 0
+                || ads.length > 0 || adult.length > 0 || other.length > 0;
+        if (!anyCategoryFile) {
+            // Upgrade path: the old build kept one merged file. Treat it as
+            // "other" so it keeps blocking, but category switches cannot
+            // separate it until the next gravity update rewrites the files.
+            long[] legacy = readCategory(c, LEGACY_FILE);
+            if (legacy.length > 0) other = legacy;
+        }
+
+        // Security categories get the first claim on the 600k cap.
+        int budget = MAX_DOMAINS;
+        malware = cap(malware, budget);
+        budget -= malware.length;
+        trackers = cap(trackers, budget);
+        budget -= trackers.length;
+        adult = cap(adult, budget);
+        budget -= adult.length;
+        ads = cap(ads, budget);
+        budget -= ads.length;
+        other = cap(other, budget);
+        budget -= other.length;
+        long[] seedHashes = cap(seed.toArray(), budget);
+
+        long[][] sources = {
+                Gravity.clean(malware),
+                Gravity.clean(trackers),
+                Gravity.clean(adult),
+                Gravity.clean(ads),
+                Gravity.clean(other),
+                Gravity.clean(seedHashes)
+        };
+        int[] bits = {
+                Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
+                Gravity.ADS, Gravity.OTHER, Gravity.ADS
+        };
+        return Gravity.build(sources, bits, MAX_DOMAINS);
+    }
+
+    private static long[] cap(long[] values, int max) {
+        if (values == null || max <= 0) return new long[0];
+        return values.length <= max ? values : java.util.Arrays.copyOf(values, max);
+    }
+
+    private static long[] readCategory(Context c, String name) {
+        LongBuffer out = new LongBuffer(131072);
+        File file = new File(c.getFilesDir(), name);
+        if (!file.exists()) return out.toArray();
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(
+                new FileInputStream(file), StandardCharsets.UTF_8))) {
+            readHostsHashed(r, out);
+        } catch (Exception ignored) { }
+        return out.toArray();
+    }
+
+    private static void readHostsHashed(BufferedReader r, LongBuffer into) {
+        try {
+            String line;
+            int n = 0;
+            while ((line = r.readLine()) != null && n < MAX_DOMAINS) {
+                String d = HostsParser.parseLine(line);
+                if (!d.isEmpty()) {
+                    into.add(Gravity.hash(d));
+                    n++;
+                }
+            }
+        } catch (Exception ignored) { }
     }
 
     /** Updates only the cheap custom-rule sets, leaving gravity untouched. */
     static void setBlockSubdomains(boolean on) {
         blockSubdomains = on;
+    }
+
+    static void setCategoryMask(int mask) {
+        categoryMask = mask;
+    }
+
+    static void applyPrefs(Prefs p) {
+        if (p == null) return;
+        blockSubdomains = p.blockSubdomains;
+        categoryMask = p.categoryMask();
+        clientRules = parseClientRules(p.clientRules);
     }
 
     static void clearCustomInMemory() {
@@ -247,17 +392,6 @@ final class Blocklist {
         } catch (Exception ignored) { }
     }
 
-    private static void readHosts(BufferedReader r, Set<String> into) {
-        try {
-            String line;
-            int n = 0;
-            while ((line = r.readLine()) != null && n < MAX_DOMAINS) {
-                String d = HostsParser.parseLine(line);
-                if (!d.isEmpty() && into.add(d)) n++;
-            }
-        } catch (Exception ignored) { }
-    }
-
     static String normalize(String host) {
         if (host == null) return "";
         String h = host.trim().toLowerCase(Locale.US);
@@ -267,8 +401,15 @@ final class Blocklist {
 
     /** Full decision for one lookup. Allow rules win over block rules. */
     static Decision check(String host) {
+        return check(host, null);
+    }
+
+    static Decision check(String host, String client) {
         String h = normalize(host);
         if (h.isEmpty() || !h.contains(".")) return Decision.NONE;
+
+        Decision clientDecision = checkClient(client, h);
+        if (clientDecision != Decision.NONE) return clientDecision;
 
         String exactAllow = findExact(exactAllowed, h);
         if (exactAllow != null) return Decision.allow(exactAllow);
@@ -277,18 +418,79 @@ final class Blocklist {
         String reAllow = findRegex(regexAllowed, h);
         if (reAllow != null) return Decision.allow("/" + reAllow + "/");
 
-        if (gravity.contains(h)) return Decision.block(h, "gravity");
+        int flags = gravity.flagsOf(Gravity.hash(h));
+        if ((flags & categoryMask) != 0) {
+            return Decision.block(h, "gravity", categoryName(flags));
+        }
         if (blockSubdomains) {
-            String parent = findSuffix(gravity, h);
-            if (parent != null) return Decision.block("*." + parent, "gravity (subdomain)");
+            String parent = findGravitySuffix(h);
+            if (parent != null) {
+                int parentFlags = gravity.flagsOf(Gravity.hash(parent));
+                if ((parentFlags & categoryMask) != 0) {
+                    return Decision.block("*." + parent, "gravity (subdomain)",
+                            categoryName(parentFlags));
+                }
+            }
         }
         String exactBlock = findExact(exactBlocked, h);
-        if (exactBlock != null) return Decision.block(exactBlock, "custom");
+        if (exactBlock != null) return Decision.block(exactBlock, "custom", "Custom");
         String wildBlock = findSubdomain(wildcardBlocked, h);
-        if (wildBlock != null) return Decision.block("*." + wildBlock, "wildcard");
+        if (wildBlock != null) return Decision.block("*." + wildBlock, "wildcard", "Custom");
         String reBlock = findRegex(regexBlocked, h);
-        if (reBlock != null) return Decision.block("/" + reBlock + "/", "regex");
+        if (reBlock != null) return Decision.block("/" + reBlock + "/", "regex", "Custom");
         return Decision.NONE;
+    }
+
+    private static Decision checkClient(String client, String host) {
+        if (client == null || client.isEmpty()) return Decision.NONE;
+        Map<String, ClientRules> all = clientRules;
+        if (all.isEmpty()) return Decision.NONE;
+        ClientRules rules = all.get(client);
+        if (rules == null) return Decision.NONE;
+        if (rules.allowed.contains(host)) {
+            return Decision.allow("client " + client + " " + host);
+        }
+        String wildAllow = findSubdomain(rules.wildcardAllowed, host);
+        if (wildAllow != null) return Decision.allow("client " + client + " *." + wildAllow);
+        if (rules.blocked.contains(host)) {
+            return Decision.block(host, "client " + client, "Client");
+        }
+        String wildBlock = findSubdomain(rules.wildcardBlocked, host);
+        if (wildBlock != null) {
+            return Decision.block("*." + wildBlock, "client " + client, "Client");
+        }
+        return Decision.NONE;
+    }
+
+    private static Map<String, ClientRules> parseClientRules(String text) {
+        if (text == null || text.trim().isEmpty()) return Collections.emptyMap();
+        HashMap<String, ClientRules> out = new HashMap<>();
+        for (String raw : text.split("\\n")) {
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] parts = line.split("\\s+");
+            if (parts.length < 2) continue;
+            String ip = parts[0].trim();
+            if (ip.isEmpty()) continue;
+            String value = parts[1].trim();
+            boolean allow = value.startsWith("!");
+            if (allow) value = value.substring(1);
+            boolean wildcard = value.startsWith("*.");
+            if (wildcard) value = value.substring(2);
+            String domain = HostsParser.normalizeDomain(value);
+            if (domain.isEmpty()) continue;
+            ClientRules rules = out.get(ip);
+            if (rules == null) {
+                rules = new ClientRules();
+                out.put(ip, rules);
+            }
+            if (allow) {
+                (wildcard ? rules.wildcardAllowed : rules.allowed).add(domain);
+            } else {
+                (wildcard ? rules.wildcardBlocked : rules.blocked).add(domain);
+            }
+        }
+        return out;
     }
 
     static boolean isBlocked(String host) {
@@ -303,15 +505,17 @@ final class Blocklist {
         return set.contains(host) ? host : null;
     }
 
-    private static String findSuffix(Set<String> set, String host) {
-        if (set.isEmpty()) return null;
+    /** Gravity parent lookup: returns the matched parent, never a bare TLD. */
+    private static String findGravitySuffix(String host) {
+        if (gravity.size() == 0) return null;
+        int mask = categoryMask;
         String cur = host;
         while (cur.contains(".")) {
-            if (set.contains(cur)) return cur;
             int dot = cur.indexOf('.');
             if (dot < 0) break;
             cur = cur.substring(dot + 1);
-            if (!cur.contains(".")) break;       // never match a bare TLD
+            if (!cur.contains(".")) break;
+            if ((gravity.flagsOf(Gravity.hash(cur)) & mask) != 0) return cur;
         }
         return null;
     }
@@ -337,6 +541,15 @@ final class Blocklist {
             } catch (Exception ignored) { }
         }
         return null;
+    }
+
+    static String categoryName(int flags) {
+        if ((flags & Gravity.MALWARE) != 0) return "Malware";
+        if ((flags & Gravity.TRACKERS) != 0) return "Trackers";
+        if ((flags & Gravity.ADS) != 0) return "Ads";
+        if ((flags & Gravity.ADULT) != 0) return "Adult";
+        if ((flags & Gravity.OTHER) != 0) return "Other";
+        return "Gravity";
     }
 
     // ------------------------------------------------------------- custom rules
@@ -472,6 +685,24 @@ final class Blocklist {
         return updating;
     }
 
+    // -------------------------------------------------------------- health
+
+    static List<Health> parseHealth(String text) {
+        ArrayList<Health> out = new ArrayList<>();
+        if (text == null) return out;
+        for (String line : text.split("\\n")) {
+            String s = line.trim();
+            if (s.isEmpty()) continue;
+            String[] f = s.split("\\|", -1);
+            if (f.length < 5) continue;
+            try {
+                out.add(new Health(f[0], "1".equals(f[1]),
+                        Integer.parseInt(f[2]), f[3], Long.parseLong(f[4])));
+            } catch (Exception ignored) { }
+        }
+        return out;
+    }
+
     // -------------------------------------------------------------- downloading
 
     static void updateAsync(Context context, Done done) {
@@ -491,6 +722,7 @@ final class Blocklist {
                 List<String> adsUrls = new ArrayList<>();
                 List<String> trackerUrls = new ArrayList<>();
                 List<String> malwareUrls = new ArrayList<>();
+                List<String> adultUrls = new ArrayList<>();
                 List<String> otherUrls = new ArrayList<>();
                 for (String url : urls) {
                     switch (Blocklists.categoryOf(url)) {
@@ -500,6 +732,9 @@ final class Blocklist {
                         case Blocklists.CATEGORY_MALWARE:
                             malwareUrls.add(url);
                             break;
+                        case Blocklists.CATEGORY_ADULT:
+                            adultUrls.add(url);
+                            break;
                         case Blocklists.CATEGORY_ADS:
                             adsUrls.add(url);
                             break;
@@ -508,50 +743,40 @@ final class Blocklist {
                             break;
                     }
                 }
-                HashSet<String> fresh = new HashSet<>(131072);
+                ArrayList<Health> health = new ArrayList<>();
                 int[] tally = new int[2];
                 StringBuilder errors = new StringBuilder();
-                // Security lists first so they survive the 600k cap. Counts are
-                // unique within each category; categories may overlap.
-                int malwareCount = downloadCategory(malwareUrls, fresh, tally, errors);
-                int trackerCount = downloadCategory(trackerUrls, fresh, tally, errors);
-                int adsCount = downloadCategory(adsUrls, fresh, tally, errors);
-                downloadCategory(otherUrls, fresh, tally, errors);
+                // Security lists first so they survive the 600k cap.
+                int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors);
+                int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors);
+                int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors);
+                int adultCount = p.safeSearch
+                        ? downloadCategory(app, adultUrls, ADULT_FILE, health, tally, errors)
+                        : deleteCategory(app, ADULT_FILE);
+                int otherCount = downloadCategory(app, otherUrls, OTHER_FILE, health, tally, errors);
                 int listsOk = tally[0];
                 int listsFailed = tally[1];
-                if (listsOk == 0 || fresh.isEmpty()) {
+                int domains = adsCount + trackerCount + malwareCount + adultCount + otherCount;
+                if (listsOk == 0 || domains == 0) {
                     throw new Exception(errors.length() > 0 ? errors.toString()
                             : "No domains found");
                 }
-                int domains = fresh.size();
-                Log.i("HoleShield", "gravity=" + domains + " ads=" + adsCount
-                        + " trackers=" + trackerCount + " malware=" + malwareCount);
-                File tmp = new File(app.getFilesDir(), DOWNLOAD_FILE + ".tmp");
-                try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
-                        new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
-                    for (String d : fresh) {
-                        w.write(d);
-                        w.write('\n');
-                    }
-                }
-                // Drop the download set before rebuilding the live gravity set.
-                // At 500k+ domains, holding both sets plus the previous one can
-                // exhaust the heap on a TV.
-                fresh.clear();
-                fresh = null;
-                File dst = new File(app.getFilesDir(), DOWNLOAD_FILE);
-                if (!tmp.renameTo(dst)) {
-                    if (dst.exists()) dst.delete();
-                    if (!tmp.renameTo(dst)) throw new Exception("Could not save gravity");
-                }
+                Log.i("HoleShield", "gravity ads=" + adsCount + " trackers="
+                        + trackerCount + " malware=" + malwareCount
+                        + " adult=" + adultCount);
+                File legacy = new File(app.getFilesDir(), LEGACY_FILE);
+                if (legacy.exists()) legacy.delete();
+
                 p.lastUpdate = System.currentTimeMillis();
                 p.adsDomains = adsCount;
                 p.trackerDomains = trackerCount;
                 p.malwareDomains = malwareCount;
+                p.adultDomains = adultCount;
+                p.listHealth = joinHealth(health);
                 p.save(app);
                 reload(app);
                 ok = true;
-                message = "Blocking " + domains + " domains from " + listsOk
+                message = "Blocking " + Blocklist.gravityCount() + " domains from " + listsOk
                         + (listsOk == 1 ? " list" : " lists")
                         + (listsFailed > 0 ? " (" + listsFailed + " failed)" : "");
             } catch (Exception e) {
@@ -565,38 +790,74 @@ final class Blocklist {
         t.start();
     }
 
-    private static int downloadCategory(List<String> urls, Set<String> fresh,
-                                        int[] tally, StringBuilder errors) {
-        if (urls.isEmpty() || fresh.size() >= MAX_DOMAINS) return 0;
-        // Count unique domains in the category first, then merge only as many
-        // new domains as the global 600k cap allows. Capping the category set
-        // itself would undercount when categories overlap.
+    private static int downloadCategory(Context app, List<String> urls, String file,
+                                        List<Health> health, int[] tally,
+                                        StringBuilder errors) {
+        File dst = new File(app.getFilesDir(), file);
+        if (urls.isEmpty()) return deleteCategory(app, file);
         HashSet<String> category = new HashSet<>(131072);
         for (String url : urls) {
             if (category.size() >= MAX_DOMAINS) break;
+            int before = category.size();
             try {
                 downloadInto(url, category, MAX_DOMAINS);
+                int added = category.size() - before;
                 tally[0]++;
+                health.add(new Health(url, true, added, "",
+                        System.currentTimeMillis()));
             } catch (Exception e) {
                 tally[1]++;
+                String error = e.getMessage() == null ? "failed" : e.getMessage();
+                health.add(new Health(url, false, 0, error,
+                        System.currentTimeMillis()));
                 if (errors.length() < 180) {
                     if (errors.length() > 0) errors.append("; ");
-                    errors.append(Prefs.hostOf(url)).append(": ")
-                            .append(e.getMessage() == null ? "failed" : e.getMessage());
+                    errors.append(Prefs.hostOf(url)).append(": ").append(error);
                 }
             }
         }
         int count = category.size();
-        for (String domain : category) {
-            if (fresh.size() >= MAX_DOMAINS) break;
-            fresh.add(domain);
+        if (count == 0) return deleteCategory(app, file);
+        try {
+            File tmp = new File(app.getFilesDir(), file + ".tmp");
+            try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
+                for (String d : category) {
+                    w.write(d);
+                    w.write('\n');
+                }
+            }
+            if (!tmp.renameTo(dst)) {
+                if (dst.exists()) dst.delete();
+                if (!tmp.renameTo(dst)) throw new Exception("Could not save " + file);
+            }
+        } catch (Exception e) {
+            if (errors.length() < 180) {
+                if (errors.length() > 0) errors.append("; ");
+                errors.append(file).append(": ").append(e.getMessage());
+            }
         }
         category.clear();
         return count;
     }
 
-    private static void downloadInto(String url, Set<String> into) throws Exception {
-        downloadInto(url, into, MAX_DOMAINS);
+    private static int deleteCategory(Context app, String file) {
+        File dst = new File(app.getFilesDir(), file);
+        if (dst.exists()) dst.delete();
+        return 0;
+    }
+
+    private static String joinHealth(List<Health> health) {
+        StringBuilder out = new StringBuilder();
+        for (Health h : health) {
+            if (out.length() > 0) out.append('\n');
+            out.append(h.url.replace('|', '/')).append('|')
+                    .append(h.ok ? '1' : '0').append('|')
+                    .append(h.count).append('|')
+                    .append(h.error.replace('|', '/').replace('\n', ' ')).append('|')
+                    .append(h.at);
+        }
+        return out.toString();
     }
 
     private static void downloadInto(String url, Set<String> into, int limit) throws Exception {
@@ -604,7 +865,7 @@ final class Blocklist {
         c.setConnectTimeout(8000);
         c.setReadTimeout(25000);
         c.setInstanceFollowRedirects(true);
-        c.setRequestProperty("User-Agent", "Hole-Shield/2.2");
+        c.setRequestProperty("User-Agent", "Hole-Shield/2.3");
         int code = c.getResponseCode();
         if (code != 200) throw new Exception("HTTP " + code);
         int read = 0;

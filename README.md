@@ -18,7 +18,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
 `com.dino.pihole` app before installing it.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.2.0 (`versionCode 6`)
+- **Version:** 2.3.0 (`versionCode 7`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
@@ -42,20 +42,38 @@ This is the new `com.dino.holeshield` package; uninstall the old
   subdomains, not the apex; `/regex/` supports Java regular expressions.
 - **CNAME inspection.** If an upstream answer points at a blocked CNAME target,
   the answer is turned into a blocked reply.
-- **Local DNS cache**, DoH upstream (Cloudflare by default) and a plain-DNS
-  fallback.
+- **Local DNS cache**, DoH or DNS-over-TLS upstream (Cloudflare by default)
+  and a plain-DNS fallback. Choose the blocked response: `0.0.0.0`, NXDOMAIN or
+  NODATA.
+- **Runtime category switches** for Ads, Trackers and Malware. The compact
+  64-bit gravity index makes these instant and keeps a 600k-domain list to a few
+  megabytes.
+- **Blocking hours.** Optional daily window (overnight ranges supported) pauses
+  blocking automatically outside the window and resumes at the start time.
+- **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,
+  `192.168.1.50 !example.com` allows, and `*.example.com` matches subdomains.
+- **Backup and restore.** Export settings, custom rules, blocklist sources and
+  the query log as one JSON file through the system document picker.
 - **Pause / resume** indefinitely or for 5/30 minutes, with timer state persisted
-  across restarts.
+  across restarts. Notification actions, a Quick Settings tile and a home-screen
+  widget expose pause, resume and status.
 - **Query log and counters** for queries, blocks, cache hits, forwards, errors,
   clients, types, top domains and upstreams. The log survives app restarts and
   is rolled over daily.
 - **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional
-  username/password login.
+  username/password login. New passwords are stored as PBKDF2 hashes, repeated
+  failures trigger a lockout, and "Log out all" invalidates every session. The
+  dashboard adds a 24-hour chart, blocked-by-category breakdown, runtime category
+  switches, per-list health, one-tap allow/block from the query log, and CSV/JSON
+  export.
 - **LAN DNS server** on UDP and TCP port **5354** for other devices on the LAN
-  (IPv4).
+  (IPv4). The dashboard and LAN DNS listener are **off by default**; a first-run
+  setup screen explains the exposure and lets you opt in.
 - **Pi-hole-compatible API subset** for dashboards and scripts (see below).
+- **Launcher shortcuts** for "Pause 30 min" and "Query log", plus a network
+  details screen with copyable dashboard/DNS addresses.
 - **D-pad and touch UI.** The same screens work with a TV remote and with a
-  finger. TV keeps its focus rings and immersive fullscreen; phones use a compact
+  finger. Log rows are focusable on TV and expose quick allow/block actions. TV keeps its focus rings and immersive fullscreen; phones use a compact
   layout, show the system bars and rebuild cleanly between portrait and
   landscape.
 - **Material You theme.** Dark Material 3 surfaces, tonal cards, pill buttons
@@ -92,10 +110,13 @@ shown.
 
 ```bash
 cd ~/pihole-tv
-./tools/test.sh          # 113 desktop checks for DNS, packet, list and web-auth code
+./tools/test.sh          # 133 desktop checks for DNS, packet, list, hash and web-auth code
 ./build.sh               # writes build/holeshield.apk (sideload signing key)
 ./tools/build-aab.sh     # writes build/holeshield.aab (Play upload key) + test APK
 ```
+
+GitHub Actions runs the desktop checks and builds the APK on pushes and pull
+requests (`.github/workflows/android.yml`).
 
 `build.sh` signs with `~/.android/pihole-tv.keystore` (created on first use) and
 is intended for direct APK distribution. `tools/build-aab.sh` signs the Play
@@ -407,12 +428,13 @@ build.sh                     no-Gradle APK build
 
 ## Tests
 
-`./tools/test.sh` runs **113 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **133 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
-from tun packets, blocked A/AAAA/HTTPS replies, answer-address extraction, TTL
-selection, IPv4/IPv6 UDP replies and checksums, address/port swapping, payload
-preservation, hosts/adblock line parsing, blocklist preset merging and web
-login credential checks.
+from tun packets, blocked A/AAAA/HTTPS replies in all three blocked-response
+modes, answer-address extraction, TTL selection, IPv4/IPv6 UDP replies and
+checksums, address/port swapping, payload preservation, hosts/adblock line
+parsing, blocklist preset merging, PBKDF2 login records and compact gravity
+merging/lookup.
 
 The app has been exercised on:
 
@@ -421,7 +443,7 @@ The app has been exercised on:
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
 - clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
-  the current `2.2.0` build and the Play screenshots.
+  the current `2.3.0` build and the Play screenshots.
 
 Verified across these devices:
 
@@ -436,7 +458,7 @@ Verified across these devices:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Current `2.2.0` build extras verified on the TV with the signed AAB test APK:
+Current `2.3.0` build extras verified on the TV with the signed AAB test APK:
 
 - in-app VPN disclosure before Android's VPN prompt;
 - `specialUse` foreground service starts and stays in the foreground;
@@ -450,10 +472,17 @@ Current `2.2.0` build extras verified on the TV with the signed AAB test APK:
 - URLhaus `02teste.cc` and Phishing Army `0-ilxrc-w285.p9bckp.sbs` →
   `0.0.0.0`, tracker `app-measurement.com` → `0.0.0.0`, while `example.com`
   resolves normally;
-- version strings now come from the installed package (`2.2.0`);
+- version strings now come from the installed package (`2.3.0`);
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
+- 2.3.0: notification actions (Pause 30 min / Resume), Quick Settings tile and
+  widget are registered; widget pause/resume was exercised with ADB.
+- 2.3.0: the dashboard serves the 24-hour chart, category switches, list health,
+  query-log allow/block actions and CSV/JSON export; the new UI was exercised
+  with jsdom.
+- 2.3.0: dashboard and LAN DNS are off by default for new installs; existing
+  installs keep their saved choice.
 
-Current `2.2.0` phone checks on the Android 15 and Android 16 emulators:
+Current `2.3.0` phone checks on the Android 15 and Android 16 emulators:
 
 - notification permission prompt; denying it does not crash the app;
 - first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;

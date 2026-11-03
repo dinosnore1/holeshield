@@ -73,19 +73,25 @@ final class DnsUpstream {
     private final Protector protector;
     private final boolean usePihole;
     private final boolean useDoh;
+    private final boolean useDot;
     private final String piholeHost;
     private volatile List<InetAddress> piholeIps = Collections.emptyList();
     private final String dohHost;
     private final String dohPath;
     private final int dohPort;
     private volatile List<InetAddress> dohIps = Collections.emptyList();
+    private final String dotHost;
+    private final int dotPort;
+    private volatile List<InetAddress> dotIps = Collections.emptyList();
     private final InetAddress[] plainIps;
 
     private final Object resolveLock = new Object();
     private boolean resolvingPihole;
     private boolean resolvingDoh;
+    private boolean resolvingDot;
     private volatile long piholeResolveAt;
     private volatile long dohResolveAt;
+    private volatile long dotResolveAt;
 
     private final Map<String, Cache> cache = new LinkedHashMap<String, Cache>(256, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<String, Cache> eldest) {
@@ -97,6 +103,8 @@ final class DnsUpstream {
     private volatile long piholeSkipUntil;
     private int dohFailures;
     private volatile long dohSkipUntil;
+    private int dotFailures;
+    private volatile long dotSkipUntil;
     private volatile String lastError = "";
 
     private static final class Cache {
@@ -147,7 +155,17 @@ final class DnsUpstream {
             if (dohIps.isEmpty()) resolveDoh(false);
         }
 
-        if ("plain".equals(p.fallback) || "doh".equals(p.fallback)) {
+        String dotName = p.dotHost == null ? "" : p.dotHost.trim();
+        this.useDot = "dot".equals(p.fallback);
+        this.dotHost = dotName;
+        this.dotPort = p.dotPort > 0 && p.dotPort <= 65535 ? p.dotPort : 853;
+        if (useDot && !dotName.isEmpty()) {
+            seedDotIps(dotName);
+            if (dotIps.isEmpty()) resolveDot(false);
+        }
+
+        if ("plain".equals(p.fallback) || "doh".equals(p.fallback)
+                || "dot".equals(p.fallback)) {
             plainIps = new InetAddress[]{
                     ip("1.1.1.1"), ip("8.8.8.8"), ip("9.9.9.9")
             };
@@ -195,9 +213,27 @@ final class DnsUpstream {
         if (a != null) out.add(a);
     }
 
+    private void seedDotIps(String host) {
+        if (!dotIps.isEmpty()) return;
+        ArrayList<InetAddress> ips = new ArrayList<>();
+        if ("one.one.one.one".equalsIgnoreCase(host)
+                || "cloudflare-dns.com".equalsIgnoreCase(host)) {
+            addIp(ips, "1.1.1.1");
+            addIp(ips, "1.0.0.1");
+        } else if ("dns.google".equalsIgnoreCase(host)) {
+            addIp(ips, "8.8.8.8");
+            addIp(ips, "8.8.4.4");
+        } else if ("dns.quad9.net".equalsIgnoreCase(host)) {
+            addIp(ips, "9.9.9.9");
+            addIp(ips, "149.112.112.112");
+        }
+        if (!ips.isEmpty()) dotIps = Collections.unmodifiableList(ips);
+    }
+
     String statusLine() {
         if (!piholeIps.isEmpty()) return "Pi-hole " + piholeHost;
         if (useDoh && !dohIps.isEmpty()) return "Encrypted fallback";
+        if (useDot && !dotIps.isEmpty()) return "DNS-over-TLS fallback";
         if (!lastError.isEmpty()) return lastError;
         if (plainIps.length > 0) return "Plain fallback";
         return "No upstream";
@@ -227,6 +263,7 @@ final class DnsUpstream {
 
         maybeResolvePihole();
         maybeResolveDoh();
+        maybeResolveDot();
 
         byte[] answer = null;
         String via = "none";
@@ -259,6 +296,17 @@ final class DnsUpstream {
                 dohSkipUntil = System.currentTimeMillis() + DOH_SKIP_MS;
                 dohResolveAt = 0L;
                 maybeResolveDoh();
+            }
+        }
+        if (answer == null && useDot && System.currentTimeMillis() >= dotSkipUntil) {
+            answer = dotQuery(query, q.id);
+            if (answer != null) {
+                via = "dot";
+                dotFailures = 0;
+            } else if (++dotFailures >= 2) {
+                dotSkipUntil = System.currentTimeMillis() + DOH_SKIP_MS;
+                dotResolveAt = 0L;
+                maybeResolveDot();
             }
         }
         if (answer == null && plainIps.length > 0) {
@@ -296,6 +344,12 @@ final class DnsUpstream {
         if (!useDoh || isBlank(dohHost)) return;
         if (System.currentTimeMillis() < dohResolveAt) return;
         resolveDoh(true);
+    }
+
+    private void maybeResolveDot() {
+        if (!useDot || isBlank(dotHost)) return;
+        if (System.currentTimeMillis() < dotResolveAt) return;
+        resolveDot(true);
     }
 
     private void resolvePihole(boolean async) {
@@ -352,6 +406,36 @@ final class DnsUpstream {
         };
         if (async) {
             Thread t = new Thread(work, "doh-resolve");
+            t.setDaemon(true);
+            t.start();
+        } else {
+            work.run();
+        }
+    }
+
+    private void resolveDot(boolean async) {
+        synchronized (resolveLock) {
+            if (resolvingDot) return;
+            resolvingDot = true;
+        }
+        Runnable work = () -> {
+            try {
+                List<InetAddress> found = async ? retryLookup(dotHost) : lookup(dotHost);
+                if (!found.isEmpty()) {
+                    dotIps = found;
+                    dotResolveAt = System.currentTimeMillis() + RESOLVE_OK_MS;
+                } else {
+                    dotResolveAt = System.currentTimeMillis() + RESOLVE_RETRY_MS;
+                }
+            } catch (Exception e) {
+                lastError = "Cannot resolve " + dotHost;
+                dotResolveAt = System.currentTimeMillis() + RESOLVE_RETRY_MS;
+            } finally {
+                synchronized (resolveLock) { resolvingDot = false; }
+            }
+        };
+        if (async) {
+            Thread t = new Thread(work, "dot-resolve");
             t.setDaemon(true);
             t.start();
         } else {
@@ -498,6 +582,70 @@ final class DnsUpstream {
         if (len < 12) return false;
         if (DnsPacket.u16(packet, 0) != id) return false;
         return (DnsPacket.u16(packet, 2) & 0x8000) != 0;
+    }
+
+    private byte[] dotQuery(byte[] query, int id) {
+        List<InetAddress> ips = dotIps;
+        if (!useDot || ips.isEmpty() || dotHost.isEmpty()) return null;
+        for (InetAddress ip : ips) {
+            byte[] answer = dotOnce(ip, query, id);
+            if (answer != null) return answer;
+        }
+        return null;
+    }
+
+    /** DNS-over-TLS: 2-byte length prefix, then the DNS message, inside TLS. */
+    private byte[] dotOnce(InetAddress ip, byte[] query, int id) {
+        Socket raw = new Socket();
+        SSLSocket ssl = null;
+        try {
+            raw.bind(new InetSocketAddress(0));
+            if (protector != null && !protector.protect(raw)) return null;
+            raw.connect(new InetSocketAddress(ip, dotPort), 3500);
+            raw.setSoTimeout(5000);
+            ssl = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault())
+                    .createSocket(raw, dotHost, dotPort, true);
+            SSLParameters params = ssl.getSSLParameters();
+            params.setEndpointIdentificationAlgorithm("HTTPS");
+            try {
+                params.setServerNames(Collections.singletonList(new SNIHostName(dotHost)));
+            } catch (Exception ignored) { }
+            ssl.setSSLParameters(params);
+            ssl.setSoTimeout(5000);
+            ssl.startHandshake();
+
+            OutputStream out = ssl.getOutputStream();
+            out.write((query.length >> 8) & 0xFF);
+            out.write(query.length & 0xFF);
+            out.write(query);
+            out.flush();
+
+            InputStream in = ssl.getInputStream();
+            int hi = in.read();
+            int lo = in.read();
+            if (hi < 0 || lo < 0) return null;
+            int length = (hi << 8) | lo;
+            if (length < 12 || length > 65535) return null;
+            byte[] answer = new byte[length];
+            int off = 0;
+            while (off < length) {
+                int n = in.read(answer, off, length - off);
+                if (n < 0) return null;
+                off += n;
+            }
+            if (!validResponse(answer, answer.length, id)) return null;
+            return answer;
+        } catch (Exception e) {
+            Log.w(TAG, "DoT " + ip + " failed: " + e.getClass().getSimpleName());
+            return null;
+        } finally {
+            try {
+                if (ssl != null) ssl.close();
+            } catch (Exception ignored) { }
+            try {
+                raw.close();
+            } catch (Exception ignored) { }
+        }
     }
 
     private byte[] dohQuery(byte[] query, int id) {

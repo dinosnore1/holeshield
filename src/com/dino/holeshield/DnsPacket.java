@@ -188,6 +188,17 @@ final class DnsPacket {
      * query) and NXDOMAIN for HTTPS/SVCB and anything else.
      */
     static byte[] blockedReply(Query q) {
+        return blockedReply(q, 0);
+    }
+
+    /**
+     * Blocked answer in the configured style:
+     * 0 = sinkhole 0.0.0.0, 1 = NXDOMAIN, 2 = NODATA.
+     */
+    static byte[] blockedReply(Query q, int mode) {
+        if (mode == 1) return errorReply(q, 3);
+        if (mode == 2) return errorReply(q, 0);
+
         int rcode = 0;
         boolean withAnswer = q.type == TYPE_A || q.type == 255;
         if (q.type == TYPE_AAAA) {

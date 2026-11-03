@@ -1,27 +1,27 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.2.0
-versionCode:   6
+Version:       2.3.0
+versionCode:   7
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-11-03
+Built:         2026-11-04
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 514d6ebe9c74896970111b294bfcecaea0833764f946eafcc4946d50367adc0d
-  Size    124 KB
+  SHA-256 20dd0e272574aeefdc9d1677d28bccb1ec4ad77048cd73bb2141c4f5b0f96e90
+  Size    157 KB
 
 build/holeshield.apk
-  SHA-256 c454b29f13501bde5a204f85ad374fe0a45bf76f1df266a6ff426c640ea42a69
-  Size    129 KB
+  SHA-256 144b843bf98dd0245e61e173ad446b72113d4ba91108491abda0bc04d1c9a51d
+  Size    165 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 cc2c9f8c2bb2e74394cc5a1f79d1c5e01e8bb309818419b9d6ebb2855bf96e70
-  Size    133 KB
+  SHA-256 5738cb64a22b43eba920e14893bbd2c39825cbb40238ac24a93bca1e4ca21cb9
+  Size    165 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
 Use build/holeshield.apk for direct GitHub installs. Upload the AAB to Play;
@@ -47,7 +47,8 @@ Build command
 
 Verified
 --------
-- 113 desktop checks pass, including web login and blocklist category rules.
+- 133 desktop checks pass, including PBKDF2 login, compact gravity index,
+  blocked-response modes and blocklist category rules.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,
   protection on.
@@ -95,3 +96,17 @@ Verified
   native select text is fully hidden, the paused label stays neutral (no red),
   and the focus ring/inset shadow is removed.
 - Dashboard, query log, gravity/rules and stats screens verified.
+- 2.3.0 installed on the STB at 192.168.2.133 (versionCode 7 / versionName
+  2.3.0).
+- 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
+  tile and a home-screen widget. The notification exposes Pause 30 min and
+  Resume; the widget pause/resume action was verified with an ADB broadcast.
+- The dashboard adds a 24-hour chart, blocked-by-category breakdown, runtime
+  Ads/Trackers/Malware switches, per-list health, query-log allow/block actions
+  and CSV/JSON export. The new UI was exercised with jsdom.
+- Login hardening: PBKDF2-HMAC-SHA256 password records, a 5-attempt lockout,
+  HttpOnly/SameSite session cookie and log-out-all epoch.
+- Backup/restore uses the system document picker and JSON; compact gravity
+  storage uses sorted 64-bit hashes with category flags.
+- DNS-over-TLS, selectable blocked response (0.0.0.0/NXDOMAIN/NODATA), blocking
+  hours, per-client rules and the optional adult-content list are included.

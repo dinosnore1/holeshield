@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Hole Shield</string>
+    <string name="widget_description">Hole Shield protection status with pause and resume</string>
+    <string name="shortcut_pause_short">Pause 30 min</string>
+    <string name="shortcut_pause_long">Pause DNS blocking for 30 minutes</string>
+    <string name="shortcut_log_short">Query log</string>
+    <string name="shortcut_log_long">Open the Hole Shield query log</string>
 </resources>

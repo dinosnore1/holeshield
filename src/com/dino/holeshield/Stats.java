@@ -3,6 +3,9 @@ package com.dino.holeshield;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -52,10 +55,17 @@ final class Stats {
         final int rcode;
         final long ms;
         final String rule;
+        final String category;
         final boolean blocked;
         final boolean cached;
         Entry(long at, String client, String domain, int type, String status,
               String upstream, int rcode, long ms, String rule,
+              boolean blocked, boolean cached) {
+            this(at, client, domain, type, status, upstream, rcode, ms, rule,
+                    "", blocked, cached);
+        }
+        Entry(long at, String client, String domain, int type, String status,
+              String upstream, int rcode, long ms, String rule, String category,
               boolean blocked, boolean cached) {
             this.at = at;
             this.client = client == null ? "" : client;
@@ -66,11 +76,23 @@ final class Stats {
             this.rcode = rcode;
             this.ms = ms;
             this.rule = rule == null ? "" : rule;
+            this.category = category == null ? "" : category;
             this.blocked = blocked;
             this.cached = cached;
         }
         String typeName() {
             return DnsPacket.typeName(type);
+        }
+    }
+
+    static final class Bucket {
+        final long start;
+        final long queries;
+        final long blocked;
+        Bucket(long start, long queries, long blocked) {
+            this.start = start;
+            this.queries = queries;
+            this.blocked = blocked;
         }
     }
 
@@ -159,8 +181,9 @@ final class Stats {
                     long ms = Long.parseLong(f[7]);
                     boolean blockedFlag = "BLOCKED".equals(f[4]);
                     boolean cachedFlag = "CACHED".equals(f[4]);
+                    String category = f.length >= 10 ? f[9] : "";
                     Entry e = new Entry(at, f[1], f[2], type, f[4], f[5], rcode, ms,
-                            f[8], blockedFlag, cachedFlag);
+                            f[8], category, blockedFlag, cachedFlag);
                     log.addLast(e);
                     domains.add(e.domain);
                     clients.add(e.client);
@@ -206,7 +229,8 @@ final class Stats {
                 w.write(e.upstream); w.write('\t');
                 w.write(Integer.toString(e.rcode)); w.write('\t');
                 w.write(Long.toString(e.ms)); w.write('\t');
-                w.write(e.rule); w.write('\n');
+                w.write(e.rule); w.write('\t');
+                w.write(e.category); w.write('\n');
             }
         } catch (Exception e) {
             return;
@@ -331,6 +355,95 @@ final class Stats {
             counts.put(key, counts.getOrDefault(key, 0) + 1);
         }
         return sort(counts, limit);
+    }
+
+    /** Queries and blocked counts per local hour, oldest first. */
+    static synchronized List<Bucket> hourly(int hours) {
+        int count = Math.max(1, Math.min(48, hours));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        long current = cal.getTimeInMillis();
+        long hourMs = 3600000L;
+        long start = current - (count - 1) * hourMs;
+        long[] queriesByHour = new long[count];
+        long[] blockedByHour = new long[count];
+        for (Entry e : log) {
+            if (e.at < start || e.at > current + hourMs) continue;
+            int index = (int) ((e.at - start) / hourMs);
+            if (index < 0 || index >= count) continue;
+            queriesByHour[index]++;
+            if (e.blocked) blockedByHour[index]++;
+        }
+        ArrayList<Bucket> out = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            out.add(new Bucket(start + i * hourMs, queriesByHour[i], blockedByHour[i]));
+        }
+        return out;
+    }
+
+    /** Blocked queries grouped by the category that matched. */
+    static synchronized List<Top> categoryCounts() {
+        Map<String, Integer> counts = new HashMap<>();
+        for (Entry e : log) {
+            if (!e.blocked) continue;
+            String key = e.category == null || e.category.isEmpty()
+                    ? "Gravity" : e.category;
+            counts.put(key, counts.getOrDefault(key, 0) + 1);
+        }
+        return sort(counts, 16);
+    }
+
+    /** Newest-first query log as JSON, for backup/export. */
+    static synchronized JSONArray exportLog() throws Exception {
+        JSONArray arr = new JSONArray();
+        for (Entry e : log) {
+            JSONObject o = new JSONObject();
+            o.put("at", e.at);
+            o.put("client", e.client);
+            o.put("domain", e.domain);
+            o.put("type", e.type);
+            o.put("status", e.status);
+            o.put("upstream", e.upstream);
+            o.put("rcode", e.rcode);
+            o.put("ms", e.ms);
+            o.put("rule", e.rule);
+            o.put("category", e.category);
+            o.put("blocked", e.blocked);
+            o.put("cached", e.cached);
+            arr.put(o);
+        }
+        return arr;
+    }
+
+    /** Replaces the query log from a backup. Entries stay newest first. */
+    static synchronized void importLog(Context c, JSONArray arr) {
+        log.clear();
+        domains.clear();
+        clients.clear();
+        types.clear();
+        if (arr != null) {
+            for (int i = 0; i < arr.length() && log.size() < LOG_MAX; i++) {
+                JSONObject o = arr.optJSONObject(i);
+                if (o == null) continue;
+                Entry e = new Entry(o.optLong("at", System.currentTimeMillis()),
+                        o.optString("client", ""), o.optString("domain", ""),
+                        o.optInt("type", DnsPacket.TYPE_A),
+                        o.optString("status", "FORWARDED"),
+                        o.optString("upstream", ""), o.optInt("rcode", 0),
+                        o.optLong("ms", 0L), o.optString("rule", ""),
+                        o.optString("category", ""),
+                        o.optBoolean("blocked", false),
+                        o.optBoolean("cached", false));
+                log.addLast(e);
+                if (!e.domain.isEmpty()) domains.add(e.domain);
+                if (!e.client.isEmpty()) clients.add(e.client);
+                types.put(e.type, types.getOrDefault(e.type, 0) + 1);
+            }
+        }
+        logDirty = true;
+        save(c);
     }
 
     private static List<Top> sort(Map<String, Integer> counts, int limit) {

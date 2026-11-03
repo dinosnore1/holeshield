@@ -54,6 +54,11 @@ final class Blocklists {
             "https://phishing.army/download/phishing_army_blocklist_extended.txt"
     };
 
+    /** Parental filter used when SafeSearch / adult filtering is enabled. */
+    static final String[] ADULT = {
+            "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts"
+    };
+
     private static final String[] CLASSIC = {
             // Classic hosts lists, kept for additional unique coverage.
             "https://adaway.org/hosts.txt",
@@ -71,13 +76,15 @@ final class Blocklists {
     static final int CATEGORY_ADS = 0;
     static final int CATEGORY_TRACKERS = 1;
     static final int CATEGORY_MALWARE = 2;
-    static final int CATEGORY_OTHER = 3;
+    static final int CATEGORY_ADULT = 3;
+    static final int CATEGORY_OTHER = 4;
 
     private Blocklists() { }
 
     static int categoryOf(String url) {
         if (contains(TRACKERS, url)) return CATEGORY_TRACKERS;
         if (contains(MALWARE, url)) return CATEGORY_MALWARE;
+        if (contains(ADULT, url)) return CATEGORY_ADULT;
         if (contains(CORE, url) || contains(CLASSIC, url)) return CATEGORY_ADS;
         return CATEGORY_OTHER;
     }

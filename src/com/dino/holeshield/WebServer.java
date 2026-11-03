@@ -16,7 +16,9 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +42,7 @@ final class WebServer {
         boolean lanRunning();
         String lanError();
         default void blockingChanged() { }
+        default void settingsChanged() { }
     }
 
     private static final String TAG = "PiholeTv";
@@ -56,6 +59,9 @@ final class WebServer {
     private ServerSocket server;
     private Thread acceptThread;
     private ThreadPoolExecutor pool;
+
+    private int loginFailures;
+    private volatile long loginLockedUntil;
 
     WebServer(Context context, int port, Host host) {
         this.context = context.getApplicationContext();
@@ -179,8 +185,17 @@ final class WebServer {
             String sid = r.header("x-ftl-sid");
             if (sid == null || sid.isEmpty()) sid = r.param("sid", "");
             if (sid == null || sid.isEmpty()) sid = cookie(r, "sid");
-            if (sid != null && !sid.isEmpty()) sessions.remove(sid);
-            sendJson(out, 200, "{\"loggedOut\":true}");
+            boolean all = "1".equals(r.param("all", ""))
+                    || "true".equalsIgnoreCase(r.param("all", ""));
+            if (all) {
+                sessions.clear();
+                p.logoutAllWebSessions();
+                p.save(context);
+            } else if (sid != null && !sid.isEmpty()) {
+                sessions.remove(sid);
+            }
+            sendJsonWithCookie(out, 200, "{\"loggedOut\":true,\"all\":" + all + "}",
+                    "sid=; Max-Age=0; HttpOnly; SameSite=Strict; Path=/");
             return;
         }
         if ("auth".equals(rest)) {
@@ -189,6 +204,35 @@ final class WebServer {
         }
         if ("health".equals(rest)) {
             sendJson(out, 200, "{\"status\":\"ok\"}");
+            return;
+        }
+        if ("stats/history".equals(rest)) {
+            sendJson(out, 200, history().toString());
+            return;
+        }
+        if ("settings/categories".equals(rest)) {
+            categories(r, out, p);
+            return;
+        }
+        if ("lists/health".equals(rest)) {
+            JSONArray arr = new JSONArray();
+            for (Blocklist.Health h : Blocklist.parseHealth(p.listHealth)) {
+                JSONObject o = new JSONObject();
+                o.put("address", h.url);
+                o.put("ok", h.ok);
+                o.put("count", h.count);
+                o.put("error", h.error);
+                o.put("at", h.at);
+                arr.put(o);
+            }
+            JSONObject root = new JSONObject();
+            root.put("lists", arr);
+            root.put("updating", Blocklist.isUpdating());
+            sendJson(out, 200, root.toString());
+            return;
+        }
+        if ("queries/export".equals(rest)) {
+            exportQueries(r, out);
             return;
         }
         if ("stats/summary".equals(rest)) {
@@ -298,8 +342,126 @@ final class WebServer {
         root.put("clients", clients);
         root.put("blocking", p.blockingActive());
         root.put("blocking_timer", p.blockingRemainingSeconds());
+        root.put("schedule_enabled", p.scheduleEnabled);
+        root.put("schedule_start", p.scheduleStart);
+        root.put("schedule_end", p.scheduleEnd);
+        root.put("schedule_active", p.scheduleActiveNow());
+        root.put("schedule_label", p.scheduleLabel());
+        root.put("safe_search", p.safeSearch);
+        root.put("blocked_response", p.blockedResponse);
+        JSONObject switches = new JSONObject();
+        switches.put("ads", p.categoryAds);
+        switches.put("trackers", p.categoryTrackers);
+        switches.put("malware", p.categoryMalware);
+        root.put("category_switches", switches);
         root.put("took", 0.001);
         return root;
+    }
+
+    private JSONObject history() throws Exception {
+        JSONArray hours = new JSONArray();
+        for (Stats.Bucket b : Stats.hourly(24)) {
+            JSONObject o = new JSONObject();
+            o.put("time", b.start / 1000.0);
+            o.put("queries", b.queries);
+            o.put("blocked", b.blocked);
+            hours.put(o);
+        }
+        JSONArray categories = new JSONArray();
+        for (Stats.Top t : Stats.categoryCounts()) {
+            JSONObject o = new JSONObject();
+            o.put("category", t.key);
+            o.put("count", t.count);
+            categories.put(o);
+        }
+        JSONObject root = new JSONObject();
+        root.put("hours", hours);
+        root.put("categories", categories);
+        root.put("took", 0.001);
+        return root;
+    }
+
+    private void categories(Request r, OutputStream out, Prefs p) throws Exception {
+        if ("POST".equals(r.method)) {
+            JSONObject body = bodyJson(r);
+            if (body.has("ads")) p.categoryAds = body.optBoolean("ads", p.categoryAds);
+            if (body.has("trackers")) p.categoryTrackers = body.optBoolean("trackers", p.categoryTrackers);
+            if (body.has("malware")) p.categoryMalware = body.optBoolean("malware", p.categoryMalware);
+            p.save(context);
+            Blocklist.setCategoryMask(p.categoryMask());
+            if (host != null) host.settingsChanged();
+        }
+        JSONObject o = new JSONObject();
+        o.put("ads", p.categoryAds);
+        o.put("trackers", p.categoryTrackers);
+        o.put("malware", p.categoryMalware);
+        o.put("safe_search", p.safeSearch);
+        o.put("took", 0.001);
+        sendJson(out, 200, o.toString());
+    }
+
+    private void exportQueries(Request r, OutputStream out) throws Exception {
+        String format = r.param("format", "csv").toLowerCase(Locale.US);
+        String blocked = r.param("blocked", "");
+        String search = r.param("search", "").toLowerCase(Locale.US);
+        List<Stats.Entry> all = Stats.log(2000);
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+        if ("json".equals(format)) {
+            JSONArray arr = new JSONArray();
+            for (Stats.Entry e : all) {
+                if (!blocked.isEmpty()) {
+                    boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
+                    if (want != e.blocked) continue;
+                }
+                if (!search.isEmpty() && !e.domain.toLowerCase(Locale.US).contains(search)
+                        && !e.client.toLowerCase(Locale.US).contains(search)) continue;
+                JSONObject o = new JSONObject();
+                o.put("time", e.at / 1000.0);
+                o.put("client", e.client);
+                o.put("domain", e.domain);
+                o.put("type", e.typeName());
+                o.put("status", e.status);
+                o.put("upstream", e.upstream);
+                o.put("rcode", DnsPacket.rcodeName(e.rcode));
+                o.put("ms", e.ms);
+                o.put("rule", e.rule);
+                o.put("category", e.category);
+                arr.put(o);
+            }
+            sendDownload(out, "application/json; charset=utf-8",
+                    "holeshield-queries.json", arr.toString().getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        StringBuilder csv = new StringBuilder();
+        csv.append("time,client,domain,type,status,upstream,rcode,ms,rule,category\n");
+        for (Stats.Entry e : all) {
+            if (!blocked.isEmpty()) {
+                boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
+                if (want != e.blocked) continue;
+            }
+            if (!search.isEmpty() && !e.domain.toLowerCase(Locale.US).contains(search)
+                    && !e.client.toLowerCase(Locale.US).contains(search)) continue;
+            csv.append(csvCell(fmt.format(new Date(e.at)))).append(',')
+                    .append(csvCell(e.client)).append(',')
+                    .append(csvCell(e.domain)).append(',')
+                    .append(csvCell(e.typeName())).append(',')
+                    .append(csvCell(e.status)).append(',')
+                    .append(csvCell(e.upstream)).append(',')
+                    .append(csvCell(DnsPacket.rcodeName(e.rcode))).append(',')
+                    .append(e.ms).append(',')
+                    .append(csvCell(e.rule)).append(',')
+                    .append(csvCell(e.category)).append('\n');
+        }
+        sendDownload(out, "text/csv; charset=utf-8", "holeshield-queries.csv",
+                csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String csvCell(String value) {
+        String s = value == null ? "" : value;
+        if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) {
+            return "\"" + s.replace("\"", "\"\"") + "\"";
+        }
+        return s;
     }
 
     private JSONObject topDomains(Request r) throws Exception {
@@ -401,6 +563,7 @@ final class WebServer {
             c.put("name", DnsEngine.clientName(e.client));
             o.put("client", c);
             o.put("status", e.status);
+            o.put("blocked", e.blocked);
             JSONObject reply = new JSONObject();
             reply.put("type", "IP");
             reply.put("time", e.ms / 1000.0);
@@ -408,6 +571,7 @@ final class WebServer {
             o.put("upstream", e.upstream);
             o.put("rcode", DnsPacket.rcodeName(e.rcode));
             o.put("rule", e.rule);
+            o.put("category", e.category);
             arr.put(o);
         }
         JSONObject root = new JSONObject();
@@ -436,7 +600,7 @@ final class WebServer {
     }
 
     private void auth(Request r, OutputStream out, Prefs p) throws Exception {
-        String password = p.webPassword == null ? "" : p.webPassword;
+        String password = p.webPasswordHash == null ? "" : p.webPasswordHash;
         if ("GET".equals(r.method)) {
             boolean ok = !WebAuth.passwordRequired(password) || authorized(r, p);
             JSONObject s = new JSONObject();
@@ -448,6 +612,13 @@ final class WebServer {
             sendJson(out, ok ? 200 : 401, root.toString());
             return;
         }
+        long now = System.currentTimeMillis();
+        if (now < loginLockedUntil) {
+            long wait = Math.max(1L, (loginLockedUntil - now + 999L) / 1000L);
+            sendJson(out, 429, "{\"session\":{\"valid\":false,\"message\":"
+                    + JSONObject.quote("Too many attempts. Try again in " + wait + "s.") + "}}");
+            return;
+        }
         String suppliedUser = "";
         String suppliedPassword = "";
         JSONObject body = bodyJson(r);
@@ -456,10 +627,19 @@ final class WebServer {
         if (suppliedUser.isEmpty()) suppliedUser = r.param("username", "");
         if (suppliedPassword.isEmpty()) suppliedPassword = r.param("password", "");
         if (!WebAuth.valid(p.webUsername, password, suppliedUser, suppliedPassword)) {
+            loginFailures++;
+            if (loginFailures >= 5) {
+                long delay = 30000L * (1L << Math.min(5, loginFailures - 5));
+                loginLockedUntil = now + Math.min(delay, 15 * 60 * 1000L);
+            }
             sendJson(out, 401, "{\"session\":{\"valid\":false,"
                     + "\"message\":\"username or password incorrect\"}}");
             return;
         }
+        loginFailures = 0;
+        loginLockedUntil = 0L;
+        long nowMs = System.currentTimeMillis();
+        sessions.entrySet().removeIf(entry -> entry.getValue().until < nowMs);
         String sid = UUID.randomUUID().toString().replace("-", "");
         String csrf = UUID.randomUUID().toString().replace("-", "");
         sessions.put(sid, new Session(System.currentTimeMillis() + SESSION_MS,
@@ -472,7 +652,9 @@ final class WebServer {
         JSONObject root = new JSONObject();
         root.put("session", s);
         root.put("took", 0.001);
-        sendJson(out, 200, root.toString());
+        sendJsonWithCookie(out, 200, root.toString(),
+                "sid=" + sid + "; Max-Age=" + (SESSION_MS / 1000)
+                        + "; HttpOnly; SameSite=Strict; Path=/");
     }
 
     // --------------------------------------------------------------- domains
@@ -630,8 +812,17 @@ final class WebServer {
         h.put("lan_dns_note", "Port 53 needs root; use the high port on this device.");
         h.put("version", Device.versionName(context));
         h.put("blocking", p.blockingActive());
-        h.put("web_password", !(p.webPassword == null || p.webPassword.isEmpty()));
+        h.put("web_password", p.hasWebPassword());
         h.put("web_username", WebAuth.usernameRequired(p.webUsername));
+        h.put("blocked_response", p.blockedResponse);
+        h.put("safe_search", p.safeSearch);
+        h.put("schedule_enabled", p.scheduleEnabled);
+        h.put("schedule_label", p.scheduleLabel());
+        h.put("schedule_active", p.scheduleActiveNow());
+        h.put("category_ads", p.categoryAds);
+        h.put("category_trackers", p.categoryTrackers);
+        h.put("category_malware", p.categoryMalware);
+        h.put("upstream", p.upstreamLabel());
         root.put("host", h);
         root.put("took", 0.001);
         return root;
@@ -700,7 +891,7 @@ final class WebServer {
     // ------------------------------------------------------------------ auth
 
     private boolean authorized(Request r, Prefs p) {
-        String password = p.webPassword == null ? "" : p.webPassword;
+        String password = p.webPasswordHash == null ? "" : p.webPasswordHash;
         if (!WebAuth.passwordRequired(password)) return true;
         String sid = r.header("x-ftl-sid");
         if (sid == null || sid.isEmpty()) sid = r.param("sid", "");
@@ -716,11 +907,11 @@ final class WebServer {
         return WebAuth.validAuthParam(p.webUsername, password, r.param("auth", ""));
     }
 
-    /** Sessions are invalidated when the web username or password changes. */
+    /** Sessions are invalidated when the web login changes or on logout-all. */
     private static String credentialKey(Prefs p) {
         String user = p.webUsername == null ? "" : p.webUsername;
-        String pass = p.webPassword == null ? "" : p.webPassword;
-        return user + "\n" + pass;
+        String pass = p.webPasswordHash == null ? "" : p.webPasswordHash;
+        return user + "\n" + pass + "\n" + p.webSessionEpoch;
     }
 
     private static final class Session {
@@ -734,7 +925,7 @@ final class WebServer {
     }
 
     private boolean v5Authorized(Request r, Prefs p) {
-        String password = p.webPassword == null ? "" : p.webPassword;
+        String password = p.webPasswordHash == null ? "" : p.webPasswordHash;
         if (!WebAuth.passwordRequired(password)) return true;
         return WebAuth.validAuthParam(p.webUsername, password, r.param("auth", ""));
     }
@@ -890,6 +1081,18 @@ final class WebServer {
                 body.getBytes(StandardCharsets.UTF_8));
     }
 
+    private static void sendJsonWithCookie(OutputStream out, int code, String body,
+                                           String setCookie) throws IOException {
+        send(out, code, "application/json; charset=utf-8",
+                body.getBytes(StandardCharsets.UTF_8), setCookie, null);
+    }
+
+    private static void sendDownload(OutputStream out, String type, String filename,
+                                     byte[] body) throws IOException {
+        send(out, 200, type, body, null,
+                "Content-Disposition: attachment; filename=\"" + filename + "\"\r\n");
+    }
+
     private static void sendHtml(OutputStream out, int code, String body) throws IOException {
         send(out, code, "text/html; charset=utf-8",
                 body.getBytes(StandardCharsets.UTF_8));
@@ -906,16 +1109,25 @@ final class WebServer {
 
     private static void send(OutputStream out, int code, String type, byte[] body)
             throws IOException {
-        String head = "HTTP/1.1 " + code + " " + reason(code) + "\r\n"
-                + "Content-Type: " + type + "\r\n"
-                + "Content-Length: " + body.length + "\r\n"
-                + "Cache-Control: no-store\r\n"
-                + "Connection: close\r\n"
-                + "Access-Control-Allow-Origin: *\r\n"
-                + "Access-Control-Allow-Headers: Content-Type, X-FTL-SID\r\n"
-                + "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
-                + "X-Content-Type-Options: nosniff\r\n\r\n";
-        out.write(head.getBytes(StandardCharsets.ISO_8859_1));
+        send(out, code, type, body, null, null);
+    }
+
+    private static void send(OutputStream out, int code, String type, byte[] body,
+                             String setCookie, String extraHeaders) throws IOException {
+        StringBuilder head = new StringBuilder();
+        head.append("HTTP/1.1 ").append(code).append(' ').append(reason(code)).append("\r\n")
+                .append("Content-Type: ").append(type).append("\r\n")
+                .append("Content-Length: ").append(body.length).append("\r\n")
+                .append("Cache-Control: no-store\r\n")
+                .append("Connection: close\r\n")
+                .append("Access-Control-Allow-Origin: *\r\n")
+                .append("Access-Control-Allow-Headers: Content-Type, X-FTL-SID\r\n")
+                .append("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n")
+                .append("X-Content-Type-Options: nosniff\r\n");
+        if (setCookie != null) head.append("Set-Cookie: ").append(setCookie).append("\r\n");
+        if (extraHeaders != null) head.append(extraHeaders);
+        head.append("\r\n");
+        out.write(head.toString().getBytes(StandardCharsets.ISO_8859_1));
         out.write(body);
         out.flush();
     }

@@ -17,7 +17,7 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Contact email | `gaganpachory@gmail.com` |
 | Website | `https://dinosnore1.github.io/holeshield-privacy/` |
 | Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
-| Version | 2.2.0 (`versionCode 6`) |
+| Version | 2.3.0 (`versionCode 7`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
 | Form factors | Phone, tablet, Android TV |
@@ -56,12 +56,19 @@ BUILT-IN GRAVITY ENGINE
   lists (Hagezi, OISD, 1Hosts, AdGuard CNAME, URLhaus, Phishing Army, Perflyst SmartTV and more).
 • Separate tracker/telemetry and malware/phishing categories can be added or removed
   independently.
-• The web dashboard shows domain counts for Ads, Trackers and Malware, with a
-  icon-only sun/moon theme and refresh buttons, a browser-tab favicon, logout, a compact centered Material You login page, and a single compact pause pill/dropdown with an in-place countdown and dynamic width.
+• The web dashboard shows domain counts for Ads, Trackers and Malware, a 24-hour
+  chart, blocked-by-category breakdown, per-list health, one-tap allow/block from
+  the query log, and CSV/JSON export.
+• Runtime switches for Ads, Trackers and Malware apply instantly.
+• Optional blocking hours, per-client LAN rules, DNS-over-TLS, a choice of
+  blocked response (0.0.0.0, NXDOMAIN or NODATA), and a parental filter.
+• The dashboard has icon-only sun/moon theme and refresh buttons, a browser-tab
+  favicon, logout, log-out-all, a compact centered Material You login page, and a
+  single compact pause pill/dropdown with an in-place countdown and dynamic width.
 • Add your own hosts or adblock-style URLs.
 • Exact, wildcard and regex allow/deny rules. Allow rules win.
 • CNAME inspection catches trackers hidden behind another domain.
-• Local DNS cache with encrypted DNS-over-HTTPS upstream.
+• Local DNS cache with encrypted DNS-over-HTTPS or DNS-over-TLS upstream.
 
 SEE WHAT IS HAPPENING
 • Live query log with blocked/allowed filters and search.
@@ -73,7 +80,9 @@ BUILT FOR THE TV AND THE PHONE
 • D-pad navigation and focus rings for Android TV remotes.
 • Touch layout with edge-to-edge support on modern phones.
 • Dark Material 3 theme with dynamic accent colours on Android 12+.
-• Optional start at boot and pause timers.
+• Optional start at boot, pause timers, blocking hours, notification actions, a
+  Quick Settings tile and a home-screen widget.
+• Backup and restore settings, rules, lists and the query log as JSON.
 
 OPTIONAL LAN DNS
 Turn other devices on your network into Hole Shield clients with the built-in
@@ -92,6 +101,8 @@ GOOD TO KNOW
   the local VPN does before the system prompt appears.
 • Set Private DNS to Off in Android network settings if you use a strict DoT
   hostname that bypasses the local filter.
+• The dashboard and LAN DNS listener are off by default; enable them in the
+  first-run setup or Settings and set a web password before LAN exposure.
 • The maximum blocklist preset is aggressive. Add an allow rule if a service
   stops working.
 • Hole Shield is an independent app and is not affiliated with any other DNS
@@ -101,16 +112,20 @@ Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
-### Release notes (versionCode 6)
+### Release notes (versionCode 7)
 
 ```
-Hole Shield 2.2.0
-• New tracker/telemetry and malware/phishing list categories.
-• Gravity & rules can add or remove each category independently.
-• The maximum preset now includes 25 lists with explicit security coverage.
-• The web dashboard shows Ads, Trackers and Malware domain counts.
-• The web dashboard has icon-only sun/moon theme and refresh buttons, a browser-tab favicon, logout, a compact centered Material You login page, and a single compact pause pill/dropdown with an in-place countdown and dynamic width.
-• Existing 2.1.0 web username/password login and 2.0.1 fixes are included.
+Hole Shield 2.3.0
+• Dashboard and LAN DNS are now opt-in, with a first-run setup screen.
+• Notification actions, a Quick Settings tile and a home-screen widget.
+• Query log quick allow/block, category column and CSV/JSON export.
+• Blocking hours with automatic resume, and per-client LAN rules.
+• PBKDF2 web-password storage, login lockout and log-out-all sessions.
+• Backup and restore settings, rules, lists and query history as JSON.
+• 24-hour dashboard chart, blocked-by-category breakdown, per-list health.
+• Runtime Ads/Trackers/Malware switches and a compact gravity index.
+• DNS-over-TLS, selectable blocked response and a parental filter.
+• Launcher shortcuts, network details, accessibility labels and CI.
 ```
 
 ## Graphics

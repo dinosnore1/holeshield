@@ -4,6 +4,8 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -18,6 +20,7 @@ import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.RouteInfo;
+import android.net.Uri;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,15 +36,22 @@ import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -60,10 +70,12 @@ import java.util.function.Consumer;
  */
 public class MainActivity extends Activity {
 
-    private enum Screen { HOME, SETTINGS, LISTS, PIHOLE, LOG }
+    private enum Screen { HOME, SETTINGS, LISTS, PIHOLE, LOG, NETWORK }
 
     private static final int REQ_VPN = 41;
     private static final int REQ_NOTIFICATION = 42;
+    private static final int REQ_BACKUP_SAVE = 43;
+    private static final int REQ_BACKUP_OPEN = 44;
 
     private Prefs prefs;
     private boolean isTv;
@@ -156,11 +168,57 @@ public class MainActivity extends Activity {
         }
         immersive();
         setContentView(createShell());
-        show(Screen.HOME);
+        Screen start = screenFromIntent(getIntent());
+        show(start);
+        if (getIntent() != null && getIntent().getBooleanExtra("start_protection", false)
+                && !DnsVpnService.running) {
+            getIntent().removeExtra("start_protection");
+            handler.postDelayed(this::toggleProtection, 300);
+        }
+        if (start == Screen.HOME && !prefs.onboardingDone) showOnboarding();
         requestNotificationPermission();
         if (!DnsVpnService.running && !DnsVpnService.starting) {
             loadGravityAsync();
         }
+    }
+
+    private Screen screenFromIntent(Intent intent) {
+        if (intent == null) return Screen.HOME;
+        String action = intent.getAction();
+        if ("com.dino.holeshield.QUERYLOG".equals(action)) return Screen.LOG;
+        if (DnsVpnService.ACTION_PAUSE_30.equals(action)) {
+            pauseFor30();
+            return Screen.HOME;
+        }
+        if ("pihole".equals(intent.getStringExtra("screen"))) return Screen.PIHOLE;
+        return Screen.HOME;
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent == null) return;
+        if (intent.getBooleanExtra("start_protection", false)) {
+            if (DnsVpnService.running) show(Screen.HOME);
+            else toggleProtection();
+            return;
+        }
+        Screen next = screenFromIntent(intent);
+        show(next);
+        intent.removeExtra("screen");
+    }
+
+    private void pauseFor30() {
+        prefs = Prefs.load(this);
+        prefs.pauseBlocking(1800);
+        prefs.save(this);
+        Blocklist.applyPrefs(prefs);
+        if (DnsVpnService.running) {
+            Intent i = new Intent(this, DnsVpnService.class);
+            i.setAction(DnsVpnService.ACTION_RELOAD);
+            startService(i);
+        }
+        updateLive();
     }
 
     private void loadGravityAsync() {
@@ -169,6 +227,82 @@ public class MainActivity extends Activity {
             if (screen == Screen.LISTS) show(Screen.LISTS);
             else updateLive();
         });
+    }
+
+    /**
+     * First-run setup. Dashboard and LAN DNS are off by default; this screen
+     * is the only place a new install can opt in before the settings screen.
+     */
+    private void showOnboarding() {
+        if (isFinishing() || isDestroyed()) return;
+        LinearLayout box = Ui.column(this);
+        int pad = Ui.dp(this, 22);
+        box.setPadding(pad, Ui.dp(this, 4), pad, 0);
+
+        TextView intro = Ui.text(this,
+                "Hole Shield filters DNS on this device through Android's VPN "
+                        + "service. No traffic leaves the device except DNS lookups. "
+                        + "A local query log stays on this device and is never uploaded.",
+                13, Ui.DIM, false);
+        intro.setLineSpacing(Ui.dp(this, 3), 1f);
+        box.addView(intro);
+
+        TextView sharing = Ui.caption(this, "OPTIONAL LAN SHARING");
+        sharing.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 6));
+        box.addView(sharing);
+
+        CheckBox web = new CheckBox(this);
+        web.setText("Web dashboard and API on this network");
+        web.setTextSize(14);
+        web.setChecked(false);
+        box.addView(web);
+
+        CheckBox lan = new CheckBox(this);
+        lan.setText("LAN DNS server for other devices (port 5354)");
+        lan.setTextSize(14);
+        lan.setChecked(false);
+        box.addView(lan);
+
+        TextView note = Ui.text(this,
+                "Both options are off by default. When enabled, any device on "
+                        + "your network can reach the dashboard or use this device "
+                        + "as a DNS server. Set a web password before exposing the "
+                        + "dashboard. You can change this later in Settings.",
+                11.5f, Ui.FAINT, false);
+        note.setLineSpacing(Ui.dp(this, 2), 1f);
+        note.setPadding(0, Ui.dp(this, 10), 0, 0);
+        box.addView(note);
+
+        Ui.builder(this)
+                .setTitle("Welcome to Hole Shield")
+                .setView(box)
+                .setPositiveButton("Continue", (d, w) -> {
+                    prefs = Prefs.load(this);
+                    prefs.onboardingDone = true;
+                    prefs.webEnabled = web.isChecked();
+                    prefs.lanDns = lan.isChecked();
+                    prefs.save(this);
+                    if (DnsVpnService.running) restartIfRunning();
+                    updateLive();
+                })
+                .setNegativeButton("Keep everything local", (d, w) -> {
+                    prefs = Prefs.load(this);
+                    prefs.onboardingDone = true;
+                    prefs.webEnabled = false;
+                    prefs.lanDns = false;
+                    prefs.save(this);
+                    updateLive();
+                })
+                .show();
+    }
+
+    private void confirmExposure(String title, String message, Runnable action) {
+        Ui.builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton("Enable", (d, w) -> action.run())
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void immersive() {
@@ -317,6 +451,14 @@ public class MainActivity extends Activity {
                 Ui.toast(this, "Protection needs VPN permission");
             }
             show(Screen.HOME);
+            return;
+        }
+        if (requestCode == REQ_BACKUP_SAVE && resultCode == RESULT_OK && data != null) {
+            writeBackup(data.getData());
+            return;
+        }
+        if (requestCode == REQ_BACKUP_OPEN && resultCode == RESULT_OK && data != null) {
+            readBackup(data.getData());
         }
     }
 
@@ -333,6 +475,7 @@ public class MainActivity extends Activity {
             case LISTS: content = listsScreen(); break;
             case PIHOLE: content = piholeScreen(); break;
             case LOG: content = logScreen(); break;
+            case NETWORK: content = networkScreen(); break;
             default: content = homeScreen(); break;
         }
         page.addView(content, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -375,6 +518,7 @@ public class MainActivity extends Activity {
 
         ShieldView logo = new ShieldView(this);
         logo.setOn(true);
+        logo.setContentDescription("Hole Shield logo");
         logo.setLayoutParams(Ui.lp(Ui.dp(this, isTv ? 42 : 36),
                 Ui.dp(this, isTv ? 42 : 36)));
         LinearLayout brand = Ui.column(this);
@@ -433,6 +577,7 @@ public class MainActivity extends Activity {
                 Ui.dp(this, heroPad), Ui.dp(this, isTv ? 28 : 18));
 
         shield = new ShieldView(this);
+        shield.setContentDescription("Protection status");
         int shieldSize = isTv ? 152 : 88;
         shield.setLayoutParams(Ui.lp(Ui.dp(this, shieldSize), Ui.dp(this, shieldSize)));
         hero.addView(shield);
@@ -623,7 +768,8 @@ public class MainActivity extends Activity {
 
         if (chip != null) {
             if (running && !prefs.blockingActive()) {
-                pausedChip("PAUSED");
+                pausedChip(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
+                        ? "OUTSIDE HOURS" : "PAUSED");
             } else if (running) {
                 Ui.setChip(chip, "PROTECTED", Ui.ON_PRIMARY_CONTAINER,
                         Ui.PRIMARY_CONTAINER, Ui.withAlpha(Ui.PRIMARY, 0x66));
@@ -641,7 +787,8 @@ public class MainActivity extends Activity {
 
         if (heroTitle != null) {
             if (running && !prefs.blockingActive()) {
-                heroTitle.setText("Blocking is paused");
+                heroTitle.setText(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
+                        ? "Outside blocking hours" : "Blocking is paused");
             } else if (running) {
                 heroTitle.setText("Hole Shield is filtering this device");
             } else if (!prefs.protectionWanted) {
@@ -657,8 +804,15 @@ public class MainActivity extends Activity {
 
         if (heroSub != null) {
             if (running && !prefs.blockingActive()) {
-                heroSub.setText("DNS still resolves through the embedded upstream, but "
-                        + "gravity and custom block rules are off until you resume.");
+                if (prefs.scheduleEnabled && !prefs.scheduleActiveNow()) {
+                    heroSub.setText("Blocking is scheduled for "
+                            + Prefs.timeLabel(prefs.scheduleStart) + "–"
+                            + Prefs.timeLabel(prefs.scheduleEnd)
+                            + ". DNS still resolves; gravity resumes automatically.");
+                } else {
+                    heroSub.setText("DNS still resolves through the embedded upstream, but "
+                            + "gravity and custom block rules are off until you resume.");
+                }
             } else if (running) {
                 heroSub.setText("Every app on this device uses the built-in filter. Gravity, "
                         + "allow/deny rules and the query log run on the device itself.");
@@ -896,7 +1050,8 @@ public class MainActivity extends Activity {
             piholeTitle.setText("Filter is off");
             piholeTitle.setTextColor(Ui.DIM);
         } else if (paused) {
-            piholeTitle.setText("Blocking is paused");
+            piholeTitle.setText(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
+                    ? "Outside blocking hours" : "Blocking is paused");
             piholeTitle.setTextColor(Ui.AMBER);
         } else {
             piholeTitle.setText("Hole Shield is blocking");
@@ -932,7 +1087,7 @@ public class MainActivity extends Activity {
         piholeError.setText(err.toString());
 
         if (piholeServer != null) {
-            String login = prefs.webPassword == null || prefs.webPassword.isEmpty()
+            String login = !prefs.hasWebPassword()
                     ? "not set"
                     : (prefs.webUsername == null || prefs.webUsername.isEmpty()
                             ? "password only" : "user + password");
@@ -1121,7 +1276,49 @@ public class MainActivity extends Activity {
                         ? "Active" : "Add",
                 () -> toggleListCategory(Blocklists.MALWARE,
                         "Malware & phishing")), rowLp(8));
+        rows.addView(settingRow("Per-client rules",
+                "One per line: 192.168.1.50 ads.example.com  or  !example.com to allow",
+                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(9));
         add(col, rows, 0);
+
+        col.addView(section("RUNTIME CATEGORIES"));
+        LinearLayout cats = Ui.column(this);
+        cats.addView(categoryRow("Ads", "Ad, popup and CNAME ad lists",
+                prefs.categoryAds, () -> {
+                    prefs.categoryAds = !prefs.categoryAds;
+                    prefs.save(this);
+                    Blocklist.setCategoryMask(prefs.categoryMask());
+                    show(Screen.LISTS);
+                }), rowLp(0));
+        cats.addView(categoryRow("Trackers", "CNAME trackers and smart-TV telemetry",
+                prefs.categoryTrackers, () -> {
+                    prefs.categoryTrackers = !prefs.categoryTrackers;
+                    prefs.save(this);
+                    Blocklist.setCategoryMask(prefs.categoryMask());
+                    show(Screen.LISTS);
+                }), rowLp(1));
+        cats.addView(categoryRow("Malware", "Malware, phishing and malicious downloads",
+                prefs.categoryMalware, () -> {
+                    prefs.categoryMalware = !prefs.categoryMalware;
+                    prefs.save(this);
+                    Blocklist.setCategoryMask(prefs.categoryMask());
+                    show(Screen.LISTS);
+                }), rowLp(2));
+        cats.addView(settingRow("SafeSearch / parental filter",
+                "Adds an adult-content list; update gravity to apply",
+                prefs.safeSearch ? "On" : "Off", () -> {
+                    prefs.safeSearch = !prefs.safeSearch;
+                    prefs.blocklistUrls = prefs.safeSearch
+                            ? Blocklists.mergeMissing(prefs.blocklistUrls, Blocklists.ADULT)
+                            : Blocklists.removeAll(prefs.blocklistUrls, Blocklists.ADULT);
+                    prefs.save(this);
+                    Blocklist.setCategoryMask(prefs.categoryMask());
+                    show(Screen.LISTS);
+                    if (prefs.safeSearch) updateBlocklist();
+                }), rowLp(3));
+        add(col, cats, 8);
+
+        addHealthPanel(col);
 
         LinearLayout note = card(22);
         note.addView(Ui.caption(this, "WHAT DNS CAN AND CANNOT DO"));
@@ -1151,6 +1348,60 @@ public class MainActivity extends Activity {
         Ui.toast(this, active
                 ? label + " lists removed. Update gravity to apply."
                 : label + " lists added. Update gravity to apply.");
+    }
+
+    private LinearLayout categoryRow(String title, String subtitle, boolean on,
+                                     Runnable action) {
+        return settingRow(title, subtitle, on ? "On" : "Off", action);
+    }
+
+    private void addHealthPanel(LinearLayout col) {
+        LinearLayout health = card(22);
+        LinearLayout head = Ui.row(this);
+        head.addView(Ui.caption(this, "BLOCKLIST HEALTH"));
+        head.addView(new View(this), Ui.lp(0, 1, 1f));
+        TextView retry = Ui.button(this, "Retry failed", false);
+        retry.setOnClickListener(v -> updateBlocklist());
+        head.addView(retry);
+        health.addView(head);
+
+        List<Blocklist.Health> lists = Blocklist.parseHealth(prefs.listHealth);
+        if (lists.isEmpty()) {
+            health.addView(Ui.text(this, "No download results yet. Update gravity to "
+                    + "check every list.", 12.5f, Ui.FAINT, false),
+                    Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+        } else {
+            for (int i = 0; i < lists.size(); i++) {
+                Blocklist.Health h = lists.get(i);
+                LinearLayout row = Ui.row(this);
+                row.addView(Ui.text(this, h.ok ? "●" : "×", 10,
+                        h.ok ? Ui.GREEN : Ui.RED, false));
+                TextView url = Ui.text(this, Prefs.hostOf(h.url), 12.5f, Ui.TEXT, false);
+                url.setSingleLine(true);
+                row.addView(url, Ui.margins(Ui.lp(0,
+                        ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                        Ui.dp(this, 8), 0, 0, 0));
+                String detail = h.ok ? Ui.count(h.count) + " domains"
+                        : (h.error.isEmpty() ? "failed" : h.error);
+                row.addView(Ui.text(this, detail, 10.5f,
+                        h.ok ? Ui.FAINT : Ui.RED, false));
+                health.addView(row, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT), 0,
+                        i == 0 ? Ui.dp(this, 8) : Ui.dp(this, 6), 0, 0));
+            }
+        }
+        add(col, health, isTv ? 18 : 14);
+    }
+
+    private void editClientRules() {
+        editMultiline("Per-client rules", prefs.clientRules, value -> {
+            prefs.clientRules = value;
+            prefs.save(this);
+            Blocklist.applyPrefs(prefs);
+            show(Screen.LISTS);
+            Ui.toast(this, "Per-client rules saved");
+        });
     }
 
     private void updateListsLive() {
@@ -1300,6 +1551,10 @@ public class MainActivity extends Activity {
             show(Screen.LOG);
         });
         actions.addView(clear);
+        TextView export = Ui.button(this, "Export CSV", false);
+        export.setOnClickListener(v -> shareLog());
+        actions.addView(export, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
         add(col, actions, isTv ? 8 : 6);
 
         List<Stats.Entry> entries = Stats.log(200);
@@ -1334,6 +1589,8 @@ public class MainActivity extends Activity {
                     client.setGravity(Gravity.END);
                     row.addView(client, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 12), 0, 0, 0));
+                    makeLogRowFocusable(row);
+                    row.setOnClickListener(v -> showQueryActions(e));
                     list.addView(row, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT), 0,
                             i == 0 ? 0 : Ui.dp(this, 8), 0, 0));
@@ -1361,6 +1618,8 @@ public class MainActivity extends Activity {
                     name.setEllipsize(android.text.TextUtils.TruncateAt.END);
                     entry.addView(name, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 4), 0, 0));
+                    makeLogRowFocusable(entry);
+                    entry.setOnClickListener(v -> showQueryActions(e));
                     list.addView(entry, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT), 0,
                             i == 0 ? 0 : Ui.dp(this, 10), 0, 0));
@@ -1376,7 +1635,96 @@ public class MainActivity extends Activity {
         return col;
     }
 
-    // ----------------------------------------------------------- settings screen
+    private void makeLogRowFocusable(View row) {
+        row.setFocusable(true);
+        row.setClickable(true);
+        if (isTv) {
+            row.setBackground(Ui.focusableBg(this, 12));
+            row.setPadding(Ui.dp(this, 10), Ui.dp(this, 6),
+                    Ui.dp(this, 10), Ui.dp(this, 6));
+        }
+    }
+
+    private void showQueryActions(Stats.Entry e) {
+        if (e == null || e.domain.isEmpty()) return;
+        String allowLabel = e.blocked ? "Allow " + e.domain : "Allow " + e.domain + " again";
+        String[] items = {
+                allowLabel,
+                "Block " + e.domain,
+                "Allow *." + e.domain + " (subdomains)",
+                "Block *." + e.domain + " (subdomains)",
+                "Copy domain"
+        };
+        Ui.builder(this)
+                .setTitle(e.domain)
+                .setMessage(e.status + " · " + e.category + " · "
+                        + DnsEngine.clientName(e.client))
+                .setItems(items, (d, which) -> {
+                    if (which == 0) {
+                        Blocklist.addRule(this, true, Blocklist.EXACT, e.domain);
+                    } else if (which == 1) {
+                        Blocklist.addRule(this, false, Blocklist.EXACT, e.domain);
+                    } else if (which == 2) {
+                        Blocklist.addRule(this, true, Blocklist.WILDCARD, e.domain);
+                    } else if (which == 3) {
+                        Blocklist.addRule(this, false, Blocklist.WILDCARD, e.domain);
+                    } else {
+                        copyText("Domain", e.domain);
+                        return;
+                    }
+                    prefs = Prefs.load(this);
+                    Ui.toast(this, which == 0 || which == 2 ? "Allowed" : "Blocked");
+                    show(Screen.LOG);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void shareLog() {
+        List<Stats.Entry> entries = Stats.log(2000);
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+        StringBuilder csv = new StringBuilder();
+        csv.append("time,client,domain,type,status,upstream,rcode,ms,rule,category\n");
+        for (Stats.Entry e : entries) {
+            csv.append(csvCell(fmt.format(new Date(e.at)))).append(',')
+                    .append(csvCell(e.client)).append(',')
+                    .append(csvCell(e.domain)).append(',')
+                    .append(csvCell(e.typeName())).append(',')
+                    .append(csvCell(e.status)).append(',')
+                    .append(csvCell(e.upstream)).append(',')
+                    .append(csvCell(DnsPacket.rcodeName(e.rcode))).append(',')
+                    .append(e.ms).append(',')
+                    .append(csvCell(e.rule)).append(',')
+                    .append(csvCell(e.category)).append('\n');
+        }
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType("text/csv");
+        send.putExtra(Intent.EXTRA_SUBJECT, "Hole Shield query log");
+        send.putExtra(Intent.EXTRA_TEXT, csv.toString());
+        try {
+            startActivity(Intent.createChooser(send, "Export query log"));
+        } catch (Exception e) {
+            Ui.toast(this, "No app can receive the export on this device");
+        }
+    }
+
+    private static String csvCell(String value) {
+        String s = value == null ? "" : value;
+        if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) {
+            return "\"" + s.replace("\"", "\"\"") + "\"";
+        }
+        return s;
+    }
+
+    private void copyText(String label, String value) {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText(label, value));
+            Ui.toast(this, label + " copied");
+        } catch (Exception e) {
+            Ui.toast(this, "Could not copy");
+        }
+    }
 
     private LinearLayout settingsScreen() {
         LinearLayout col = Ui.column(this);
@@ -1414,15 +1762,67 @@ public class MainActivity extends Activity {
                 }), rowLp(3));
         add(col, p, 8);
 
+        col.addView(section("BLOCKING HOURS"));
+        LinearLayout hours = Ui.column(this);
+        hours.addView(settingRow("Scheduled blocking", "Only block inside the window below",
+                prefs.scheduleEnabled ? prefs.scheduleLabel() : "Off", () -> {
+                    prefs.scheduleEnabled = !prefs.scheduleEnabled;
+                    prefs.save(this);
+                    reloadService();
+                    show(Screen.SETTINGS);
+                }), rowLp(0));
+        hours.addView(settingRow("Blocking starts", "24-hour time, for example 20:00",
+                Prefs.timeLabel(prefs.scheduleStart), () -> edit("Blocking starts",
+                        Prefs.timeLabel(prefs.scheduleStart), false, "HH:MM", value -> {
+                            int minute = Prefs.parseTime(value);
+                            if (minute < 0) {
+                                Ui.toast(this, "Use HH:MM, for example 20:00");
+                                return;
+                            }
+                            prefs.scheduleStart = minute;
+                            prefs.save(this);
+                            reloadService();
+                            show(Screen.SETTINGS);
+                        })), rowLp(1));
+        hours.addView(settingRow("Blocking ends", "Overnight windows are supported",
+                Prefs.timeLabel(prefs.scheduleEnd), () -> edit("Blocking ends",
+                        Prefs.timeLabel(prefs.scheduleEnd), false, "HH:MM", value -> {
+                            int minute = Prefs.parseTime(value);
+                            if (minute < 0) {
+                                Ui.toast(this, "Use HH:MM, for example 07:00");
+                                return;
+                            }
+                            prefs.scheduleEnd = minute;
+                            prefs.save(this);
+                            reloadService();
+                            show(Screen.SETTINGS);
+                        })), rowLp(2));
+        add(col, hours, 8);
+
         col.addView(section("BUILT-IN FILTER"));
         LinearLayout ph = Ui.column(this);
         ph.addView(settingRow("Web dashboard", "Serve the dashboard and API on the LAN",
                 prefs.webEnabled ? "On" : "Off", () -> {
-                    prefs.webEnabled = !prefs.webEnabled;
-                    prefs.save(this);
-                    restartIfRunning();
-                    show(Screen.SETTINGS);
+                    if (prefs.webEnabled) {
+                        prefs.webEnabled = false;
+                        prefs.save(this);
+                        restartIfRunning();
+                        show(Screen.SETTINGS);
+                    } else {
+                        confirmExposure("Expose the dashboard?",
+                                "Any device on your network will be able to open the "
+                                        + "dashboard and API. Set a web password first if "
+                                        + "you do not want that.", () -> {
+                                            prefs.webEnabled = true;
+                                            prefs.save(this);
+                                            restartIfRunning();
+                                            show(Screen.SETTINGS);
+                                        });
+                    }
                 }), rowLp(0));
+        ph.addView(settingRow("Network & sharing",
+                "Copy the dashboard and DNS addresses",
+                "Details", () -> show(Screen.NETWORK)), rowLp(1));
         ph.addView(settingRow("Web dashboard port", "Default 8080; port 80 is privileged",
                 String.valueOf(prefs.webPort), () -> edit("Web dashboard port",
                         String.valueOf(prefs.webPort), false, value -> {
@@ -1435,7 +1835,7 @@ public class MainActivity extends Activity {
                             prefs.save(this);
                             restartIfRunning();
                             show(Screen.SETTINGS);
-                        })), rowLp(1));
+                        })), rowLp(2));
         ph.addView(settingRow("Web username", "Optional; requires a web password",
                 prefs.webUsername == null || prefs.webUsername.isEmpty()
                         ? "not set" : prefs.webUsername,
@@ -1453,25 +1853,43 @@ public class MainActivity extends Activity {
                     Ui.toast(this, user.isEmpty() ? "Web username cleared"
                             : "Web username saved");
                     show(Screen.SETTINGS);
-                })), rowLp(2));
-        ph.addView(settingRow("Web password", "Optional; username + password when set",
-                prefs.webPassword == null || prefs.webPassword.isEmpty() ? "not set" : "set",
+                })), rowLp(3));
+        ph.addView(settingRow("Web password", "PBKDF2 hash; username + password when set",
+                prefs.hasWebPassword() ? "set" : "not set",
                 () -> edit("Web password", "", true,
                         "Leave empty to clear the web login", value -> {
-                    prefs.webPassword = value;
-                    if (value.isEmpty()) prefs.webUsername = "";
+                    prefs.setWebPassword(value);
                     prefs.save(this);
                     Ui.toast(this, value.isEmpty() ? "Web login cleared"
                             : "Web password saved");
                     show(Screen.SETTINGS);
-                })), rowLp(3));
+                })), rowLp(4));
+        ph.addView(settingRow("Log out all web sessions", "Invalidate every browser session",
+                "", () -> {
+                    prefs.logoutAllWebSessions();
+                    prefs.save(this);
+                    Ui.toast(this, "All web sessions will be signed out");
+                    show(Screen.SETTINGS);
+                }), rowLp(5));
         ph.addView(settingRow("LAN DNS server", "UDP and TCP listener for other devices",
                 prefs.lanDns ? "On" : "Off", () -> {
-                    prefs.lanDns = !prefs.lanDns;
-                    prefs.save(this);
-                    restartIfRunning();
-                    show(Screen.SETTINGS);
-                }), rowLp(3));
+                    if (prefs.lanDns) {
+                        prefs.lanDns = false;
+                        prefs.save(this);
+                        restartIfRunning();
+                        show(Screen.SETTINGS);
+                    } else {
+                        confirmExposure("Expose LAN DNS?",
+                                "Other devices on your network will be able to use this "
+                                        + "device as a DNS server on the high port. Android "
+                                        + "does not allow port 53 without root.", () -> {
+                                            prefs.lanDns = true;
+                                            prefs.save(this);
+                                            restartIfRunning();
+                                            show(Screen.SETTINGS);
+                                        });
+                    }
+                }), rowLp(6));
         ph.addView(settingRow("LAN DNS port", "5354 by default; port 53 needs root",
                 String.valueOf(prefs.lanDnsPort), () -> edit("LAN DNS port",
                         String.valueOf(prefs.lanDnsPort), false, value -> {
@@ -1484,17 +1902,18 @@ public class MainActivity extends Activity {
                             prefs.save(this);
                             restartIfRunning();
                             show(Screen.SETTINGS);
-                        })), rowLp(4));
+                        })), rowLp(7));
         ph.addView(settingRow("Blocking", "Open the server screen to pause or resume",
                 prefs.blockingActive() ? "On" : "Paused", () -> show(Screen.PIHOLE)),
-                rowLp(5));
+                rowLp(8));
         add(col, ph, 8);
 
         col.addView(section("UPSTREAM"));
         LinearLayout up = Ui.column(this);
         up.addView(settingRow("Fallback DNS", "Used for allowed and cache-miss lookups",
                 fallbackLabel(), () -> {
-                    if ("doh".equals(prefs.fallback)) prefs.fallback = "plain";
+                    if ("doh".equals(prefs.fallback)) prefs.fallback = "dot";
+                    else if ("dot".equals(prefs.fallback)) prefs.fallback = "plain";
                     else if ("plain".equals(prefs.fallback)) prefs.fallback = "none";
                     else prefs.fallback = "doh";
                     prefs.save(this);
@@ -1513,6 +1932,27 @@ public class MainActivity extends Activity {
                             restartIfRunning();
                             show(Screen.SETTINGS);
                         })), rowLp(1));
+        up.addView(settingRow("DNS-over-TLS server", "Hostname used when DoT is selected",
+                prefs.dotHost, () -> edit("DNS-over-TLS host", prefs.dotHost, false,
+                        "one.one.one.one", value -> {
+                            if (value.isEmpty() || value.contains(" ") || value.contains("/")) {
+                                Ui.toast(this, "Use a DNS hostname such as one.one.one.one");
+                                return;
+                            }
+                            prefs.dotHost = value;
+                            prefs.save(this);
+                            restartIfRunning();
+                            show(Screen.SETTINGS);
+                        })), rowLp(2));
+        up.addView(settingRow("Blocked response", "What clients receive for a blocked name",
+                blockedResponseLabel(), () -> {
+                    if ("zero".equals(prefs.blockedResponse)) prefs.blockedResponse = "nxdomain";
+                    else if ("nxdomain".equals(prefs.blockedResponse)) prefs.blockedResponse = "nodata";
+                    else prefs.blockedResponse = "zero";
+                    prefs.save(this);
+                    reloadService();
+                    show(Screen.SETTINGS);
+                }), rowLp(3));
         add(col, up, 8);
 
         col.addView(section("GRAVITY"));
@@ -1536,6 +1976,10 @@ public class MainActivity extends Activity {
         sys.addView(settingRow(isTv ? "About Hole Shield TV" : "About Hole Shield",
                 "Version " + Device.versionName(this) + " · Material You · no analytics",
                 "", this::about), rowLp(1));
+        sys.addView(settingRow("Back up settings", "Settings, rules, lists and query log as JSON",
+                "Export", this::startBackup), rowLp(2));
+        sys.addView(settingRow("Restore settings", "Replace settings and query log from a backup",
+                "Import", this::startRestore), rowLp(3));
         add(col, sys, 8);
 
         TextView foot = Ui.text(this, "Changing the web/LAN ports, upstream or capture "
@@ -1705,8 +2149,172 @@ public class MainActivity extends Activity {
 
     private String fallbackLabel() {
         if ("doh".equals(prefs.fallback)) return "Encrypted (DoH)";
+        if ("dot".equals(prefs.fallback)) return "DNS-over-TLS (DoT)";
         if ("plain".equals(prefs.fallback)) return "Plain DNS";
         return "Off";
+    }
+
+    private String blockedResponseLabel() {
+        if ("nxdomain".equals(prefs.blockedResponse)) return "NXDOMAIN";
+        if ("nodata".equals(prefs.blockedResponse)) return "NODATA";
+        return "0.0.0.0";
+    }
+
+    // -------------------------------------------------------------- backup
+
+    private void startBackup() {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, "holeshield-backup.json");
+        startActivityForResult(intent, REQ_BACKUP_SAVE);
+    }
+
+    private void startRestore() {
+        Ui.builder(this)
+                .setTitle("Restore settings?")
+                .setMessage("This replaces settings, custom rules, blocklist sources "
+                        + "and the query log with the selected backup.")
+                .setPositiveButton("Choose file", (d, w) -> {
+                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("application/json");
+                    startActivityForResult(intent, REQ_BACKUP_OPEN);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void writeBackup(Uri uri) {
+        if (uri == null) return;
+        io.execute(() -> {
+            String message;
+            boolean ok = false;
+            try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+                if (out == null) throw new Exception("Could not open the file");
+                JSONObject json = Backup.export(this, Prefs.load(this));
+                out.write(json.toString(2).getBytes(StandardCharsets.UTF_8));
+                message = "Backup saved";
+                ok = true;
+            } catch (Exception e) {
+                message = e.getMessage() == null ? "Backup failed" : e.getMessage();
+            }
+            final boolean done = ok;
+            final String result = message;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                Ui.toast(this, result);
+                if (done) show(Screen.SETTINGS);
+            });
+        });
+    }
+
+    private void readBackup(Uri uri) {
+        if (uri == null) return;
+        io.execute(() -> {
+            String message;
+            boolean ok = false;
+            try (InputStream in = getContentResolver().openInputStream(uri)) {
+                if (in == null) throw new Exception("Could not open the file");
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                byte[] chunk = new byte[8192];
+                int n;
+                while ((n = in.read(chunk)) > 0) buffer.write(chunk, 0, n);
+                JSONObject json = new JSONObject(
+                        new String(buffer.toByteArray(), StandardCharsets.UTF_8));
+                int restored = Backup.restore(this, json);
+                message = "Restored settings and " + restored + " log entries";
+                ok = true;
+            } catch (Exception e) {
+                message = e.getMessage() == null ? "Restore failed" : e.getMessage();
+            }
+            final boolean done = ok;
+            final String result = message;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                prefs = Prefs.load(this);
+                Blocklist.applyPrefs(prefs);
+                Ui.toast(this, result);
+                if (done) {
+                    if (DnsVpnService.running) restartIfRunning();
+                    show(Screen.HOME);
+                }
+            });
+        });
+    }
+
+    // ------------------------------------------------------------ network screen
+
+    private LinearLayout networkScreen() {
+        LinearLayout col = Ui.column(this);
+        add(col, subHeader("Network & sharing",
+                "Addresses for this device on the local network"), 0);
+
+        String web = NetInfo.dashboardUrl(this, prefs);
+        String dns = NetInfo.lanDnsUrl(this, prefs);
+        LinearLayout card = card(24);
+        card.addView(addressRow("Web dashboard", web.isEmpty() ? "Off" : web,
+                "Open the dashboard in a browser"));
+        card.addView(addressRow("LAN DNS (UDP/TCP)", dns.isEmpty() ? "Off" : dns,
+                "Use this address on other devices; port 53 needs root"));
+        card.addView(addressRow("Web login", prefs.hasWebPassword()
+                        ? (prefs.webUsername == null || prefs.webUsername.isEmpty()
+                                ? "Password only" : "User + password")
+                        : "Not set",
+                prefs.hasWebPassword() ? "Login required" : "Dashboard is open on the LAN"));
+        card.addView(addressRow("Upstream", prefs.upstreamLabel(),
+                "Used for allowed and cache-miss lookups"));
+        add(col, card, isTv ? 18 : 14);
+
+        LinearLayout tips = card(22);
+        tips.addView(Ui.caption(this, "SHARING TIPS"));
+        TextView body = Ui.text(this,
+                "Both listeners are off by default. Set a web password before "
+                        + "enabling the dashboard. The LAN DNS port is high because "
+                        + "Android does not allow unrooted apps to bind port 53; "
+                        + "point other devices at the address above. Per-client rules "
+                        + "can allow or block domains for one LAN client.",
+                13, Ui.DIM, false);
+        body.setLineSpacing(Ui.dp(this, 3), 1f);
+        tips.addView(body, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
+        add(col, tips, isTv ? 18 : 14);
+
+        LinearLayout actions = isTv ? Ui.row(this) : Ui.column(this);
+        TextView settings = Ui.button(this, "Sharing settings", false);
+        settings.setOnClickListener(v -> show(Screen.SETTINGS));
+        TextView rules = Ui.button(this, "Per-client rules", false);
+        rules.setOnClickListener(v -> show(Screen.LISTS));
+        if (isTv) {
+            actions.addView(settings);
+            actions.addView(rules, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+        } else {
+            actions.addView(settings, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            actions.addView(rules, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+        }
+        add(col, actions, isTv ? 16 : 12);
+        initialFocus = settings;
+        return col;
+    }
+
+    private LinearLayout addressRow(String label, String value, String note) {
+        LinearLayout row = Ui.row(this);
+        row.setPadding(0, Ui.dp(this, 9), 0, Ui.dp(this, 9));
+        LinearLayout text = Ui.column(this);
+        text.addView(Ui.caption(this, label));
+        TextView address = Ui.text(this, value, isTv ? 16 : 14.5f, Ui.TEXT, true);
+        address.setSingleLine(false);
+        text.addView(address, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 4), 0, 0));
+        text.addView(Ui.text(this, note, 11, Ui.FAINT, false));
+        row.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView copy = Ui.button(this, "Copy", false);
+        copy.setOnClickListener(v -> copyText(label, value));
+        row.addView(copy);
+        return row;
     }
 
     private boolean validUrl(String value, boolean allowHttp) {

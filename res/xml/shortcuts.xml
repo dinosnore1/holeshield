@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="pause30"
+        android:shortcutLongLabel="@string/shortcut_pause_long"
+        android:shortcutShortLabel="@string/shortcut_pause_short">
+        <intent
+            android:action="com.dino.holeshield.PAUSE30"
+            android:targetClass="com.dino.holeshield.MainActivity"
+            android:targetPackage="com.dino.holeshield" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="querylog"
+        android:shortcutLongLabel="@string/shortcut_log_long"
+        android:shortcutShortLabel="@string/shortcut_log_short">
+        <intent
+            android:action="com.dino.holeshield.QUERYLOG"
+            android:targetClass="com.dino.holeshield.MainActivity"
+            android:targetPackage="com.dino.holeshield" />
+    </shortcut>
+</shortcuts>

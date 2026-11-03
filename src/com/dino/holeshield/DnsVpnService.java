@@ -33,6 +33,8 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
     static final String ACTION_STOP = "com.dino.holeshield.STOP";
     static final String ACTION_RELOAD = "com.dino.holeshield.RELOAD";
     static final String ACTION_RESTART = "com.dino.holeshield.RESTART";
+    static final String ACTION_PAUSE_30 = "com.dino.holeshield.PAUSE30";
+    static final String ACTION_RESUME = "com.dino.holeshield.RESUME";
 
     private static final String CHANNEL = "protection";
     private static final int NOTIFICATION_ID = 1;
@@ -102,6 +104,11 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
             broadcast();
             updateNotification();
         }
+        @Override public void settingsChanged() {
+            Blocklist.applyPrefs(Prefs.load(DnsVpnService.this));
+            broadcast();
+            updateNotification();
+        }
     };
 
     private final Runnable notificationTick = new Runnable() {
@@ -129,6 +136,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         }
         if (ACTION_RELOAD.equals(action)) {
             prefs = Prefs.load(this);
+            Blocklist.applyPrefs(prefs);
             if (!running) {
                 stopSelf();
                 return START_NOT_STICKY;
@@ -136,6 +144,16 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
             updateNotification();
             broadcast();
             return START_STICKY;
+        }
+        if (ACTION_PAUSE_30.equals(action) || ACTION_RESUME.equals(action)) {
+            prefs = Prefs.load(this);
+            if (ACTION_RESUME.equals(action)) prefs.resumeBlocking();
+            else prefs.pauseBlocking(1800);
+            prefs.save(this);
+            Blocklist.applyPrefs(prefs);
+            broadcast();
+            updateNotification();
+            return running ? START_STICKY : START_NOT_STICKY;
         }
         if (ACTION_RESTART.equals(action)) {
             prefs = Prefs.load(this);
@@ -438,6 +456,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         Intent i = new Intent(ACTION_STATE);
         i.setPackage(getPackageName());
         sendBroadcast(i);
+        ShieldWidget.updateAll(this);
     }
 
     private void channel() {
@@ -450,18 +469,40 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
     }
 
     private Notification notification(String text) {
-        Intent open = new Intent(this, MainActivity.class);
+        Intent open = new Intent(this, MainActivity.class)
+                .putExtra("screen", "pihole");
         PendingIntent pi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        return new Notification.Builder(this, CHANNEL)
+
+        Prefs p = prefs == null ? Prefs.load(this) : prefs;
+        Notification.Builder builder = new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(Device.appName(this))
                 .setContentText(text)
                 .setContentIntent(pi)
                 .setOngoing(true)
                 .setShowWhen(false)
-                .setCategory(Notification.CATEGORY_SERVICE)
-                .build();
+                .setCategory(Notification.CATEGORY_SERVICE);
+        if (running && p.blockingActive()) {
+            builder.addAction(new Notification.Action.Builder(
+                    R.drawable.ic_notification, "Pause 30 min",
+                    servicePending(ACTION_PAUSE_30, 1)).build());
+        } else if (running) {
+            builder.addAction(new Notification.Action.Builder(
+                    R.drawable.ic_notification, "Resume",
+                    servicePending(ACTION_RESUME, 2)).build());
+        }
+        builder.addAction(new Notification.Action.Builder(
+                R.drawable.ic_notification, "Open dashboard",
+                pi).build());
+        return builder.build();
+    }
+
+    private PendingIntent servicePending(String action, int request) {
+        Intent i = new Intent(this, DnsVpnService.class);
+        i.setAction(action);
+        return PendingIntent.getService(this, request, i,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void startForegroundCompat(Notification n) {
@@ -479,7 +520,11 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
         String blocked = Stats.blocked() + " blocked today";
         String text;
         if (!p.blockingActive()) {
-            text = "Blocking paused · " + blocked;
+            if (p.scheduleEnabled && !p.scheduleActiveNow()) {
+                text = "Outside blocking hours · " + blocked;
+            } else {
+                text = "Blocking paused · " + blocked;
+            }
         } else if (p.webEnabled) {
             String ip = NetInfo.lanIpv4(this);
             text = "Hole Shield on · " + blocked

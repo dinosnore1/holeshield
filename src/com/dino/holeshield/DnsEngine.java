@@ -53,14 +53,14 @@ final class DnsEngine {
                 && q.qclass == 1 && DnsPacket.isBlockableType(q.type);
 
         Blocklist.Decision decision = canBlock
-                ? Blocklist.check(q.name) : Blocklist.Decision.NONE;
+                ? Blocklist.check(q.name, clientIp) : Blocklist.Decision.NONE;
 
         if (decision.blocked) {
-            byte[] reply = DnsPacket.blockedReply(q);
+            byte[] reply = DnsPacket.blockedReply(q, p.blockedResponseMode());
             long ms = elapsed(start);
             Stats.onQuery(new Stats.Entry(System.currentTimeMillis(), client, q.name,
                     q.type, "BLOCKED", decision.source, 0, ms, decision.rule,
-                    true, false));
+                    decision.category, true, false));
             return reply;
         }
 
@@ -70,7 +70,7 @@ final class DnsEngine {
             Stats.onQuery(new Stats.Entry(System.currentTimeMillis(), client, q.name,
                     q.type, "ERROR", result == null ? "none" : result.upstream,
                     2, elapsed(start), decision.allowed ? decision.rule : "",
-                    false, false));
+                    decision.category, false, false));
             return reply;
         }
 
@@ -78,13 +78,14 @@ final class DnsEngine {
             List<String> targets = DnsPacket.cnameTargets(result.packet,
                     result.packet.length);
             for (String target : targets) {
-                Blocklist.Decision cname = Blocklist.check(target);
+                Blocklist.Decision cname = Blocklist.check(target, clientIp);
                 if (cname.blocked) {
-                    byte[] reply = DnsPacket.blockedReply(q);
+                    byte[] reply = DnsPacket.blockedReply(q, p.blockedResponseMode());
                     Stats.onQuery(new Stats.Entry(System.currentTimeMillis(), client,
                             q.name, q.type, "BLOCKED", cname.source,
                             DnsPacket.rcode(result.packet, result.packet.length),
-                            elapsed(start), "CNAME " + target, true, false));
+                            elapsed(start), "CNAME " + target, cname.category,
+                            true, false));
                     return reply;
                 }
             }
@@ -96,7 +97,8 @@ final class DnsEngine {
         else status = "FORWARDED";
         Stats.onQuery(new Stats.Entry(System.currentTimeMillis(), client, q.name,
                 q.type, status, result.upstream, result.rcode, elapsed(start),
-                decision.allowed ? decision.rule : "", false, result.cached));
+                decision.allowed ? decision.rule : "", decision.category,
+                false, result.cached));
         return result.packet;
     }
 

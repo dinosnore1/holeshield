@@ -176,6 +176,19 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .type-row .t{width:56px;color:var(--text);font-weight:650;font-size:12px}
 .type-row .bar{flex:1;margin:0}
 .type-row b{width:44px;text-align:right;color:var(--muted);font-size:12px}
+.chart{height:190px;min-width:0}
+.chart svg{width:100%;height:100%;overflow:visible}
+.chart .grid-line{stroke:var(--line);stroke-width:1;opacity:.55}
+.chart .area{fill:url(#chartArea);opacity:.9}
+.chart .line{fill:none;stroke:var(--green);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.chart .blocked-line{fill:none;stroke:var(--red);stroke-width:1.7;stroke-dasharray:4 3}
+.chartLabels{display:flex;justify-content:space-between;color:var(--muted);font-size:10.5px;margin-top:8px}
+.cat-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.cat-row .name{width:86px;color:var(--text);font-size:12.5px;font-weight:650}
+.cat-row .bar{flex:1;margin:0}
+.cat-row b{width:42px;text-align:right;color:var(--muted);font-size:12px}
+#categorySwitches button.active{background:var(--md-primary-container);color:var(--md-on-primary-container);border-color:transparent}
+#categorySwitches button.off{opacity:.55;text-decoration:line-through}
 .scroll{overflow:auto;max-height:520px;border-radius:16px}
 table{width:100%;border-collapse:collapse;min-width:760px}
 th{position:sticky;top:0;background:var(--panel);text-align:left;color:var(--muted);font-size:11px;
@@ -269,6 +282,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     <button id="theme" class="small iconButton" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"></button>
     <button id="refresh" class="small iconButton" aria-label="Refresh now" title="Refresh now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
     <button id="logout" class="small" style="display:none" title="Log out">Log out</button>
+    <button id="logoutAll" class="small" style="display:none" title="Log out every browser session">Log out all</button>
   </header>
 
   <section class="hero">
@@ -313,6 +327,28 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   </section>
   <p class="note">Unique domains per category; categories can overlap.</p>
 
+  <section class="grid2">
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Last 24 hours</h3>
+        <span class="note" id="chartSummary" style="margin-left:auto"></span>
+      </div>
+      <div id="chart" class="chart"><div class="note">No queries yet.</div></div>
+      <div class="chartLabels"><span id="chartStart"></span><span id="chartEnd"></span></div>
+    </div>
+    <div class="panel">
+      <h3>Blocked by category</h3>
+      <div id="categoryBreakdown"><div class="note">No blocked queries yet.</div></div>
+      <h3 style="margin-top:18px">Filtering categories</h3>
+      <div id="categorySwitches" class="row">
+        <button class="small" data-cat="ads">Ads</button>
+        <button class="small" data-cat="trackers">Trackers</button>
+        <button class="small" data-cat="malware">Malware</button>
+      </div>
+      <p class="note" style="margin-top:10px">Changes apply immediately; no gravity reload is needed.</p>
+    </div>
+  </section>
+
   <section class="grid">
     <div class="panel">
       <h3>Top blocked domains</h3>
@@ -339,13 +375,15 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         <button data-filter="all" class="active">All</button>
         <button data-filter="blocked">Blocked</button>
         <button data-filter="allowed">Allowed</button>
+        <button id="exportCsv" class="small" title="Export CSV">CSV</button>
+        <button id="exportJson" class="small" title="Export JSON">JSON</button>
         <input id="search" type="search" placeholder="Filter domain or client" autocomplete="off">
       </div>
     </div>
     <div class="scroll">
       <table>
-        <thead><tr><th>Time</th><th>Client</th><th>Domain</th><th>Type</th><th>Status</th><th>Upstream</th><th>ms</th></tr></thead>
-        <tbody id="queries"><tr><td colspan="7" class="note">Loading…</td></tr></tbody>
+        <thead><tr><th>Time</th><th>Client</th><th>Domain</th><th>Category</th><th>Type</th><th>Status</th><th>Upstream</th><th>ms</th><th>Rule</th></tr></thead>
+        <tbody id="queries"><tr><td colspan="9" class="note">Loading…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -372,8 +410,10 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
 
     <div class="panel">
-      <h3>Lists &amp; actions</h3>
+      <h3 style="margin-top:18px">Lists &amp; actions</h3>
       <ul class="list" id="lists"><li class="empty">No blocklist sources.</li></ul>
+      <h3 style="margin-top:18px">List health</h3>
+      <div id="listHealth"><div class="note">No download results yet.</div></div>
       <form id="listForm" class="row" style="margin-top:12px">
         <input id="listUrl" type="text" placeholder="https://example.com/hosts" autocomplete="off" spellcheck="false">
         <button type="submit">Add list</button>
@@ -480,7 +520,8 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       var session = (data && data.session) || {};
       var required = !!(session.password_required || session.username_required);
       $("#logout").style.display = required ? "" : "none";
-    }).catch(function(){ $("#logout").style.display = "none"; });
+      $("#logoutAll").style.display = required ? "" : "none";
+    }).catch(function(){ $("#logout").style.display = "none"; $("#logoutAll").style.display = "none"; });
   }
 
   function logout(){
@@ -492,6 +533,19 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     }
     if(!sid){ clear(); return; }
     fetch("/api/auth/logout", {
+      method: "POST",
+      headers: {"X-FTL-SID": sid}
+    }).then(clear).catch(clear);
+  }
+
+  function logoutAll(){
+    var sid = state.sid;
+    function clear(){
+      state.sid = "";
+      try { localStorage.removeItem("pihole_tv_sid"); } catch (e) {}
+      showLogin();
+    }
+    fetch("/api/auth/logout?all=1", {
       method: "POST",
       headers: {"X-FTL-SID": sid}
     }).then(clear).catch(clear);
@@ -572,20 +626,27 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     $("#clients").textContent = fmt(c.active);
     $("#updated").textContent = ago(g.last_update_ms || (g.last_update ? Number(g.last_update) * 1000 : 0));
     var on = !!s.blocking;
+    var outsideHours = !!s.schedule_enabled && s.schedule_active === false;
     var status = $("#status");
     status.className = "pill" + (on ? "" : " paused");
-    $("#statusText").textContent = on ? "Blocking enabled" : "Blocking paused";
-    $("#heroTitle").textContent = on ? "Hole Shield is blocking" : "Blocking is paused";
+    $("#statusText").textContent = on ? "Blocking enabled"
+      : outsideHours ? "Outside blocking hours" : "Blocking paused";
+    $("#heroTitle").textContent = on ? "Hole Shield is blocking"
+      : outsideHours ? "Outside blocking hours" : "Blocking is paused";
     $("#heroSub").textContent = on
       ? "Every DNS lookup is checked against the embedded gravity database and your rules."
-      : "DNS still resolves, but gravity and block rules are temporarily off.";
+      : outsideHours
+        ? "Blocking is scheduled for " + (s.schedule_label || "") + ". DNS still resolves and resumes automatically."
+        : "DNS still resolves, but gravity and block rules are temporarily off.";
     state.blocking = on;
+    state.outsideHours = outsideHours;
+    state.scheduleLabel = s.schedule_label || "";
     if(on){
       state.pauseUntil = 0;
       state.pauseIndefinite = false;
     } else {
       var left = Number(s.blocking_timer);
-      state.pauseIndefinite = !(left > 0);
+      state.pauseIndefinite = !outsideHours && !(left > 0);
       state.pauseUntil = left > 0 ? Date.now() + left * 1000 : 0;
     }
     updatePauseDisplay();
@@ -614,6 +675,11 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       select.disabled = false;
       $("#resume").disabled = true;
       if(control) control.title = "Pause blocking";
+    } else if(state.outsideHours){
+      label = "Scheduled";
+      select.disabled = true;
+      $("#resume").disabled = false;
+      if(control) control.title = "Outside blocking hours · " + (state.scheduleLabel || "");
     } else if(state.pauseIndefinite){
       label = "Paused";
       select.disabled = true;
@@ -637,7 +703,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     var rows = (data && data.queries) || [];
     var body = $("#queries");
     if(!rows.length){
-      body.innerHTML = '<tr><td colspan="7" class="note">No matching queries.</td></tr>';
+      body.innerHTML = '<tr><td colspan="9" class="note">No matching queries.</td></tr>';
       return;
     }
     body.innerHTML = rows.map(function(q){
@@ -645,15 +711,98 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       var cls = st === "blocked" ? "blocked" : st === "cached" ? "cached" :
                 st === "error" ? "error" : st === "allowed" ? "allowed" : "forwarded";
       var c = q.client || {};
+      var cat = q.category || (q.blocked ? "Gravity" : "—");
+      var action = q.blocked
+        ? '<button class="small" data-allow="' + esc(q.domain) + '" title="Allow this exact domain">Allow</button>'
+        : '<button class="small danger" data-deny="' + esc(q.domain) + '" title="Block this exact domain">Block</button>';
       return '<tr>' +
         '<td class="mono">' + esc(clock(q.time)) + '</td>' +
         '<td>' + esc(c.name || c.ip || "?") + '<div class="note" style="font-size:10.5px">' + esc(c.ip || "") + '</div></td>' +
         '<td class="domain">' + esc(q.domain) + '</td>' +
+        '<td><span class="tag">' + esc(cat) + '</span></td>' +
         '<td><span class="tag">' + esc(q.type) + '</span></td>' +
         '<td><span class="badge ' + cls + '">' + esc(q.status || "?") + '</span></td>' +
         '<td class="mono">' + esc(q.upstream || "—") + '</td>' +
         '<td class="mono">' + esc(q.reply && q.reply.time != null ? (Number(q.reply.time)*1000).toFixed(1) : "—") + '</td>' +
+        '<td class="mono">' + (q.rule ? '<span class="tag">' + esc(q.rule) + '</span>' : "—") + ' ' + action + '</td>' +
       '</tr>';
+    }).join("");
+  }
+
+  function renderHistory(data){
+    var rows = (data && data.hours) || [];
+    var el = $("#chart");
+    if(!rows.length || rows.every(function(x){ return !Number(x.queries); })){
+      el.innerHTML = '<div class="note">No queries yet.</div>';
+      $("#chartSummary").textContent = "";
+      return;
+    }
+    var w = 600, h = 180, pad = 4;
+    var max = rows.reduce(function(m, x){
+      return Math.max(m, Number(x.queries)||0, Number(x.blocked)||0);
+    }, 1);
+    function points(key){
+      return rows.map(function(x, i){
+        var px = pad + (w - pad*2) * (rows.length === 1 ? 0 : i/(rows.length-1));
+        var py = h - pad - (h - pad*2) * (Number(x[key])||0) / max;
+        return px.toFixed(1) + "," + py.toFixed(1);
+      });
+    }
+    var qp = points("queries");
+    var bp = points("blocked");
+    var area = "M" + qp[0] + " L" + qp.join(" L") +
+      " L" + (w-pad) + "," + (h-pad) + " L" + pad + "," + (h-pad) + " Z";
+    var total = rows.reduce(function(s,x){ return s + (Number(x.queries)||0); }, 0);
+    var blocked = rows.reduce(function(s,x){ return s + (Number(x.blocked)||0); }, 0);
+    $("#chartSummary").textContent = fmt(total) + " queries · " + fmt(blocked) + " blocked";
+    el.innerHTML =
+      '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" role="img" aria-label="Queries and blocked lookups over the last 24 hours">' +
+        '<defs><linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="var(--green)" stop-opacity=".32"/>' +
+          '<stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>' +
+        '</linearGradient></defs>' +
+        '<line class="grid-line" x1="0" y1="' + (h/2) + '" x2="' + w + '" y2="' + (h/2) + '"/>' +
+        '<path class="area" d="' + area + '"/>' +
+        '<polyline class="line" points="' + qp.join(" ") + '"/>' +
+        '<polyline class="blocked-line" points="' + bp.join(" ") + '"/>' +
+      '</svg>';
+    $("#chartStart").textContent = clock(rows[0].time);
+    $("#chartEnd").textContent = "now";
+  }
+
+  function renderCategoryCounts(data){
+    var rows = (data && data.categories) || [];
+    var el = $("#categoryBreakdown");
+    if(!rows.length){ el.innerHTML = '<div class="note">No blocked queries yet.</div>'; return; }
+    var max = rows.reduce(function(m,x){ return Math.max(m, Number(x.count)||0); }, 0) || 1;
+    el.innerHTML = rows.map(function(x){
+      var w = Math.max(3, Math.round((Number(x.count)||0) / max * 100));
+      return '<div class="cat-row"><span class="name">' + esc(x.category) + '</span>' +
+        '<span class="bar"><span style="width:' + w + '%"></span></span><b>' + fmt(x.count) + '</b></div>';
+    }).join("");
+  }
+
+  function renderCategorySwitches(data){
+    var d = data || {};
+    $$("#categorySwitches [data-cat]").forEach(function(button){
+      var key = button.getAttribute("data-cat");
+      var on = d[key] !== false;
+      button.classList.toggle("active", on);
+      button.classList.toggle("off", !on);
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  function renderHealth(data){
+    var rows = (data && data.lists) || [];
+    var el = $("#listHealth");
+    if(!rows.length){ el.innerHTML = '<div class="note">No download results yet.</div>'; return; }
+    el.innerHTML = rows.map(function(x){
+      var detail = x.ok ? fmt(x.count) + " domains" : (x.error || "failed");
+      return '<div class="rule"><span class="badge ' + (x.ok ? "allow" : "deny") + '">' +
+        (x.ok ? "OK" : "FAIL") + '</span><code title="' + esc(x.address) + '">' +
+        esc((x.address || "").replace(/^https?:\/\//, "")) + '</code>' +
+        '<span class="tag">' + esc(detail) + '</span></div>';
     }).join("");
   }
 
@@ -680,8 +829,12 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       '<div class="box"><span>LAN DNS (UDP/TCP)</span><b>' + esc(dns) + '</b></div>' +
       '<div class="box"><span>LAN DNS status</span><b>' + (h.lan_dns_running ? "Listening" : "Off") + '</b></div>' +
       '<div class="box"><span>Web login</span><b>' + (h.web_username ? "User + password" : (h.web_password ? "Password only" : "Not set")) + '</b></div>' +
-      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.1.0") + '</b></div>';
-    $("#footVersion").textContent = h.version || "2.1.0";
+      '<div class="box"><span>Upstream</span><b>' + esc(h.upstream || "—") + '</b></div>' +
+      '<div class="box"><span>Blocking hours</span><b>' + (h.schedule_enabled ? esc(h.schedule_label || "") : "Off") + '</b></div>' +
+      '<div class="box"><span>Blocked response</span><b>' + esc(h.blocked_response || "0.0.0.0") + '</b></div>' +
+      '<div class="box"><span>SafeSearch</span><b>' + (h.safe_search ? "On" : "Off") + '</b></div>' +
+      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.3.0") + '</b></div>';
+    $("#footVersion").textContent = h.version || "2.3.0";
     if(h.lan_dns_error) {
       $("#serverInfo").insertAdjacentHTML("beforeend",
         '<div class="box"><span>LAN DNS note</span><b>' + esc(h.lan_dns_error) + '</b></div>');
@@ -746,7 +899,10 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       safe("/api/stats/query_types"),
       safe("/api/queries?length=150"),
       safe("/api/info/host"),
-      safe("/api/lists")
+      safe("/api/lists"),
+      safe("/api/stats/history"),
+      safe("/api/lists/health"),
+      safe("/api/settings/categories")
     ]).then(function(a){
       renderSummary(a[0]);
       if(a[1]) renderList("#topBlocked", a[1].domains, "domain", "count", "No blocked queries yet.");
@@ -758,6 +914,9 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       if(a[5]) renderQueries(a[5]);
       if(a[6]) renderInfo(a[6]);
       if(a[7]) renderLists(a[7]);
+      if(a[8]) { renderHistory(a[8]); renderCategoryCounts(a[8]); }
+      if(a[9]) renderHealth(a[9]);
+      if(a[10]) renderCategorySwitches(a[10]);
     });
   }
 
@@ -802,6 +961,9 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   $("#resume").addEventListener("click", function(){ setBlocking(true, 0); });
   $("#refresh").addEventListener("click", loadAll);
   $("#logout").addEventListener("click", logout);
+  $("#logoutAll").addEventListener("click", function(){
+    if(confirm("Sign out every browser session?")) logoutAll();
+  });
 
   $$("[data-filter]").forEach(function(b){
     b.addEventListener("click", function(){
@@ -843,6 +1005,65 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       method: "DELETE"
     }).then(function(){ loadRules(); loadAll(); })
       .catch(function(e){ msg("#ruleMsg", e.message, false); });
+  });
+
+  $("#queries").addEventListener("click", function(ev){
+    var allow = ev.target.closest("button[data-allow]");
+    var deny = ev.target.closest("button[data-deny]");
+    var button = allow || deny;
+    if(!button) return;
+    var type = allow ? "allow" : "deny";
+    var domain = allow ? button.getAttribute("data-allow") : button.getAttribute("data-deny");
+    button.disabled = true;
+    api("/api/domains/" + type + "/exact", {
+      method: "POST",
+      body: JSON.stringify({domain: domain})
+    }).then(function(){
+      loadRules(); loadAll();
+    }).catch(function(e){
+      button.disabled = false;
+      alert(e.message);
+    });
+  });
+
+  function exportQueries(format){
+    var headers = {};
+    if(state.sid) headers["X-FTL-SID"] = state.sid;
+    var qs = "?format=" + encodeURIComponent(format);
+    if(state.filter === "blocked") qs += "&blocked=true";
+    if(state.filter === "allowed") qs += "&blocked=false";
+    if(state.search) qs += "&search=" + encodeURIComponent(state.search);
+    fetch("/api/queries/export" + qs, {headers:headers}).then(function(res){
+      if(res.status === 401){ showLogin(); throw new Error("Authentication required"); }
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return res.blob();
+    }).then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "holeshield-queries." + (format === "json" ? "json" : "csv");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    }).catch(function(e){ alert(e.message); });
+  }
+
+  $("#exportCsv").addEventListener("click", function(){ exportQueries("csv"); });
+  $("#exportJson").addEventListener("click", function(){ exportQueries("json"); });
+
+  $("#categorySwitches").addEventListener("click", function(ev){
+    var button = ev.target.closest("button[data-cat]");
+    if(!button) return;
+    var key = button.getAttribute("data-cat");
+    var on = !button.classList.contains("active");
+    var body = {};
+    body[key] = on;
+    api("/api/settings/categories", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }).then(function(data){ renderCategorySwitches(data); })
+      .catch(function(e){ alert(e.message); });
   });
 
   $("#listForm").addEventListener("submit", function(ev){

@@ -25,6 +25,8 @@ public final class TestDns {
         hostsParsing();
         blocklistPreset();
         webAuth();
+        gravityIndex();
+        blockedModes();
         System.out.println("OK — " + passed + " checks passed");
     }
 
@@ -320,6 +322,53 @@ public final class TestDns {
                 "v5 password-only with colon");
         check(!WebAuth.validAuthParam("admin", "secret", ""),
                 "v5 empty auth rejected");
+
+        String hashed = WebAuth.hash("secret");
+        check(hashed.startsWith("pbkdf2$"), "password is stored as PBKDF2");
+        check(WebAuth.isHashed(hashed), "hash record detected");
+        check(WebAuth.verify(hashed, "secret"), "hashed password verifies");
+        check(!WebAuth.verify(hashed, "wrong"), "wrong hashed password rejected");
+        check(WebAuth.valid("", hashed, "", "secret"), "hashed login accepted");
+        check(!WebAuth.valid("", hashed, "", "wrong"), "hashed login rejected");
+        check(WebAuth.validAuthParam("", hashed, "secret"), "hashed v5 auth");
+        check(!WebAuth.verify(WebAuth.hash("a"), "b"), "different hash rejected");
+    }
+
+    private static void gravityIndex() {
+        long[] ads = Gravity.clean(new long[]{
+                Gravity.hash("ads.example.com"),
+                Gravity.hash("shared.example.com"),
+                Gravity.hash("ads.example.com")
+        });
+        long[] malware = Gravity.clean(new long[]{
+                Gravity.hash("bad.example.com"),
+                Gravity.hash("shared.example.com")
+        });
+        Gravity g = Gravity.build(new long[][]{ads, malware},
+                new int[]{Gravity.ADS, Gravity.MALWARE}, 100);
+        check(g.size() == 3, "gravity merges duplicate domains");
+        long shared = Gravity.hash("shared.example.com");
+        check((g.flagsOf(shared) & Gravity.ADS) != 0, "shared domain keeps ads flag");
+        check((g.flagsOf(shared) & Gravity.MALWARE) != 0, "shared domain keeps malware flag");
+        check(g.contains(Gravity.hash("ads.example.com")), "gravity lookup finds a domain");
+        check(!g.contains(Gravity.hash("missing.example.com")), "gravity lookup misses");
+        Gravity capped = Gravity.build(new long[][]{ads, malware},
+                new int[]{Gravity.ADS, Gravity.MALWARE}, 2);
+        check(capped.size() == 2, "gravity respects the domain cap");
+        check(Gravity.hash("Example.COM") == Gravity.hash("example.com"),
+                "gravity hash is case-insensitive");
+    }
+
+    private static void blockedModes() {
+        DnsPacket.Query q = parse("ads.example.com", DnsPacket.TYPE_A);
+        byte[] zero = DnsPacket.blockedReply(q, 0);
+        check((DnsPacket.u16(zero, 6)) == 1, "zero mode answers A");
+        byte[] nx = DnsPacket.blockedReply(q, 1);
+        check(DnsPacket.rcode(nx, nx.length) == 3, "nxdomain blocked response");
+        check(DnsPacket.u16(nx, 6) == 0, "nxdomain has no answer");
+        byte[] nodata = DnsPacket.blockedReply(q, 2);
+        check(DnsPacket.rcode(nodata, nodata.length) == 0, "nodata rcode");
+        check(DnsPacket.u16(nodata, 6) == 0, "nodata has no answer");
     }
 
     private static void blocklistPreset() {
