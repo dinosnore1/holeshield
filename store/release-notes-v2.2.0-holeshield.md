@@ -49,13 +49,13 @@ classic hosts lists so they are included when the cap is reached.
   the theme choice is remembered in the browser.
 - A single compact **Pause** pill (pause icon, dropdown, chevron) pauses
   immediately for 5 minutes through 24 hours, or until resumed. It then shows
-  the remaining time and counts down in place.
+  the remaining time and counts down in place; the pill width follows the label.
 - URLhaus (`02teste.cc`), Phishing Army (`0-ilxrc-w285.p9bckp.sbs`) and tracker
   `app-measurement.com` resolve to 0.0.0.0; `example.com` resolves normally.
 
 ## SHA-256
 
 ```
-9fcc8d2006988f0540b982004545861bfd898aada964cd692a2989e2c7d5ada4  holeshield.aab
-f46ed260795b24a36b8a40710a065dae8c4b2745d8e55a1c86d210b0b4bbe702  holeshield.apk
+8169d330515db7922c1445518a42c3e03229af5635a7151c1490c7ebd2287b7f  holeshield.aab
+0b4852ecdc0e9fdb16705be059318fe80953a5d5b03f7b5ab79f2ec349d61e57  holeshield.apk
 ```

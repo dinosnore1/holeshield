@@ -57,7 +57,7 @@ BUILT-IN GRAVITY ENGINE
 • Separate tracker/telemetry and malware/phishing categories can be added or removed
   independently.
 • The web dashboard shows domain counts for Ads, Trackers and Malware, with a
-  icon-only sun/moon theme and refresh buttons, plus a single compact pause pill/dropdown with an in-place countdown.
+  icon-only sun/moon theme and refresh buttons, plus a single compact pause pill/dropdown with an in-place countdown and dynamic width.
 • Add your own hosts or adblock-style URLs.
 • Exact, wildcard and regex allow/deny rules. Allow rules win.
 • CNAME inspection catches trackers hidden behind another domain.
@@ -109,7 +109,7 @@ Hole Shield 2.2.0
 • Gravity & rules can add or remove each category independently.
 • The maximum preset now includes 25 lists with explicit security coverage.
 • The web dashboard shows Ads, Trackers and Malware domain counts.
-• The web dashboard has icon-only sun/moon theme and refresh buttons, plus a single compact pause pill/dropdown with an in-place countdown.
+• The web dashboard has icon-only sun/moon theme and refresh buttons, plus a single compact pause pill/dropdown with an in-place countdown and dynamic width.
 • Existing 2.1.0 web username/password login and 2.0.1 fixes are included.
 ```
 

@@ -100,16 +100,20 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .pauseControl:hover{border-color:var(--hover-border);background:linear-gradient(180deg,var(--hover-bg),var(--panel2))}
 .pauseControl:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(142,213,178,.16)}
 .pauseControl:active{transform:translateY(1px)}
+.pauseLabel{
+  display:block;font-weight:650;font-size:14px;line-height:36px;
+  white-space:nowrap;pointer-events:none;color:var(--text);
+}
 .pauseControl select{
+  position:absolute;inset:0;width:100%;height:100%;
   appearance:none;-webkit-appearance:none;border:0;background:transparent;
-  color:var(--text);font:inherit;font-weight:650;height:100%;width:136px;
-  padding:0;cursor:pointer;outline:none;text-align:left;text-align-last:left;
-  line-height:36px;white-space:nowrap;overflow:hidden;
+  color:var(--text);font-size:16px;padding:0;cursor:pointer;outline:none;
+  opacity:0;z-index:2;
 }
 .pauseControl select:disabled{cursor:not-allowed;opacity:.55}
 .pauseControl:has(select:disabled){opacity:.45;pointer-events:none}
 .pauseControl .pauseIcon,.pauseControl .chevron{
-  position:absolute;pointer-events:none;color:var(--muted);
+  position:absolute;pointer-events:none;color:var(--muted);z-index:3;
 }
 .pauseControl .pauseIcon{left:11px;width:12px;height:12px}
 .pauseControl .chevron{right:10px;width:13px;height:13px}
@@ -248,6 +252,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     <div class="actions">
       <label class="pauseControl" title="Pause blocking">
         <svg class="pauseIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="5" width="3.5" height="14" rx="1.5"/><rect x="14" y="5" width="3.5" height="14" rx="1.5"/></svg>
+        <span id="pauseLabel" class="pauseLabel">Pause…</span>
         <select id="pause" aria-label="Pause blocking" title="Pause blocking">
           <option value="" selected>Pause…</option>
           <option value="300">Pause 5 minutes</option>
@@ -564,8 +569,8 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
       $("#resume").disabled = false;
       if(control) control.title = left > 0 ? "Paused · " + formatPauseLeft(left) : "Paused";
     }
-    var option = select.querySelector('option[value=""]');
-    if(option) option.textContent = label;
+    var labelEl = $("#pauseLabel");
+    if(labelEl) labelEl.textContent = label;
     select.value = "";
     select.setAttribute("aria-label", state.blocking ? "Pause blocking" : label);
   }
