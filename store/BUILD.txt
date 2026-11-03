@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 60e218a7ed1ea7f97cd403cd4e23c9e14cda29523e2fe5004b0a3067ba92245c
+  SHA-256 289f4b1a4d443862bd5e4f7187fd15529f2a552e7ac95787bb4aa79390e31ee1
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 d8b5dc3c813602e52c48fc2511476598ed5b92749a065087fb52eb3a5981941b
+  SHA-256 bdf3b69822669f0c72df05a0a28acef62f19b3374a3821355d155bc13da0aa1f
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 21625efd2e6a7dfd9e9287bdea9459e1b1ed17085155c05a344bca1abd8778ec
+  SHA-256 236b67ea3037d59961816d5fb4dd7973a223decb889c9e3a17c96dbe767ae87e
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -75,7 +75,7 @@ Verified
   `example.com` resolves normally.
 - The web dashboard summary now returns `categories.ads`, `categories.trackers`
   and `categories.malware`; the dashboard renders them in a LIST COVERAGE row.
-- The web dashboard has a dark/light theme toggle on both the header and login
-  screen; the choice is stored in localStorage. The DOM toggle was exercised
-  with jsdom.
+- The web dashboard has an icon-only dark/light theme toggle on both the header
+  and login screen; the choice is stored in localStorage. The DOM toggle and
+  sun/moon icons were exercised with jsdom.
 - Dashboard, query log, gravity/rules and stats screens verified.

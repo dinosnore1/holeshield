@@ -45,14 +45,14 @@ classic hosts lists so they are included when the cap is reached.
   592,615 unique domains (ads 526,615, trackers 3,896, malware 153,613).
 - The web dashboard now shows a **LIST COVERAGE** row with Ads, Trackers and
   Malware domain counts.
-- The web dashboard has a **Light/Dark** theme toggle in the header and on the
-  login screen; the choice is remembered in the browser.
+- The web dashboard has an icon-only **sun/moon** theme toggle in the header
+  and on the login screen; the choice is remembered in the browser.
 - URLhaus (`02teste.cc`), Phishing Army (`0-ilxrc-w285.p9bckp.sbs`) and tracker
   `app-measurement.com` resolve to 0.0.0.0; `example.com` resolves normally.
 
 ## SHA-256
 
 ```
-60e218a7ed1ea7f97cd403cd4e23c9e14cda29523e2fe5004b0a3067ba92245c  holeshield.aab
-d8b5dc3c813602e52c48fc2511476598ed5b92749a065087fb52eb3a5981941b  holeshield.apk
+289f4b1a4d443862bd5e4f7187fd15529f2a552e7ac95787bb4aa79390e31ee1  holeshield.aab
+bdf3b69822669f0c72df05a0a28acef62f19b3374a3821355d155bc13da0aa1f  holeshield.apk
 ```

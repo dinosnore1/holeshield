@@ -79,6 +79,8 @@ button.primary{background:linear-gradient(180deg,var(--green),var(--green2));bor
 button.primary:hover{filter:brightness(1.05)}
 button.danger{border-color:rgba(255,180,171,.35);color:#ffd6d2;background:rgba(255,180,171,.08)}
 button.small{padding:6px 12px;font-size:12px;border-radius:999px}
+button.iconButton{width:38px;height:36px;padding:0;border-radius:999px}
+button.iconButton svg{width:16px;height:16px;display:block}
 button:disabled{opacity:.45;cursor:not-allowed}
 .hero{
   background:linear-gradient(135deg,rgba(142,213,178,.12),rgba(27,33,29,.92) 55%);
@@ -208,7 +210,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     </div>
     <div class="spacer"></div>
     <div id="status" class="pill"><span class="dot"></span><span id="statusText">Checking…</span></div>
-    <button id="theme" class="small" data-theme-toggle title="Toggle light/dark mode">Light</button>
+    <button id="theme" class="small iconButton" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"></button>
     <button id="refresh" title="Refresh now">Refresh</button>
   </header>
 
@@ -332,7 +334,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
 <div id="login" class="overlay hidden">
   <form class="login" id="loginForm">
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-      <button class="small" type="button" data-theme-toggle style="width:auto" title="Toggle light/dark mode">Light</button>
+      <button class="small iconButton" type="button" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"></button>
     </div>
     <h2>Hole Shield</h2>
     <p>Enter the web username and password set on this device. Leave the username blank if only a password is configured. If no login is configured, just refresh.</p>
@@ -399,8 +401,15 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
   function applyTheme(theme){
     document.documentElement.setAttribute("data-theme", theme);
     try { localStorage.setItem("holeshield_theme", theme); } catch (e) {}
+    var next = theme === "light" ? "dark" : "light";
+    var label = next === "light" ? "Switch to light mode" : "Switch to dark mode";
+    var icon = theme === "light"
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>';
     $$("[data-theme-toggle]").forEach(function(button){
-      button.textContent = theme === "light" ? "Dark" : "Light";
+      button.innerHTML = icon;
+      button.setAttribute("aria-label", label);
+      button.title = label;
     });
   }
   applyTheme(themeName());
