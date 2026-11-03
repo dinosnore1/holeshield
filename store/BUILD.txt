@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 ba3867141f2e14476fc9935b5d8b9f7305aad32beb58130d407536f88d1cae49
+  SHA-256 9e3a8dcc389613d38ab9aaad47c1f906cf60719a1fd972f7b60f1a842602d2f6
   Size    157 KB
 
 build/holeshield.apk
-  SHA-256 b673fcb9ed8942fff9dc69a99120a784505168d4b8fdcee33b998b8ace3735ff
+  SHA-256 2b2db2f379278aab6f6e1c9ed90303c9a976e327b18d0c582e6f15d033fb8c0c
   Size    165 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 776e49f7ffbc8aa3891097d68f6a4bf3847c5e250b2d2c776093d5574c32d047
+  SHA-256 a7f0a2e8ab4ca7408a43341ffc1e0e06b5363695d9e27135041452fbaca596e3
   Size    165 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -79,7 +79,7 @@ Verified
 - The web dashboard has icon-only sun/moon theme and refresh buttons; the theme
   choice is stored in localStorage. Both icons and labels were exercised with
   jsdom.
-- The dashboard tab has an inline SVG favicon. A Log out button appears when a
+- The dashboard tab has an inline SVG favicon. A merged Log out menu appears when a
   web login is configured, clears the local SID, invalidates the server session,
   and returns to the login form.
 - The web login is a centered full-page form with a title, Authorization
@@ -105,7 +105,8 @@ Verified
   Ads/Trackers/Malware switches, per-list health, query-log allow/block actions
   and CSV/JSON export. The new UI was exercised with jsdom.
 - Login hardening: PBKDF2-HMAC-SHA256 password records, a 5-attempt lockout,
-  HttpOnly/SameSite session cookie and log-out-all epoch.
+  HttpOnly/SameSite session cookie and a merged Log out menu (this browser or
+  all sessions).
 - Backup/restore uses the system document picker and JSON; compact gravity
   storage uses sorted 64-bit hashes with category flags.
 - DNS-over-TLS, selectable blocked response (0.0.0.0/NXDOMAIN/NODATA), blocking

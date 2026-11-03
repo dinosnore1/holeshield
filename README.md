@@ -62,7 +62,8 @@ This is the new `com.dino.holeshield` package; uninstall the old
   is rolled over daily.
 - **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional
   username/password login. New passwords are stored as PBKDF2 hashes, repeated
-  failures trigger a lockout, and "Log out all" invalidates every session. The
+  failures trigger a lockout, and the Log out menu can end this browser or every
+  session. The
   dashboard adds a live, 24-hour, week and month chart, blocked-by-category breakdown, runtime category
   switches, per-list health, one-tap allow/block from the query log, and CSV/JSON
   export.

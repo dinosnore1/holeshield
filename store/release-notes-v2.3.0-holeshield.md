@@ -46,7 +46,7 @@ Settings shows a confirmation before it is exposed.
 - Five failed attempts trigger an increasing lockout (30 seconds up to 15
   minutes).
 - Login sets an HttpOnly/SameSite session cookie in addition to the SID.
-- **Log out all** invalidates every browser session.
+- The merged **Log out** menu can end this browser or every session.
 
 ## Backup, health and charts
 
@@ -86,6 +86,6 @@ Settings shows a confirmation before it is exposed.
 ## SHA-256
 
 ```
-ba3867141f2e14476fc9935b5d8b9f7305aad32beb58130d407536f88d1cae49  holeshield.aab
-b673fcb9ed8942fff9dc69a99120a784505168d4b8fdcee33b998b8ace3735ff  holeshield.apk
+9e3a8dcc389613d38ab9aaad47c1f906cf60719a1fd972f7b60f1a842602d2f6  holeshield.aab
+2b2db2f379278aab6f6e1c9ed90303c9a976e327b18d0c582e6f15d033fb8c0c  holeshield.apk
 ```

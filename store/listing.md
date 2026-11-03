@@ -63,7 +63,7 @@ BUILT-IN GRAVITY ENGINE
 • Optional blocking hours, per-client LAN rules, DNS-over-TLS, a choice of
   blocked response (0.0.0.0, NXDOMAIN or NODATA), and a parental filter.
 • The dashboard has icon-only sun/moon theme and refresh buttons, a browser-tab
-  favicon, logout, log-out-all, a compact centered Material You login page, and a
+  favicon, a log-out menu (this browser or all sessions), a compact centered Material You login page, and a
   single compact pause pill/dropdown with an in-place countdown and dynamic width.
 • Add your own hosts or adblock-style URLs.
 • Exact, wildcard and regex allow/deny rules. Allow rules win.
@@ -120,7 +120,7 @@ Hole Shield 2.3.0
 • Notification actions, a Quick Settings tile and a home-screen widget.
 • Query log quick allow/block, category column and CSV/JSON export.
 • Blocking hours with automatic resume, and per-client LAN rules.
-• PBKDF2 web-password storage, login lockout and log-out-all sessions.
+• PBKDF2 web-password storage, login lockout and a merged log-out menu.
 • Backup and restore settings, rules, lists and query history as JSON.
 • live, 24-hour, week and month dashboard chart, blocked-by-category breakdown, per-list health.
 • Runtime Ads/Trackers/Malware switches and a compact gravity index.

@@ -108,6 +108,11 @@ button.small{padding:6px 12px;font-size:12px;border-radius:999px}
 button.iconButton{width:38px;height:36px;padding:0;border-radius:999px}
 button.iconButton svg{width:16px;height:16px;display:block}
 button:disabled{opacity:.45;cursor:not-allowed}
+.logoutWrap{position:relative;display:inline-flex}
+.logoutMenu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:172px;padding:6px;border-radius:16px;background:var(--md-surface-container-high);border:1px solid var(--md-outline-variant);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:2px}
+.logoutMenu button{border:0;background:transparent;text-align:left;padding:9px 12px;border-radius:10px;font-size:12.5px;font-weight:650;color:var(--text);justify-content:flex-start}
+.logoutMenu button:hover{background:var(--md-surface-container-highest)}
+#logout svg{flex:none;opacity:.8}
 .hero{
   background:var(--hero-bg);
   border:1px solid var(--md-outline-variant);border-radius:28px;padding:22px;display:flex;gap:18px;
@@ -298,8 +303,15 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     <div id="status" class="pill"><span class="dot"></span><span id="statusText">Checking…</span></div>
     <button id="theme" class="small iconButton" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"></button>
     <button id="refresh" class="small iconButton" aria-label="Refresh now" title="Refresh now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
-    <button id="logout" class="small" style="display:none" title="Log out">Log out</button>
-    <button id="logoutAll" class="small" style="display:none" title="Log out every browser session">Log out all</button>
+    <div id="logoutWrap" class="logoutWrap" style="display:none">
+      <button id="logout" class="small" aria-haspopup="true" aria-expanded="false" title="Log out">Log out
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:12px;height:12px"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div id="logoutMenu" class="logoutMenu hidden" role="menu" aria-label="Log out options">
+        <button type="button" role="menuitem" data-logout="this">This browser</button>
+        <button type="button" role="menuitem" data-logout="all">All sessions</button>
+      </div>
+    </div>
   </header>
 
   <section class="hero">
@@ -529,6 +541,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     catch(e){ return ""; }
   }
   function showLogin(){
+    closeLogoutMenu();
     $("#login").classList.remove("hidden");
     fetch("/api/auth", {headers:{"Accept":"application/json"}}).then(function(res){
       return res.json();
@@ -550,9 +563,8 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     }).then(function(data){
       var session = (data && data.session) || {};
       var required = !!(session.password_required || session.username_required);
-      $("#logout").style.display = required ? "" : "none";
-      $("#logoutAll").style.display = required ? "" : "none";
-    }).catch(function(){ $("#logout").style.display = "none"; $("#logoutAll").style.display = "none"; });
+      $("#logoutWrap").style.display = required ? "" : "none";
+    }).catch(function(){ $("#logoutWrap").style.display = "none"; });
   }
 
   function logout(){
@@ -580,6 +592,22 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       method: "POST",
       headers: {"X-FTL-SID": sid}
     }).then(clear).catch(clear);
+  }
+
+  function closeLogoutMenu(){
+    var menu = $("#logoutMenu");
+    var button = $("#logout");
+    if(menu) menu.classList.add("hidden");
+    if(button) button.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleLogoutMenu(){
+    var menu = $("#logoutMenu");
+    var button = $("#logout");
+    if(!menu || !button) return;
+    var open = menu.classList.contains("hidden");
+    menu.classList.toggle("hidden", !open);
+    button.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
   function themeName(){
@@ -1113,9 +1141,20 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   }
   $("#resume").addEventListener("click", function(){ setBlocking(true, 0); });
   $("#refresh").addEventListener("click", loadAll);
-  $("#logout").addEventListener("click", logout);
-  $("#logoutAll").addEventListener("click", function(){
-    if(confirm("Sign out every browser session?")) logoutAll();
+  $("#logout").addEventListener("click", function(ev){
+    ev.stopPropagation();
+    toggleLogoutMenu();
+  });
+  $("#logoutMenu").addEventListener("click", function(ev){
+    var choice = ev.target.closest("button[data-logout]");
+    if(!choice) return;
+    ev.stopPropagation();
+    closeLogoutMenu();
+    if(choice.getAttribute("data-logout") === "all") logoutAll();
+    else logout();
+  });
+  document.addEventListener("click", function(ev){
+    if(!ev.target.closest || !ev.target.closest("#logoutWrap")) closeLogoutMenu();
   });
 
   $$("[data-filter]").forEach(function(b){
