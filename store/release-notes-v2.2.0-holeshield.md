@@ -51,6 +51,8 @@ classic hosts lists so they are included when the cap is reached.
   a web login is configured.
 - The login screen is a simple centered form with a title, Authorization
   Required divider, compact pill fields and an arrow submit button.
+- The dashboard uses Material You color roles and tonal surfaces, with filled
+  primary buttons, M3 badges and outlined fields in both dark and light themes.
 - A single compact **Pause** pill (pause icon, dropdown, chevron) pauses
   immediately for 5 minutes through 24 hours, or until resumed. It then shows
   the remaining time and counts down in place; the pill width follows the label,
@@ -62,6 +64,6 @@ classic hosts lists so they are included when the cap is reached.
 ## SHA-256
 
 ```
-d8fcb2cdb0693ae5a81b18d04fad717464eb6715bd978cc7096dd0cf7268575f  holeshield.aab
-a36288e370832cd1b2a652e6c8ee62558ba955d99d4b8d43e683a11f9948155b  holeshield.apk
+514d6ebe9c74896970111b294bfcecaea0833764f946eafcc4946d50367adc0d  holeshield.aab
+c454b29f13501bde5a204f85ad374fe0a45bf76f1df266a6ff426c640ea42a69  holeshield.apk
 ```

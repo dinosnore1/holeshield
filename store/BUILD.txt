@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 d8fcb2cdb0693ae5a81b18d04fad717464eb6715bd978cc7096dd0cf7268575f
+  SHA-256 514d6ebe9c74896970111b294bfcecaea0833764f946eafcc4946d50367adc0d
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 a36288e370832cd1b2a652e6c8ee62558ba955d99d4b8d43e683a11f9948155b
+  SHA-256 c454b29f13501bde5a204f85ad374fe0a45bf76f1df266a6ff426c640ea42a69
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 ad1bcf664924454e2f39cfc762a3336d9a479747a87b0630937a7ed63cf93b8c
+  SHA-256 cc2c9f8c2bb2e74394cc5a1f79d1c5e01e8bb309818419b9d6ebb2855bf96e70
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -84,6 +84,9 @@ Verified
 - The web login is a centered full-page form with a title, Authorization
   Required divider, compact pill username/password fields and an arrow submit
   button.
+- The dashboard uses Material You color roles and tonal surfaces: filled primary
+  buttons, surface-container cards, M3 badges, outlined fields and tonal status
+  pills, in dark and light themes.
 - The dashboard uses one styled Pause pill (pause icon, native dropdown,
   chevron): choosing a duration (5 minutes through 24 hours, or until resumed)
   pauses immediately. The pill then shows the remaining time and ticks down;
