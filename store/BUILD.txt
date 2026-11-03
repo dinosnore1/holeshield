@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 54315faa00b4f3256519df65a4bcc543742d7a4bd5a986655ff9adf19b1d3146
+  SHA-256 a1bbf22aefd140120d98c4061a5cf6de415b9b110e9935b006a8e569aee4c541
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 77a3ec5a6b0439826117843f2bca270aab85f4cde618b3549ddd04e051f4e1d1
+  SHA-256 e1896ed11119870c31538b1dc87e63055e40485656073409227b4fe049a53990
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 80eabff9c1eb1950874d02ef3b4b7d5bfbdb2782bf8ce5ce68702f2f9452fd5c
+  SHA-256 a3236f0aa964f8680a1e8cb79d86c67973c808024f1fa75ae86cf1e2870d3ff0
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -78,6 +78,7 @@ Verified
 - The web dashboard has icon-only sun/moon theme and refresh buttons; the theme
   choice is stored in localStorage. Both icons and labels were exercised with
   jsdom.
-- The dashboard uses one Pause dropdown: choosing a duration (5 minutes through
-  24 hours, or until resumed) pauses immediately. Resume remains a button.
+- The dashboard uses one styled Pause pill (pause icon, native dropdown,
+  chevron): choosing a duration (5 minutes through 24 hours, or until resumed)
+  pauses immediately. Resume remains a button.
 - Dashboard, query log, gravity/rules and stats screens verified.
