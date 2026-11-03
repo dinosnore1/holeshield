@@ -3,6 +3,7 @@ package com.dino.holeshield;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -487,29 +488,44 @@ final class Blocklist {
                 Prefs p = Prefs.load(app);
                 List<String> urls = listUrls(p);
                 if (urls.isEmpty()) throw new Exception("No blocklist URL is set");
-                HashSet<String> fresh = new HashSet<>(131072);
-                int listsOk = 0;
-                int listsFailed = 0;
-                StringBuilder errors = new StringBuilder();
+                List<String> adsUrls = new ArrayList<>();
+                List<String> trackerUrls = new ArrayList<>();
+                List<String> malwareUrls = new ArrayList<>();
+                List<String> otherUrls = new ArrayList<>();
                 for (String url : urls) {
-                    if (fresh.size() >= MAX_DOMAINS) break;
-                    try {
-                        downloadInto(url, fresh);
-                        listsOk++;
-                    } catch (Exception e) {
-                        listsFailed++;
-                        if (errors.length() < 180) {
-                            if (errors.length() > 0) errors.append("; ");
-                            errors.append(Prefs.hostOf(url)).append(": ")
-                                    .append(e.getMessage() == null ? "failed" : e.getMessage());
-                        }
+                    switch (Blocklists.categoryOf(url)) {
+                        case Blocklists.CATEGORY_TRACKERS:
+                            trackerUrls.add(url);
+                            break;
+                        case Blocklists.CATEGORY_MALWARE:
+                            malwareUrls.add(url);
+                            break;
+                        case Blocklists.CATEGORY_ADS:
+                            adsUrls.add(url);
+                            break;
+                        default:
+                            otherUrls.add(url);
+                            break;
                     }
                 }
+                HashSet<String> fresh = new HashSet<>(131072);
+                int[] tally = new int[2];
+                StringBuilder errors = new StringBuilder();
+                // Security lists first so they survive the 600k cap. Counts are
+                // unique within each category; categories may overlap.
+                int malwareCount = downloadCategory(malwareUrls, fresh, tally, errors);
+                int trackerCount = downloadCategory(trackerUrls, fresh, tally, errors);
+                int adsCount = downloadCategory(adsUrls, fresh, tally, errors);
+                downloadCategory(otherUrls, fresh, tally, errors);
+                int listsOk = tally[0];
+                int listsFailed = tally[1];
                 if (listsOk == 0 || fresh.isEmpty()) {
                     throw new Exception(errors.length() > 0 ? errors.toString()
                             : "No domains found");
                 }
                 int domains = fresh.size();
+                Log.i("HoleShield", "gravity=" + domains + " ads=" + adsCount
+                        + " trackers=" + trackerCount + " malware=" + malwareCount);
                 File tmp = new File(app.getFilesDir(), DOWNLOAD_FILE + ".tmp");
                 try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
                         new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
@@ -529,6 +545,9 @@ final class Blocklist {
                     if (!tmp.renameTo(dst)) throw new Exception("Could not save gravity");
                 }
                 p.lastUpdate = System.currentTimeMillis();
+                p.adsDomains = adsCount;
+                p.trackerDomains = trackerCount;
+                p.malwareDomains = malwareCount;
                 p.save(app);
                 reload(app);
                 ok = true;
@@ -546,12 +565,46 @@ final class Blocklist {
         t.start();
     }
 
+    private static int downloadCategory(List<String> urls, Set<String> fresh,
+                                        int[] tally, StringBuilder errors) {
+        if (urls.isEmpty() || fresh.size() >= MAX_DOMAINS) return 0;
+        // Count unique domains in the category first, then merge only as many
+        // new domains as the global 600k cap allows. Capping the category set
+        // itself would undercount when categories overlap.
+        HashSet<String> category = new HashSet<>(131072);
+        for (String url : urls) {
+            if (category.size() >= MAX_DOMAINS) break;
+            try {
+                downloadInto(url, category, MAX_DOMAINS);
+                tally[0]++;
+            } catch (Exception e) {
+                tally[1]++;
+                if (errors.length() < 180) {
+                    if (errors.length() > 0) errors.append("; ");
+                    errors.append(Prefs.hostOf(url)).append(": ")
+                            .append(e.getMessage() == null ? "failed" : e.getMessage());
+                }
+            }
+        }
+        int count = category.size();
+        for (String domain : category) {
+            if (fresh.size() >= MAX_DOMAINS) break;
+            fresh.add(domain);
+        }
+        category.clear();
+        return count;
+    }
+
     private static void downloadInto(String url, Set<String> into) throws Exception {
+        downloadInto(url, into, MAX_DOMAINS);
+    }
+
+    private static void downloadInto(String url, Set<String> into, int limit) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(25000);
         c.setInstanceFollowRedirects(true);
-        c.setRequestProperty("User-Agent", "Pi-hole-TV/2.0");
+        c.setRequestProperty("User-Agent", "Hole-Shield/2.2");
         int code = c.getResponseCode();
         if (code != 200) throw new Exception("HTTP " + code);
         int read = 0;
@@ -561,7 +614,7 @@ final class Blocklist {
             while ((line = r.readLine()) != null) {
                 read += line.length() + 1;
                 if (read > MAX_DOWNLOAD_BYTES) throw new Exception("List is too large");
-                if (into.size() >= MAX_DOMAINS) break;
+                if (into.size() >= limit) break;
                 String d = HostsParser.parseLine(line);
                 if (!d.isEmpty()) into.add(d);
             }

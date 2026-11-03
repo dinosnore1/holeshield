@@ -64,6 +64,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .hero p{margin:0;color:var(--muted);max-width:640px}
 .hero .actions{display:flex;gap:9px;flex-wrap:wrap;margin-left:auto}
 .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.coverageTitle{margin:24px 0 0;font-size:12px;letter-spacing:.12em;color:var(--muted)}
+.coverage{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px;margin-bottom:0}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:18px 18px 16px}
 .card .label{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
 .card b{display:block;font-size:27px;line-height:1.15;margin-top:7px;letter-spacing:-.02em}
@@ -149,6 +151,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
 @media (max-width:640px){
   .wrap{padding:16px 12px 30px}
   .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .coverage{grid-template-columns:1fr}
   .grid{grid-template-columns:1fr}
   .hero{padding:18px}
   .hero .actions{margin-left:0}
@@ -191,6 +194,14 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     <div class="card blue"><div class="label">Domains on lists</div><b id="gravity">0</b><small id="updated">never updated</small></div>
     <div class="card amber"><div class="label">Active clients</div><b id="clients">0</b><small>today</small></div>
   </section>
+
+  <h2 class="coverageTitle">LIST COVERAGE</h2>
+  <section class="cards coverage">
+    <div class="card green"><div class="label">Ads</div><b id="ads">0</b><small>domains on lists</small></div>
+    <div class="card blue"><div class="label">Trackers</div><b id="trackers">0</b><small>domains on lists</small></div>
+    <div class="card red"><div class="label">Malware</div><b id="malware">0</b><small>domains on lists</small></div>
+  </section>
+  <p class="note">Unique domains per category; categories can overlap.</p>
 
   <section class="grid">
     <div class="panel">
@@ -385,6 +396,10 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     $("#blocked").textContent = fmt(q.blocked);
     $("#rate").textContent = pct(q.percent_blocked);
     $("#gravity").textContent = fmt(g.domains_being_blocked);
+    var cat = s.categories || {};
+    $("#ads").textContent = fmt(cat.ads);
+    $("#trackers").textContent = fmt(cat.trackers);
+    $("#malware").textContent = fmt(cat.malware);
     $("#clients").textContent = fmt(c.active);
     $("#updated").textContent = ago(g.last_update_ms || (g.last_update ? Number(g.last_update) * 1000 : 0));
     var on = !!s.blocking;

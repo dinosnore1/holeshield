@@ -32,7 +32,8 @@ This is the new `com.dino.holeshield` package; uninstall the old
   maximum preset of 25 maintained ad, tracker, malware/phishing and TV-telemetry lists, including
   Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
   and classic hosts lists. Tracker/telemetry and malware/phishing categories can be
-  added or removed independently. Multiple list URLs are supported.
+  added or removed independently. The web dashboard shows Ads, Trackers and
+  Malware domain counts. Multiple list URLs are supported.
 - **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict
   subdomains, not the apex; `/regex/` supports Java regular expressions.
@@ -441,7 +442,8 @@ Current `2.2.0` build extras verified on the TV with the signed AAB test APK:
   `auth=user:pass` verified on the TV; wrong user/password rejected;
 - clearing the password also clears the username and reopens the dashboard;
 - 25-list maximum preset with tracker/telemetry and malware/phishing categories;
-- gravity update on the STB produced 592,633 domains;
+- gravity update on the STB produced 592,615 unique domains (ads 526,615,
+  trackers 3,896, malware 153,613);
 - URLhaus `02teste.cc` and Phishing Army `0-ilxrc-w285.p9bckp.sbs` →
   `0.0.0.0`, tracker `app-measurement.com` → `0.0.0.0`, while `example.com`
   resolves normally;

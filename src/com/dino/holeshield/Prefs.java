@@ -41,6 +41,10 @@ final class Prefs {
     String blocklistUrls = Blocklists.presetText();
     int blocklistPresetVersion = 0;
     long lastUpdate = 0L;
+    /** Unique domains counted per category during the last gravity update. */
+    int adsDomains = 0;
+    int trackerDomains = 0;
+    int malwareDomains = 0;
 
     /** Newline separated custom entries.  "*." prefix = subdomains too;
      *  "/.../" = regular expression. */
@@ -87,6 +91,9 @@ final class Prefs {
                 legacyUrl == null || legacyUrl.trim().isEmpty() ? s.blocklistUrls : legacyUrl);
         s.blocklistPresetVersion = p.getInt("blocklistPresetVersion", 0);
         s.lastUpdate = p.getLong("lastUpdate", s.lastUpdate);
+        s.adsDomains = p.getInt("adsDomains", s.adsDomains);
+        s.trackerDomains = p.getInt("trackerDomains", s.trackerDomains);
+        s.malwareDomains = p.getInt("malwareDomains", s.malwareDomains);
         s.customBlocked = p.getString("customBlocked", s.customBlocked);
         s.customAllowed = p.getString("customAllowed", s.customAllowed);
         s.blockingEnabled = p.getBoolean("blockingEnabled", s.blockingEnabled);
@@ -128,6 +135,9 @@ final class Prefs {
                 .putString("blocklistUrls", blocklistUrls)
                 .putInt("blocklistPresetVersion", blocklistPresetVersion)
                 .putLong("lastUpdate", lastUpdate)
+                .putInt("adsDomains", adsDomains)
+                .putInt("trackerDomains", trackerDomains)
+                .putInt("malwareDomains", malwareDomains)
                 .putString("customBlocked", customBlocked)
                 .putString("customAllowed", customAllowed)
                 .putBoolean("blockingEnabled", blockingEnabled)

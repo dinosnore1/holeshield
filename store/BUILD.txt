@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 58744d0d5335a2e2db1a4e3678f5e8c34dd19d8d60ab74272a7d4d227035b4a9
+  SHA-256 1490fd17123265fab6183ddb0a0e9fcbeac708ba4c8fe255c22e4be89b302361
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 6b305f2b7085c33687120e243dabb923553a49208a0fd32a6c4ee6214830a4e4
+  SHA-256 9e85c64eea249b7b775c155b665dc7f6967e46d588ed16eedff054308ebf50fb
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 f5c6d6f0378dd59113b5276594c3e92f46339a2da47d2ca129d541f7119ae3e8
+  SHA-256 c42726b1e90649b7b4f09073e88cb9e2588dd7bd424070d05fe571bc5bd2ff26
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -68,8 +68,11 @@ Verified
   Phishing Army (151,707 domains). Category merge/remove/hasAll is covered by
   the 113 desktop checks. The maximum gravity cap remains 600k.
 - 2.2.0 installed on the STB at 192.168.2.133 (versionCode 6 / versionName
-  2.2.0). Tracker and malware categories show Active; adding the malware lists
-  and updating gravity produced 592,633 domains. `02teste.cc` (URLhaus) and
-  `0-ilxrc-w285.p9bckp.sbs` (Phishing Army) and `app-measurement.com` (tracker)
-  resolve to 0.0.0.0; `example.com` resolves normally.
+  2.2.0). Tracker and malware categories show Active; the final 25-list update
+  produced 592,615 unique domains with category counts: ads 526,615, trackers
+  3,896, malware 153,613. `02teste.cc` (URLhaus), `0-ilxrc-w285.p9bckp.sbs`
+  (Phishing Army) and `app-measurement.com` (tracker) resolve to 0.0.0.0;
+  `example.com` resolves normally.
+- The web dashboard summary now returns `categories.ads`, `categories.trackers`
+  and `categories.malware`; the dashboard renders them in a LIST COVERAGE row.
 - Dashboard, query log, gravity/rules and stats screens verified.

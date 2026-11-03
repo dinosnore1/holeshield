@@ -68,7 +68,27 @@ final class Blocklists {
      */
     static final String[] MAXIMUM = concat(CORE, TRACKERS, MALWARE, CLASSIC);
 
+    static final int CATEGORY_ADS = 0;
+    static final int CATEGORY_TRACKERS = 1;
+    static final int CATEGORY_MALWARE = 2;
+    static final int CATEGORY_OTHER = 3;
+
     private Blocklists() { }
+
+    static int categoryOf(String url) {
+        if (contains(TRACKERS, url)) return CATEGORY_TRACKERS;
+        if (contains(MALWARE, url)) return CATEGORY_MALWARE;
+        if (contains(CORE, url) || contains(CLASSIC, url)) return CATEGORY_ADS;
+        return CATEGORY_OTHER;
+    }
+
+    private static boolean contains(String[] values, String value) {
+        if (value == null) return false;
+        for (String item : values) {
+            if (item.equals(value)) return true;
+        }
+        return false;
+    }
 
     static int count() {
         return MAXIMUM.length;

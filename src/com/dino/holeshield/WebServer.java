@@ -275,8 +275,14 @@ final class WebServer {
         clients.put("active", Stats.clientCount());
         clients.put("total", Stats.clientCount());
 
+        JSONObject categories = new JSONObject();
+        categories.put("ads", p.adsDomains);
+        categories.put("trackers", p.trackerDomains);
+        categories.put("malware", p.malwareDomains);
+
         root.put("queries", q);
         root.put("gravity", gravity);
+        root.put("categories", categories);
         root.put("clients", clients);
         root.put("blocking", p.blockingActive());
         root.put("took", 0.001);

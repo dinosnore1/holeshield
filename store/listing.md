@@ -56,6 +56,7 @@ BUILT-IN GRAVITY ENGINE
   lists (Hagezi, OISD, 1Hosts, AdGuard CNAME, URLhaus, Phishing Army, Perflyst SmartTV and more).
 • Separate tracker/telemetry and malware/phishing categories can be added or removed
   independently.
+• The web dashboard shows domain counts for Ads, Trackers and Malware.
 • Add your own hosts or adblock-style URLs.
 • Exact, wildcard and regex allow/deny rules. Allow rules win.
 • CNAME inspection catches trackers hidden behind another domain.
@@ -106,6 +107,7 @@ Hole Shield 2.2.0
 • New tracker/telemetry and malware/phishing list categories.
 • Gravity & rules can add or remove each category independently.
 • The maximum preset now includes 25 lists with explicit security coverage.
+• The web dashboard shows Ads, Trackers and Malware domain counts.
 • Existing 2.1.0 web username/password login and 2.0.1 fixes are included.
 ```
 

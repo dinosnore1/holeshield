@@ -42,13 +42,15 @@ classic hosts lists so they are included when the cap is reached.
   domains.
 - 2.2.0 installed on the Android TV/STB (versionCode 6 / versionName 2.2.0).
 - Tracker and malware categories show Active; the 25-list update produced
-  592,633 domains.
+  592,615 unique domains (ads 526,615, trackers 3,896, malware 153,613).
+- The web dashboard now shows a **LIST COVERAGE** row with Ads, Trackers and
+  Malware domain counts.
 - URLhaus (`02teste.cc`), Phishing Army (`0-ilxrc-w285.p9bckp.sbs`) and tracker
   `app-measurement.com` resolve to 0.0.0.0; `example.com` resolves normally.
 
 ## SHA-256
 
 ```
-58744d0d5335a2e2db1a4e3678f5e8c34dd19d8d60ab74272a7d4d227035b4a9  holeshield.aab
-6b305f2b7085c33687120e243dabb923553a49208a0fd32a6c4ee6214830a4e4  holeshield.apk
+1490fd17123265fab6183ddb0a0e9fcbeac708ba4c8fe255c22e4be89b302361  holeshield.aab
+9e85c64eea249b7b775c155b665dc7f6967e46d588ed16eedff054308ebf50fb  holeshield.apk
 ```
