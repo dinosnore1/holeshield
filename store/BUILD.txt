@@ -67,7 +67,9 @@ Verified
   The new URLs were downloaded and parsed: URLhaus hosts (1,906 domains) and
   Phishing Army (151,707 domains). Category merge/remove/hasAll is covered by
   the 113 desktop checks. The maximum gravity cap remains 600k.
-- 2.2.0 installs on the phone and reports versionCode 6 / versionName 2.2.0.
-  The STB at 192.168.2.133 is reachable on LAN DNS but its ADB is unauthorized,
-  so 2.2.0 could not be installed there for a full device test.
+- 2.2.0 installed on the STB at 192.168.2.133 (versionCode 6 / versionName
+  2.2.0). Tracker and malware categories show Active; adding the malware lists
+  and updating gravity produced 592,633 domains. `02teste.cc` (URLhaus) and
+  `0-ilxrc-w285.p9bckp.sbs` (Phishing Army) and `app-measurement.com` (tracker)
+  resolve to 0.0.0.0; `example.com` resolves normally.
 - Dashboard, query log, gravity/rules and stats screens verified.

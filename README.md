@@ -440,6 +440,11 @@ Current `2.2.0` build extras verified on the TV with the signed AAB test APK:
 - web login with username + password: `/api/auth`, `X-FTL-SID` and v5
   `auth=user:pass` verified on the TV; wrong user/password rejected;
 - clearing the password also clears the username and reopens the dashboard;
+- 25-list maximum preset with tracker/telemetry and malware/phishing categories;
+- gravity update on the STB produced 592,633 domains;
+- URLhaus `02teste.cc` and Phishing Army `0-ilxrc-w285.p9bckp.sbs` →
+  `0.0.0.0`, tracker `app-measurement.com` → `0.0.0.0`, while `example.com`
+  resolves normally;
 - version strings now come from the installed package (`2.2.0`);
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 

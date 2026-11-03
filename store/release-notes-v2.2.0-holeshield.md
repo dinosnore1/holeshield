@@ -40,9 +40,11 @@ classic hosts lists so they are included when the cap is reached.
 - 113 desktop checks pass, including category merge/remove/hasAll and web login.
 - URLhaus hosts parsed to 1,906 domains; Phishing Army parsed to 151,707
   domains.
-- 2.2.0 installs and reports versionCode 6 / versionName 2.2.0.
-- The new list URLs were fetched successfully; category rows appear in
-  Gravity & rules.
+- 2.2.0 installed on the Android TV/STB (versionCode 6 / versionName 2.2.0).
+- Tracker and malware categories show Active; the 25-list update produced
+  592,633 domains.
+- URLhaus (`02teste.cc`), Phishing Army (`0-ilxrc-w285.p9bckp.sbs`) and tracker
+  `app-measurement.com` resolve to 0.0.0.0; `example.com` resolves normally.
 
 ## SHA-256
 
