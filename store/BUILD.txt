@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 55fd5400cffe33450f24c1c687b095980c1ba2145453895812c2459280836996
+  SHA-256 a7446a7c07c6152e13b56f613fce3a4a6e57d7b3b4466c5d6c9bb31562c72c83
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 5381fc425bd6a8c13beec638d13a24579d319f47c789131dfd6eb0b24687c7dd
+  SHA-256 539c6d0000df16915c77a3aa5f71eb577e5bd620fed7e5008b89e2946bf3fbbb
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 94df1f36138a29cb25dd23742fd5524f072d4fa528257c84a2b1329eb96aa076
+  SHA-256 efce1e724a4cef51a7214964f75d3c70ffaebd87c614bac1bb77efadb6e3deeb
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -83,5 +83,6 @@ Verified
   pauses immediately. The pill then shows the remaining time and ticks down;
   Resume remains a button. The selected text is left-aligned and the pill width
   grows or shrinks with the label. The paused state uses a class (not :has), the
-  native select text is fully hidden, and the focus ring/inset shadow is removed.
+  native select text is fully hidden, the paused label stays neutral (no red),
+  and the focus ring/inset shadow is removed.
 - Dashboard, query log, gravity/rules and stats screens verified.
