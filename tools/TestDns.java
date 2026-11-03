@@ -323,14 +323,30 @@ public final class TestDns {
     }
 
     private static void blocklistPreset() {
-        check(Blocklists.MAXIMUM.length >= 20, "maximum preset has a broad list set");
+        check(Blocklists.MAXIMUM.length >= 25, "maximum preset has a broad list set");
+        check(Blocklists.TRACKERS.length >= 10, "tracker preset has telemetry lists");
+        check(Blocklists.MALWARE.length >= 2, "malware preset has security lists");
         check(Blocklists.hasAll(Blocklists.presetText()), "preset text contains every list");
+        check(Blocklists.hasAll(Blocklists.presetText(), Blocklists.TRACKERS),
+                "preset text contains tracker lists");
+        check(Blocklists.hasAll(Blocklists.presetText(), Blocklists.MALWARE),
+                "preset text contains malware lists");
         check(!Blocklists.isLegacyDefault(Blocklists.presetText()),
                 "maximum preset is not the legacy default");
         check(Blocklists.isLegacyDefault(Blocklists.LEGACY_DEFAULT),
                 "legacy default recognized");
         check(!Blocklists.isLegacyDefault(""),
                 "an intentionally empty source list is preserved");
+
+        for (String url : Blocklists.TRACKERS) {
+            check(Arrays.asList(Blocklists.MAXIMUM).contains(url),
+                    "maximum includes tracker URL: " + url);
+        }
+        for (String url : Blocklists.MALWARE) {
+            check(Arrays.asList(Blocklists.MAXIMUM).contains(url),
+                    "maximum includes malware URL: " + url);
+        }
+
         String merged = Blocklists.mergeMissing(
                 "https://example.com/custom.txt\n" + Blocklists.MAXIMUM[0]);
         check(merged.contains("https://example.com/custom.txt"),
@@ -340,6 +356,22 @@ public final class TestDns {
                 "merge does not duplicate an existing preset URL");
         check(Blocklists.mergeMissing(Blocklists.presetText()).equals(Blocklists.presetText()),
                 "merge is idempotent");
+
+        String custom = "https://example.com/custom.txt";
+        String withMalware = Blocklists.mergeMissing(custom, Blocklists.MALWARE);
+        check(Blocklists.hasAll(withMalware, Blocklists.MALWARE),
+                "malware category merge");
+        check(withMalware.contains(custom), "category merge preserves custom source");
+        String withoutMalware = Blocklists.removeAll(withMalware, Blocklists.MALWARE);
+        check(!Blocklists.hasAll(withoutMalware, Blocklists.MALWARE),
+                "malware category removal");
+        check(withoutMalware.contains(custom),
+                "category removal preserves custom source");
+        String withTrackers = Blocklists.mergeMissing(custom, Blocklists.TRACKERS);
+        check(Blocklists.hasAll(withTrackers, Blocklists.TRACKERS),
+                "tracker category merge");
+        check(!Blocklists.hasAll(withTrackers, Blocklists.MALWARE),
+                "tracker merge does not add malware");
     }
 
     private static DnsPacket.Query parse(String name, int type) {

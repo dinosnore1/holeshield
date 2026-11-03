@@ -1106,16 +1106,29 @@ public class MainActivity extends Activity {
                 listUrlCount(prefs.blocklistUrls) + " lists",
                 this::editListUrls), rowLp(5));
         rows.addView(settingRow("Add maximum blocklists",
-                "Append the comprehensive ad, tracker and TV-telemetry preset",
+                "Append the ads, trackers, malware and TV-telemetry preset",
                 Blocklists.hasAll(prefs.blocklistUrls) ? "Active" : "Add all",
                 this::addMaximumLists), rowLp(6));
+        rows.addView(settingRow("Tracker & telemetry lists",
+                "CNAME trackers, Android and smart-TV telemetry",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.TRACKERS)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.TRACKERS,
+                        "Tracker & telemetry")), rowLp(7));
+        rows.addView(settingRow("Malware & phishing lists",
+                "URLhaus malicious downloads and phishing domains",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.MALWARE)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.MALWARE,
+                        "Malware & phishing")), rowLp(8));
         add(col, rows, 0);
 
         LinearLayout note = card(22);
         note.addView(Ui.caption(this, "WHAT DNS CAN AND CANNOT DO"));
         TextView body = Ui.text(this, "The maximum preset is aggressive; if a service breaks, "
-                + "add an exact allow rule. DNS filtering removes most banner, pre-roll and "
-                + "tracker requests. It cannot remove ads served from the same domain as the "
+                + "add an exact allow rule. Tracker and malware/phishing lists add security "
+                + "coverage on top of the ad lists. DNS filtering removes most banner, pre-roll "
+                + "and tracker requests. It cannot remove ads served from the same domain as the "
                 + "video, such as YouTube in-stream ads. It also cannot hide the holes left by "
                 + "a blocked request. The downloaded list is stored on the device; nothing is "
                 + "uploaded.", 13, Ui.DIM, false);
@@ -1126,6 +1139,18 @@ public class MainActivity extends Activity {
 
         updateListsLive();
         return col;
+    }
+
+    private void toggleListCategory(String[] category, String label) {
+        boolean active = Blocklists.hasAll(prefs.blocklistUrls, category);
+        prefs.blocklistUrls = active
+                ? Blocklists.removeAll(prefs.blocklistUrls, category)
+                : Blocklists.mergeMissing(prefs.blocklistUrls, category);
+        prefs.save(this);
+        show(Screen.LISTS);
+        Ui.toast(this, active
+                ? label + " lists removed. Update gravity to apply."
+                : label + " lists added. Update gravity to apply.");
     }
 
     private void updateListsLive() {

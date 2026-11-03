@@ -1,27 +1,27 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.1.0
-versionCode:   5
+Version:       2.2.0
+versionCode:   6
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-10-31
+Built:         2026-11-03
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 ba1e84ab3d4e873bc5215978061c60aeb91afe9c9fb1bc19329637f4c94bb185
-  Size    123 KB
+  SHA-256 58744d0d5335a2e2db1a4e3678f5e8c34dd19d8d60ab74272a7d4d227035b4a9
+  Size    124 KB
 
 build/holeshield.apk
-  SHA-256 27046905fae6c29359d707865cce05e3378197594ce93037499005926228a3df
+  SHA-256 6b305f2b7085c33687120e243dabb923553a49208a0fd32a6c4ee6214830a4e4
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 e1030374fa55187b4c2153152f1fcefabbf6d389492169d44da0ecc70a078b9c
-  Size    129 KB
+  SHA-256 f5c6d6f0378dd59113b5276594c3e92f46339a2da47d2ca129d541f7119ae3e8
+  Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
 Use build/holeshield.apk for direct GitHub installs. Upload the AAB to Play;
@@ -47,7 +47,7 @@ Build command
 
 Verified
 --------
-- 87 desktop checks pass, including web login username/password rules.
+- 113 desktop checks pass, including web login and blocklist category rules.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,
   protection on.
@@ -62,5 +62,12 @@ Verified
 - 2.1.0 web login verified on the TV: username + password enforced, wrong
   user/password rejected, SID and v5 `auth=user:pass` accepted, password-only
   installs remain compatible, and clearing the password reopens the dashboard.
-- Version strings now come from the installed package (`2.1.0`).
+- Version strings now come from the installed package (`2.2.0`).
+- 2.2.0 adds explicit tracker/telemetry and malware/phishing list categories.
+  The new URLs were downloaded and parsed: URLhaus hosts (1,906 domains) and
+  Phishing Army (151,707 domains). Category merge/remove/hasAll is covered by
+  the 113 desktop checks. The maximum gravity cap remains 600k.
+- 2.2.0 installs on the phone and reports versionCode 6 / versionName 2.2.0.
+  The STB at 192.168.2.133 is reachable on LAN DNS but its ADB is unauthorized,
+  so 2.2.0 could not be installed there for a full device test.
 - Dashboard, query log, gravity/rules and stats screens verified.

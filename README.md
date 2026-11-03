@@ -18,7 +18,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
 `com.dino.pihole` app before installing it.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.1.0 (`versionCode 5`)
+- **Version:** 2.2.0 (`versionCode 6`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
@@ -29,9 +29,10 @@ This is the new `com.dino.holeshield` package; uninstall the old
   and IPv6 DNS to the embedded resolver. The VPN does not carry video, downloads
   or general LAN traffic.
 - **Embedded gravity database.** Ships with a conservative seed list and a
-  maximum preset of 23 maintained ad/tracker/TV-telemetry lists, including
+  maximum preset of 25 maintained ad, tracker, malware/phishing and TV-telemetry lists, including
   Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
-  and classic hosts lists. Multiple list URLs are supported.
+  and classic hosts lists. Tracker/telemetry and malware/phishing categories can be
+  added or removed independently. Multiple list URLs are supported.
 - **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict
   subdomains, not the apex; `/regex/` supports Java regular expressions.
@@ -87,7 +88,7 @@ shown.
 
 ```bash
 cd ~/pihole-tv
-./tools/test.sh          # 87 desktop checks for DNS, packet, list and web-auth code
+./tools/test.sh          # 113 desktop checks for DNS, packet, list and web-auth code
 ./build.sh               # writes build/holeshield.apk (sideload signing key)
 ./tools/build-aab.sh     # writes build/holeshield.aab (Play upload key) + test APK
 ```
@@ -129,7 +130,7 @@ Shield; settings and statistics do not migrate.
    `http://DEVICE_IP:8080/admin/` (replace with the device's LAN IP).
 6. Optional but recommended: set a **Web username and password** in the app's
    Settings before exposing the dashboard to your LAN.
-7. Run **Update gravity now** to download the maximum preset (about 500k
+7. Run **Update gravity now** to download the maximum preset (up to 600k
    deduplicated domains). The first download can take a few minutes.
 8. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
    return no address) while `example.com` resolves normally.
@@ -402,7 +403,7 @@ build.sh                     no-Gradle APK build
 
 ## Tests
 
-`./tools/test.sh` runs **87 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **113 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
 from tun packets, blocked A/AAAA/HTTPS replies, answer-address extraction, TTL
 selection, IPv4/IPv6 UDP replies and checksums, address/port swapping, payload
@@ -416,7 +417,7 @@ The app has been exercised on:
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
 - clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
-  the current `2.1.0` build and the Play screenshots.
+  the current `2.2.0` build and the Play screenshots.
 
 Verified across these devices:
 
@@ -431,7 +432,7 @@ Verified across these devices:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Current `2.1.0` build extras verified on the TV with the signed AAB test APK:
+Current `2.2.0` build extras verified on the TV with the signed AAB test APK:
 
 - in-app VPN disclosure before Android's VPN prompt;
 - `specialUse` foreground service starts and stays in the foreground;
@@ -439,10 +440,10 @@ Current `2.1.0` build extras verified on the TV with the signed AAB test APK:
 - web login with username + password: `/api/auth`, `X-FTL-SID` and v5
   `auth=user:pass` verified on the TV; wrong user/password rejected;
 - clearing the password also clears the username and reopens the dashboard;
-- version strings now come from the installed package (`2.1.0`);
+- version strings now come from the installed package (`2.2.0`);
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 
-Current `2.1.0` phone checks on the Android 15 and Android 16 emulators:
+Current `2.2.0` phone checks on the Android 15 and Android 16 emulators:
 
 - notification permission prompt; denying it does not crash the app;
 - first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;

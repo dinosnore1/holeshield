@@ -17,7 +17,7 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Contact email | `gaganpachory@gmail.com` |
 | Website | `https://dinosnore1.github.io/holeshield-privacy/` |
 | Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
-| Version | 2.1.0 (`versionCode 5`) |
+| Version | 2.2.0 (`versionCode 6`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
 | Form factors | Phone, tablet, Android TV |
@@ -52,8 +52,10 @@ and normal network traffic are not routed through a remote server.
 
 BUILT-IN GRAVITY ENGINE
 • Ships with a conservative seed list.
-• One-tap maximum preset with up to 23 maintained ad, tracker and TV-telemetry
-  lists (Hagezi, OISD, 1Hosts, AdGuard CNAME, Perflyst SmartTV and more).
+• One-tap maximum preset with up to 25 maintained ad, tracker, malware/phishing and TV-telemetry
+  lists (Hagezi, OISD, 1Hosts, AdGuard CNAME, URLhaus, Phishing Army, Perflyst SmartTV and more).
+• Separate tracker/telemetry and malware/phishing categories can be added or removed
+  independently.
 • Add your own hosts or adblock-style URLs.
 • Exact, wildcard and regex allow/deny rules. Allow rules win.
 • CNAME inspection catches trackers hidden behind another domain.
@@ -97,15 +99,14 @@ Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
-### Release notes (versionCode 5)
+### Release notes (versionCode 6)
 
 ```
-Hole Shield 2.1.0
-• The web dashboard can now require a username as well as a password.
-• Password-only login still works; the username is optional.
-• Web login status is shown on the Server screen and dashboard.
-• Changing the web login invalidates existing dashboard sessions.
-• Version strings now come from the installed package.
+Hole Shield 2.2.0
+• New tracker/telemetry and malware/phishing list categories.
+• Gravity & rules can add or remove each category independently.
+• The maximum preset now includes 25 lists with explicit security coverage.
+• Existing 2.1.0 web username/password login and 2.0.1 fixes are included.
 ```
 
 ## Graphics
