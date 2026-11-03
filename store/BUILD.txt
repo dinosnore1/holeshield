@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 289f4b1a4d443862bd5e4f7187fd15529f2a552e7ac95787bb4aa79390e31ee1
+  SHA-256 d5f16b7c343e1d3d4d10b2792005b49df2b363c2ae03946101229abe288ab074
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 bdf3b69822669f0c72df05a0a28acef62f19b3374a3821355d155bc13da0aa1f
+  SHA-256 a01aaf75635f5105c65ee6dd1a3905c5caf0722edae9f3e821cb5ced1135b6e0
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 236b67ea3037d59961816d5fb4dd7973a223decb889c9e3a17c96dbe767ae87e
+  SHA-256 3adf19bf684dec6ce80d1e3a2c2e1ec339c11e4b911d64052ef119c3a3d8aa1e
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -75,7 +75,7 @@ Verified
   `example.com` resolves normally.
 - The web dashboard summary now returns `categories.ads`, `categories.trackers`
   and `categories.malware`; the dashboard renders them in a LIST COVERAGE row.
-- The web dashboard has an icon-only dark/light theme toggle on both the header
-  and login screen; the choice is stored in localStorage. The DOM toggle and
-  sun/moon icons were exercised with jsdom.
+- The web dashboard has icon-only sun/moon theme and refresh buttons; the theme
+  choice is stored in localStorage. Both icons and labels were exercised with
+  jsdom.
 - Dashboard, query log, gravity/rules and stats screens verified.
