@@ -176,12 +176,29 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .type-row .t{width:56px;color:var(--text);font-weight:650;font-size:12px}
 .type-row .bar{flex:1;margin:0}
 .type-row b{width:44px;text-align:right;color:var(--muted);font-size:12px}
-.chart{height:190px;min-width:0}
-.chart svg{width:100%;height:100%;overflow:visible}
-.chart .grid-line{stroke:var(--line);stroke-width:1;opacity:.55}
-.chart .area{fill:url(#chartArea);opacity:.9}
-.chart .line{fill:none;stroke:var(--green);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
-.chart .blocked-line{fill:none;stroke:var(--red);stroke-width:1.7;stroke-dasharray:4 3}
+.rangeTabs{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--md-surface-container-high)}
+.rangeTabs button{border:0;background:transparent;padding:5px 11px;border-radius:999px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.rangeTabs button.active{background:var(--md-primary-container);color:var(--md-on-primary-container)}
+.rangeTabs button:hover{background:var(--md-surface-container-highest);color:var(--text)}
+.chartLegend{display:flex;align-items:center;gap:16px;color:var(--muted);font-size:11px;margin:2px 0 10px}
+.chartLegend span{display:inline-flex;align-items:center;gap:6px}
+.legendDot{display:inline-block;width:8px;height:8px;border-radius:50%}
+.legendDot.q{background:var(--green)} .legendDot.b{background:var(--red)}
+.chartWrap{position:relative;min-width:0}
+.chart{height:215px;min-width:0}
+.chart svg{width:100%;height:100%;overflow:visible;display:block}
+.chart .grid-line{stroke:var(--line);stroke-width:1;opacity:.5}
+.chart .axis-text{fill:var(--muted);font-size:9.5px;font-family:inherit}
+.chart .area{fill:url(#chartArea);opacity:.95}
+.chart .line{fill:none;stroke:var(--green);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.chart .blocked-line{fill:none;stroke:var(--red);stroke-width:1.9;stroke-linejoin:round;stroke-linecap:round;opacity:.9}
+.chart .pt{fill:var(--green);stroke:var(--panel);stroke-width:1.5;opacity:0;transition:opacity .12s ease}
+.chart .pt.b{fill:var(--red)}
+.chart svg:hover .pt{opacity:1}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chartTip{position:absolute;pointer-events:none;z-index:5;min-width:132px;padding:8px 10px;border-radius:12px;background:var(--md-surface-container-highest);border:1px solid var(--md-outline-variant);box-shadow:var(--shadow);font-size:11px;line-height:1.5;color:var(--text);transform:translate(-50%,-110%)}
+.chartTip b{color:var(--text)} .chartTip .t{color:var(--muted);font-size:10.5px}
+.chartTip .row{display:flex;justify-content:space-between;gap:14px}
 .chartLabels{display:flex;justify-content:space-between;color:var(--muted);font-size:10.5px;margin-top:8px}
 .cat-row{display:flex;align-items:center;gap:10px;margin:8px 0}
 .cat-row .name{width:86px;color:var(--text);font-size:12.5px;font-weight:650}
@@ -330,10 +347,23 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   <section class="grid2">
     <div class="panel">
       <div class="panel-head">
-        <h3>Last 24 hours</h3>
+        <h3 id="chartTitle">Last 24 hours</h3>
+        <div class="rangeTabs" id="chartRanges" role="group" aria-label="Chart range">
+          <button class="small" data-range="live">Live</button>
+          <button class="small active" data-range="24h">24h</button>
+          <button class="small" data-range="week">Week</button>
+          <button class="small" data-range="month">Month</button>
+        </div>
         <span class="note" id="chartSummary" style="margin-left:auto"></span>
       </div>
-      <div id="chart" class="chart"><div class="note">No queries yet.</div></div>
+      <div class="chartLegend">
+        <span><i class="legendDot q"></i>Queries</span>
+        <span><i class="legendDot b"></i>Blocked</span>
+      </div>
+      <div class="chartWrap">
+        <div id="chart" class="chart"><div class="note">No queries yet.</div></div>
+        <div id="chartTip" class="chartTip hidden"></div>
+      </div>
       <div class="chartLabels"><span id="chartStart"></span><span id="chartEnd"></span></div>
     </div>
     <div class="panel">
@@ -470,7 +500,8 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     timer: null,
     blocking: true,
     pauseUntil: 0,
-    pauseIndefinite: false
+    pauseIndefinite: false,
+    chartRange: "24h"
   };
   var $ = function(s){ return document.querySelector(s); };
   var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -729,45 +760,117 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     }).join("");
   }
 
+  function niceMax(value){
+    if(value <= 4) return 4;
+    var pow = Math.pow(10, Math.floor(Math.log(value) / Math.LN10));
+    var n = value / pow;
+    var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return step * pow;
+  }
+
+  function smoothPath(points){
+    if(!points.length) return "";
+    if(points.length === 1) return "M" + points[0][0] + "," + points[0][1];
+    var d = "M" + points[0][0] + "," + points[0][1];
+    for(var i = 1; i < points.length; i++){
+      var p0 = points[i-1], p1 = points[i];
+      var mx = (p0[0] + p1[0]) / 2;
+      d += " C" + mx + "," + p0[1] + " " + mx + "," + p1[1] + " " + p1[0] + "," + p1[1];
+    }
+    return d;
+  }
+
+  function rangeLabel(range, time){
+    var d = new Date(Number(time) * 1000);
+    if(range === "week" || range === "month"){
+      return d.toLocaleDateString([], {month:"short", day:"numeric"});
+    }
+    return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  }
+
   function renderHistory(data){
-    var rows = (data && data.hours) || [];
+    var range = (data && data.range) || state.chartRange || "24h";
+    var rows = (data && (data.points || data.hours)) || [];
     var el = $("#chart");
-    if(!rows.length || rows.every(function(x){ return !Number(x.queries); })){
-      el.innerHTML = '<div class="note">No queries yet.</div>';
+    $("#chartTitle").textContent = range === "live" ? "Live · last 30 minutes"
+      : range === "week" ? "Last 7 days"
+      : range === "month" ? "Last 30 days" : "Last 24 hours";
+    if(!rows.length){
+      el.innerHTML = '<div class="note">No queries in this range.</div>';
       $("#chartSummary").textContent = "";
       return;
     }
-    var w = 600, h = 180, pad = 4;
-    var max = rows.reduce(function(m, x){
-      return Math.max(m, Number(x.queries)||0, Number(x.blocked)||0);
-    }, 1);
-    function points(key){
-      return rows.map(function(x, i){
-        var px = pad + (w - pad*2) * (rows.length === 1 ? 0 : i/(rows.length-1));
-        var py = h - pad - (h - pad*2) * (Number(x[key])||0) / max;
-        return px.toFixed(1) + "," + py.toFixed(1);
-      });
-    }
-    var qp = points("queries");
-    var bp = points("blocked");
-    var area = "M" + qp[0] + " L" + qp.join(" L") +
-      " L" + (w-pad) + "," + (h-pad) + " L" + pad + "," + (h-pad) + " Z";
     var total = rows.reduce(function(s,x){ return s + (Number(x.queries)||0); }, 0);
     var blocked = rows.reduce(function(s,x){ return s + (Number(x.blocked)||0); }, 0);
-    $("#chartSummary").textContent = fmt(total) + " queries · " + fmt(blocked) + " blocked";
+    var rate = total ? (blocked / total * 100) : 0;
+    $("#chartSummary").textContent = fmt(total) + " queries · " + fmt(blocked)
+      + " blocked · " + rate.toFixed(1) + "%";
+    if(!total && !blocked){
+      el.innerHTML = '<div class="note">No queries in this range.</div>';
+      $("#chartStart").textContent = "";
+      $("#chartEnd").textContent = "";
+      return;
+    }
+
+    var w = 720, h = 220, left = 38, right = 12, top = 12, bottom = 22;
+    var plotW = w - left - right, plotH = h - top - bottom;
+    var rawMax = rows.reduce(function(m, x){
+      return Math.max(m, Number(x.queries)||0, Number(x.blocked)||0);
+    }, 1);
+    var max = niceMax(rawMax);
+    function px(i){ return left + (rows.length === 1 ? plotW/2 : plotW * i / (rows.length - 1)); }
+    function py(v){ return top + plotH - plotH * (Number(v)||0) / max; }
+
+    var grid = "";
+    for(var g = 0; g <= 4; g++){
+      var value = max * g / 4;
+      var yy = py(value);
+      grid += '<line class="grid-line" x1="' + left + '" y1="' + yy.toFixed(1)
+        + '" x2="' + (w-right) + '" y2="' + yy.toFixed(1) + '"/>';
+      grid += '<text class="axis-text" x="' + (left-7) + '" y="' + (yy+3).toFixed(1)
+        + '" text-anchor="end">' + fmt(value) + '</text>';
+    }
+
+    var qp = rows.map(function(x,i){ return [px(i), py(x.queries)]; });
+    var bp = rows.map(function(x,i){ return [px(i), py(x.blocked)]; });
+    var qpath = smoothPath(qp);
+    var bpath = smoothPath(bp);
+    var area = qpath + " L" + px(rows.length-1) + "," + (h-bottom)
+      + " L" + px(0) + "," + (h-bottom) + " Z";
+
+    var dots = "";
+    rows.forEach(function(x,i){
+      var qv = Number(x.queries)||0, bv = Number(x.blocked)||0;
+      var tip = rangeLabel(range, x.time) + " · " + fmt(qv) + " queries · " + fmt(bv) + " blocked";
+      dots += '<circle class="pt" cx="' + px(i).toFixed(1) + '" cy="' + py(qv).toFixed(1)
+        + '" r="3.2" data-i="' + i + '"><title>' + esc(tip) + '</title></circle>';
+      if(bv) dots += '<circle class="pt b" cx="' + px(i).toFixed(1) + '" cy="' + py(bv).toFixed(1)
+        + '" r="3" data-i="' + i + '"><title>' + esc(tip) + '</title></circle>';
+    });
+    var hits = "";
+    var slot = plotW / Math.max(1, rows.length);
+    rows.forEach(function(x,i){
+      hits += '<rect class="hit" x="' + (px(i) - slot/2).toFixed(1) + '" y="' + top
+        + '" width="' + slot.toFixed(1) + '" height="' + plotH + '" data-i="' + i + '"/>';
+    });
+
     el.innerHTML =
-      '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" role="img" aria-label="Queries and blocked lookups over the last 24 hours">' +
+      '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Queries and blocked lookups">' +
         '<defs><linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">' +
-          '<stop offset="0%" stop-color="var(--green)" stop-opacity=".32"/>' +
+          '<stop offset="0%" stop-color="var(--green)" stop-opacity=".34"/>' +
+          '<stop offset="70%" stop-color="var(--green)" stop-opacity=".08"/>' +
           '<stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>' +
         '</linearGradient></defs>' +
-        '<line class="grid-line" x1="0" y1="' + (h/2) + '" x2="' + w + '" y2="' + (h/2) + '"/>' +
+        grid +
         '<path class="area" d="' + area + '"/>' +
-        '<polyline class="line" points="' + qp.join(" ") + '"/>' +
-        '<polyline class="blocked-line" points="' + bp.join(" ") + '"/>' +
+        '<path class="line" d="' + qpath + '"/>' +
+        '<path class="blocked-line" d="' + bpath + '"/>' +
+        dots + hits +
       '</svg>';
-    $("#chartStart").textContent = clock(rows[0].time);
-    $("#chartEnd").textContent = "now";
+    state.chartRows = rows;
+    $("#chartStart").textContent = rangeLabel(range, rows[0].time);
+    $("#chartEnd").textContent = range === "live" ? "now"
+      : rangeLabel(range, rows[rows.length-1].time);
   }
 
   function renderCategoryCounts(data){
@@ -900,7 +1003,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       safe("/api/queries?length=150"),
       safe("/api/info/host"),
       safe("/api/lists"),
-      safe("/api/stats/history"),
+      safe("/api/stats/history?range=" + encodeURIComponent(state.chartRange)),
       safe("/api/lists/health"),
       safe("/api/settings/categories")
     ]).then(function(a){
@@ -919,6 +1022,56 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       if(a[10]) renderCategorySwitches(a[10]);
     });
   }
+
+  function loadChart(){
+    safe("/api/stats/history?range=" + encodeURIComponent(state.chartRange))
+      .then(function(d){ if(d) renderHistory(d); });
+  }
+
+  function setChartRange(range){
+    state.chartRange = range;
+    $$("#chartRanges [data-range]").forEach(function(button){
+      button.classList.toggle("active", button.getAttribute("data-range") === range);
+    });
+    loadChart();
+  }
+
+  $$("#chartRanges [data-range]").forEach(function(button){
+    button.addEventListener("click", function(){
+      setChartRange(button.getAttribute("data-range"));
+    });
+  });
+
+  (function chartTooltip(){
+    var chart = $("#chart");
+    var tip = $("#chartTip");
+    if(!chart || !tip) return;
+    function hide(){ tip.classList.add("hidden"); }
+    function show(ev, index){
+      var rows = state.chartRows || [];
+      var row = rows[index];
+      if(!row){ hide(); return; }
+      var rect = chart.getBoundingClientRect();
+      tip.innerHTML = '<div class="t">' + esc(rangeLabel(state.chartRange, row.time)) + '</div>' +
+        '<div class="row"><span>Queries</span><b>' + fmt(row.queries) + '</b></div>' +
+        '<div class="row"><span>Blocked</span><b>' + fmt(row.blocked) + '</b></div>';
+      tip.style.left = Math.max(60, Math.min(rect.width - 60, ev.clientX - rect.left)) + 'px';
+      tip.style.top = Math.max(44, ev.clientY - rect.top) + 'px';
+      tip.classList.remove("hidden");
+    }
+    chart.addEventListener("mousemove", function(ev){
+      var target = ev.target;
+      var index = target && target.getAttribute ? target.getAttribute("data-i") : null;
+      if(index == null){ hide(); return; }
+      show(ev, Number(index));
+    });
+    chart.addEventListener("mouseleave", hide);
+    chart.addEventListener("click", function(ev){
+      var target = ev.target;
+      var index = target && target.getAttribute ? target.getAttribute("data-i") : null;
+      if(index != null) show(ev, Number(index));
+    });
+  })();
 
   function setBlocking(blocking, timer){
     api("/api/dns/blocking", {
@@ -1131,6 +1284,12 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     if(!$("#login").classList.contains("hidden")) return;
     loadAll();
   }, 5000);
+  setInterval(function(){
+    if(document.hidden) return;
+    if(state.chartRange !== "live") return;
+    if(!$("#login").classList.contains("hidden")) return;
+    loadChart();
+  }, 2000);
 })();
 </script>
 </body>

@@ -56,7 +56,7 @@ BUILT-IN GRAVITY ENGINE
   lists (Hagezi, OISD, 1Hosts, AdGuard CNAME, URLhaus, Phishing Army, Perflyst SmartTV and more).
 • Separate tracker/telemetry and malware/phishing categories can be added or removed
   independently.
-• The web dashboard shows domain counts for Ads, Trackers and Malware, a 24-hour
+• The web dashboard shows domain counts for Ads, Trackers and Malware, a live, 24-hour, week and month
   chart, blocked-by-category breakdown, per-list health, one-tap allow/block from
   the query log, and CSV/JSON export.
 • Runtime switches for Ads, Trackers and Malware apply instantly.
@@ -122,7 +122,7 @@ Hole Shield 2.3.0
 • Blocking hours with automatic resume, and per-client LAN rules.
 • PBKDF2 web-password storage, login lockout and log-out-all sessions.
 • Backup and restore settings, rules, lists and query history as JSON.
-• 24-hour dashboard chart, blocked-by-category breakdown, per-list health.
+• live, 24-hour, week and month dashboard chart, blocked-by-category breakdown, per-list health.
 • Runtime Ads/Trackers/Malware switches and a compact gravity index.
 • DNS-over-TLS, selectable blocked response and a parental filter.
 • Launcher shortcuts, network details, accessibility labels and CI.

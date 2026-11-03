@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 20dd0e272574aeefdc9d1677d28bccb1ec4ad77048cd73bb2141c4f5b0f96e90
+  SHA-256 ba3867141f2e14476fc9935b5d8b9f7305aad32beb58130d407536f88d1cae49
   Size    157 KB
 
 build/holeshield.apk
-  SHA-256 144b843bf98dd0245e61e173ad446b72113d4ba91108491abda0bc04d1c9a51d
+  SHA-256 b673fcb9ed8942fff9dc69a99120a784505168d4b8fdcee33b998b8ace3735ff
   Size    165 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 5738cb64a22b43eba920e14893bbd2c39825cbb40238ac24a93bca1e4ca21cb9
+  SHA-256 776e49f7ffbc8aa3891097d68f6a4bf3847c5e250b2d2c776093d5574c32d047
   Size    165 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -101,7 +101,7 @@ Verified
 - 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
   tile and a home-screen widget. The notification exposes Pause 30 min and
   Resume; the widget pause/resume action was verified with an ADB broadcast.
-- The dashboard adds a 24-hour chart, blocked-by-category breakdown, runtime
+- The dashboard adds a live, 24-hour, week and month chart, blocked-by-category breakdown, runtime
   Ads/Trackers/Malware switches, per-list health, query-log allow/block actions
   and CSV/JSON export. The new UI was exercised with jsdom.
 - Login hardening: PBKDF2-HMAC-SHA256 password records, a 5-attempt lockout,

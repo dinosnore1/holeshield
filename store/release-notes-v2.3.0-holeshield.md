@@ -54,7 +54,7 @@ Settings shows a confirmation before it is exposed.
   as one JSON file through the system document picker.
 - **Blocklist health** shows per-list success/failure, domain count, error and a
   retry action.
-- The dashboard adds a **24-hour queries/blocked chart** and a
+- The dashboard adds a **live, 24-hour, week and month queries/blocked chart** and a
   blocked-by-category breakdown.
 
 ## Storage and DNS
@@ -86,6 +86,6 @@ Settings shows a confirmation before it is exposed.
 ## SHA-256
 
 ```
-20dd0e272574aeefdc9d1677d28bccb1ec4ad77048cd73bb2141c4f5b0f96e90  holeshield.aab
-144b843bf98dd0245e61e173ad446b72113d4ba91108491abda0bc04d1c9a51d  holeshield.apk
+ba3867141f2e14476fc9935b5d8b9f7305aad32beb58130d407536f88d1cae49  holeshield.aab
+b673fcb9ed8942fff9dc69a99120a784505168d4b8fdcee33b998b8ace3735ff  holeshield.apk
 ```

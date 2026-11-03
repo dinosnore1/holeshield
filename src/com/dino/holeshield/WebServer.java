@@ -207,7 +207,7 @@ final class WebServer {
             return;
         }
         if ("stats/history".equals(rest)) {
-            sendJson(out, 200, history().toString());
+            sendJson(out, 200, history(r).toString());
             return;
         }
         if ("settings/categories".equals(rest)) {
@@ -358,14 +358,15 @@ final class WebServer {
         return root;
     }
 
-    private JSONObject history() throws Exception {
-        JSONArray hours = new JSONArray();
-        for (Stats.Bucket b : Stats.hourly(24)) {
+    private JSONObject history(Request r) throws Exception {
+        String range = r.param("range", "24h").toLowerCase(Locale.US);
+        JSONArray points = new JSONArray();
+        for (Stats.Bucket b : Stats.chart(range)) {
             JSONObject o = new JSONObject();
             o.put("time", b.start / 1000.0);
             o.put("queries", b.queries);
             o.put("blocked", b.blocked);
-            hours.put(o);
+            points.put(o);
         }
         JSONArray categories = new JSONArray();
         for (Stats.Top t : Stats.categoryCounts()) {
@@ -375,7 +376,9 @@ final class WebServer {
             categories.put(o);
         }
         JSONObject root = new JSONObject();
-        root.put("hours", hours);
+        root.put("range", range);
+        root.put("points", points);
+        root.put("hours", points);
         root.put("categories", categories);
         root.put("took", 0.001);
         return root;

@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -34,10 +35,16 @@ final class Stats {
     private static final String FILE = "holeshield_stats";
     private static final String RECENT_KEY = "recent";
     private static final String LOG_FILE = "query_log.tsv";
+    private static final String HISTORY_KEY = "daily_history";
+    private static final String HOURLY_KEY = "hourly_history";
     private static final int RECENT_MAX = 40;
     private static final int LOG_MAX = 2000;
+    private static final int HISTORY_MAX = 40;
+    private static final int HOURLY_MAX = 72;
     private static final SimpleDateFormat DAY_FORMAT =
             new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    private static final SimpleDateFormat HOUR_FORMAT =
+            new SimpleDateFormat("yyyy-MM-dd-HH", Locale.US);
 
     static final class Blocked {
         final String name;
@@ -113,6 +120,8 @@ final class Stats {
     private static final Set<String> domains = new HashSet<>();
     private static final Set<String> clients = new HashSet<>();
     private static final Map<Integer, Integer> types = new HashMap<>();
+    private static final LinkedHashMap<String, long[]> dailyHistory = new LinkedHashMap<>();
+    private static final LinkedHashMap<String, long[]> hourlyHistory = new LinkedHashMap<>();
     private static long lastSave;
     private static boolean logDirty;
 
@@ -131,7 +140,15 @@ final class Stats {
         domains.clear();
         clients.clear();
         types.clear();
+        loadHistory(p.getString(HISTORY_KEY, ""), dailyHistory);
+        loadHistory(p.getString(HOURLY_KEY, ""), hourlyHistory);
+
+        long savedQueries = p.getLong("queries", 0);
+        long savedBlocked = p.getLong("blocked", 0);
         if (!now.equals(savedDay)) {
+            if (!savedDay.isEmpty()) {
+                archiveDay(savedDay, savedQueries, savedBlocked);
+            }
             queries = 0;
             blocked = 0;
             cached = 0;
@@ -145,8 +162,8 @@ final class Stats {
             return;
         }
         day = savedDay;
-        queries = p.getLong("queries", 0);
-        blocked = p.getLong("blocked", 0);
+        queries = savedQueries;
+        blocked = savedBlocked;
         cached = p.getLong("cached", 0);
         forwarded = p.getLong("forwarded", 0);
         errors = p.getLong("errors", 0);
@@ -163,6 +180,41 @@ final class Stats {
             }
         }
         loadLog(c);
+    }
+
+    private static void loadHistory(String text, LinkedHashMap<String, long[]> into) {
+        into.clear();
+        if (text == null || text.isEmpty()) return;
+        for (String line : text.split("\n")) {
+            String[] f = line.split("\\|", -1);
+            if (f.length < 3) continue;
+            try {
+                into.put(f[0], new long[]{Long.parseLong(f[1]), Long.parseLong(f[2])});
+            } catch (NumberFormatException ignored) { }
+        }
+    }
+
+    private static String historyText(LinkedHashMap<String, long[]> map) {
+        StringBuilder out = new StringBuilder();
+        for (Map.Entry<String, long[]> e : map.entrySet()) {
+            if (out.length() > 0) out.append('\n');
+            out.append(e.getKey()).append('|')
+                    .append(e.getValue()[0]).append('|')
+                    .append(e.getValue()[1]);
+        }
+        return out.toString();
+    }
+
+    private static void archiveDay(String key, long q, long b) {
+        if (key == null || key.isEmpty()) return;
+        dailyHistory.remove(key);
+        dailyHistory.put(key, new long[]{q, b});
+        while (dailyHistory.size() > HISTORY_MAX) {
+            Iterator<String> it = dailyHistory.keySet().iterator();
+            if (!it.hasNext()) break;
+            it.next();
+            it.remove();
+        }
     }
 
     private static void loadLog(Context c) {
@@ -208,6 +260,8 @@ final class Stats {
                 .putLong("forwarded", forwarded)
                 .putLong("errors", errors)
                 .putString(RECENT_KEY, list.toString())
+                .putString(HISTORY_KEY, historyText(dailyHistory))
+                .putString(HOURLY_KEY, historyText(hourlyHistory))
                 .apply();
         saveLog(c);
         lastSave = System.currentTimeMillis();
@@ -246,6 +300,7 @@ final class Stats {
         if (e == null) return;
         String now = today();
         if (!now.equals(day)) {
+            archiveDay(day, queries, blocked);
             queries = 0;
             blocked = 0;
             cached = 0;
@@ -266,6 +321,21 @@ final class Stats {
         if (!e.domain.isEmpty()) domains.add(e.domain);
         if (!e.client.isEmpty()) clients.add(e.client);
         types.put(e.type, types.getOrDefault(e.type, 0) + 1);
+
+        String hourKey = HOUR_FORMAT.format(new Date(e.at));
+        long[] hour = hourlyHistory.get(hourKey);
+        if (hour == null) {
+            hour = new long[2];
+            hourlyHistory.put(hourKey, hour);
+        }
+        hour[0]++;
+        if (e.blocked) hour[1]++;
+        while (hourlyHistory.size() > HOURLY_MAX) {
+            Iterator<String> it = hourlyHistory.keySet().iterator();
+            if (!it.hasNext()) break;
+            it.next();
+            it.remove();
+        }
 
         log.addFirst(e);
         while (log.size() > LOG_MAX) log.removeLast();
@@ -359,7 +429,7 @@ final class Stats {
 
     /** Queries and blocked counts per local hour, oldest first. */
     static synchronized List<Bucket> hourly(int hours) {
-        int count = Math.max(1, Math.min(48, hours));
+        int count = Math.max(1, Math.min(HOURLY_MAX, hours));
         java.util.Calendar cal = java.util.Calendar.getInstance();
         cal.set(java.util.Calendar.MINUTE, 0);
         cal.set(java.util.Calendar.SECOND, 0);
@@ -367,20 +437,74 @@ final class Stats {
         long current = cal.getTimeInMillis();
         long hourMs = 3600000L;
         long start = current - (count - 1) * hourMs;
-        long[] queriesByHour = new long[count];
-        long[] blockedByHour = new long[count];
+        ArrayList<Bucket> out = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            long at = start + i * hourMs;
+            long[] value = hourlyHistory.get(HOUR_FORMAT.format(new Date(at)));
+            out.add(new Bucket(at, value == null ? 0 : value[0],
+                    value == null ? 0 : value[1]));
+        }
+        return out;
+    }
+
+    /** Live chart: per-minute buckets for the last {@code minutes} minutes. */
+    static synchronized List<Bucket> live(int minutes) {
+        int count = Math.max(1, Math.min(120, minutes));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        long current = cal.getTimeInMillis();
+        long minuteMs = 60000L;
+        long start = current - (count - 1) * minuteMs;
+        long[] q = new long[count];
+        long[] b = new long[count];
         for (Entry e : log) {
-            if (e.at < start || e.at > current + hourMs) continue;
-            int index = (int) ((e.at - start) / hourMs);
+            if (e.at < start || e.at > current + minuteMs) continue;
+            int index = (int) ((e.at - start) / minuteMs);
             if (index < 0 || index >= count) continue;
-            queriesByHour[index]++;
-            if (e.blocked) blockedByHour[index]++;
+            q[index]++;
+            if (e.blocked) b[index]++;
         }
         ArrayList<Bucket> out = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            out.add(new Bucket(start + i * hourMs, queriesByHour[i], blockedByHour[i]));
+            out.add(new Bucket(start + i * minuteMs, q[i], b[i]));
         }
         return out;
+    }
+
+    /** Daily chart for the last {@code days} days, including today. */
+    static synchronized List<Bucket> daily(int days) {
+        int count = Math.max(1, Math.min(HISTORY_MAX, days));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -(count - 1));
+        ArrayList<Bucket> out = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            String key = DAY_FORMAT.format(cal.getTime());
+            long[] value;
+            if (i == count - 1) {
+                value = today().equals(day)
+                        ? new long[]{queries, blocked} : new long[]{0, 0};
+            } else {
+                value = dailyHistory.get(key);
+            }
+            out.add(new Bucket(cal.getTimeInMillis(),
+                    value == null ? 0 : value[0], value == null ? 0 : value[1]));
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        }
+        return out;
+    }
+
+    /** Chart buckets for the dashboard range selector. */
+    static synchronized List<Bucket> chart(String range) {
+        String value = range == null ? "24h" : range.toLowerCase(Locale.US);
+        if ("live".equals(value)) return live(30);
+        if ("week".equals(value)) return daily(7);
+        if ("month".equals(value)) return daily(30);
+        return hourly(24);
     }
 
     /** Blocked queries grouped by the category that matched. */
@@ -485,6 +609,8 @@ final class Stats {
         domains.clear();
         clients.clear();
         types.clear();
+        dailyHistory.clear();
+        hourlyHistory.clear();
         logDirty = true;
         save(c);
     }

@@ -63,7 +63,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
 - **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional
   username/password login. New passwords are stored as PBKDF2 hashes, repeated
   failures trigger a lockout, and "Log out all" invalidates every session. The
-  dashboard adds a 24-hour chart, blocked-by-category breakdown, runtime category
+  dashboard adds a live, 24-hour, week and month chart, blocked-by-category breakdown, runtime category
   switches, per-list health, one-tap allow/block from the query log, and CSV/JSON
   export.
 - **LAN DNS server** on UDP and TCP port **5354** for other devices on the LAN
@@ -476,7 +476,7 @@ Current `2.3.0` build extras verified on the TV with the signed AAB test APK:
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 - 2.3.0: notification actions (Pause 30 min / Resume), Quick Settings tile and
   widget are registered; widget pause/resume was exercised with ADB.
-- 2.3.0: the dashboard serves the 24-hour chart, category switches, list health,
+- 2.3.0: the dashboard serves the live, 24-hour, week and month chart, category switches, list health,
   query-log allow/block actions and CSV/JSON export; the new UI was exercised
   with jsdom.
 - 2.3.0: dashboard and LAN DNS are off by default for new installs; existing
