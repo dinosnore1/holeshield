@@ -102,8 +102,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .pauseControl:active{transform:translateY(1px)}
 .pauseControl select{
   appearance:none;-webkit-appearance:none;border:0;background:transparent;
-  color:var(--text);font:inherit;font-weight:650;height:100%;width:148px;
-  padding:0;cursor:pointer;outline:none;
+  color:var(--text);font:inherit;font-weight:650;height:100%;width:160px;
+  padding:0;cursor:pointer;outline:none;text-align:left;text-align-last:left;
+  line-height:36px;white-space:nowrap;overflow:hidden;
 }
 .pauseControl select:disabled{cursor:not-allowed;opacity:.55}
 .pauseControl:has(select:disabled){opacity:.45;pointer-events:none}
@@ -389,7 +390,10 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     sid: localStorage.getItem("pihole_tv_sid") || "",
     filter: "all",
     search: "",
-    timer: null
+    timer: null,
+    blocking: true,
+    pauseUntil: 0,
+    pauseIndefinite: false
   };
   var $ = function(s){ return document.querySelector(s); };
   var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -514,9 +518,56 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     $("#heroSub").textContent = on
       ? "Every DNS lookup is checked against the embedded gravity database and your rules."
       : "DNS still resolves, but gravity and block rules are temporarily off.";
-    $("#resume").disabled = on;
-    $("#pause").disabled = !on;
-    if(!on) $("#pause").value = "";
+    state.blocking = on;
+    if(on){
+      state.pauseUntil = 0;
+      state.pauseIndefinite = false;
+    } else {
+      var left = Number(s.blocking_timer);
+      state.pauseIndefinite = !(left > 0);
+      state.pauseUntil = left > 0 ? Date.now() + left * 1000 : 0;
+    }
+    updatePauseDisplay();
+  }
+
+  function formatPauseLeft(seconds){
+    var left = Math.max(0, Math.ceil(seconds));
+    if(left >= 3600){
+      var h = Math.floor(left / 3600);
+      var m = Math.floor((left % 3600) / 60);
+      var s = left % 60;
+      return h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
+    var mm = Math.floor(left / 60);
+    var ss = left % 60;
+    return mm + ":" + String(ss).padStart(2, "0");
+  }
+
+  function updatePauseDisplay(){
+    var select = $("#pause");
+    var control = $(".pauseControl");
+    var label;
+    if(state.blocking){
+      label = "Pause…";
+      select.disabled = false;
+      $("#resume").disabled = true;
+      if(control) control.title = "Pause blocking";
+    } else if(state.pauseIndefinite){
+      label = "Paused";
+      select.disabled = true;
+      $("#resume").disabled = false;
+      if(control) control.title = "Paused until resumed";
+    } else {
+      var left = (state.pauseUntil - Date.now()) / 1000;
+      label = left > 0 ? "Paused · " + formatPauseLeft(left) : "Paused";
+      select.disabled = true;
+      $("#resume").disabled = false;
+      if(control) control.title = left > 0 ? "Paused · " + formatPauseLeft(left) : "Paused";
+    }
+    var option = select.querySelector('option[value=""]');
+    if(option) option.textContent = label;
+    select.value = "";
+    select.setAttribute("aria-label", state.blocking ? "Pause blocking" : label);
   }
 
   function renderQueries(data){
@@ -665,9 +716,16 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
   $("#pause").addEventListener("change", function(){
     var value = this.value;
     if(value === "") return;
-    setBlocking(false, Number(value) || 0);
-    this.value = "";
+    var seconds = Number(value) || 0;
+    state.blocking = false;
+    state.pauseIndefinite = seconds === 0;
+    state.pauseUntil = seconds > 0 ? Date.now() + seconds * 1000 : 0;
+    updatePauseDisplay();
+    setBlocking(false, seconds);
   });
+  setInterval(function(){
+    if(!state.blocking) updatePauseDisplay();
+  }, 1000);
   var pauseControl = $(".pauseControl");
   if(pauseControl){
     pauseControl.addEventListener("click", function(event){

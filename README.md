@@ -34,7 +34,7 @@ This is the new `com.dino.holeshield` package; uninstall the old
   and classic hosts lists. Tracker/telemetry and malware/phishing categories can be
   added or removed independently. The web dashboard shows Ads, Trackers and
   Malware domain counts, with icon-only sun/moon theme and refresh buttons, and a single
-  styled pause pill/dropdown. Multiple list URLs are
+  styled pause pill/dropdown with an in-place countdown. Multiple list URLs are
   supported.
 - **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict

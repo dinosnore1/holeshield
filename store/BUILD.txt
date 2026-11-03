@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 a1bbf22aefd140120d98c4061a5cf6de415b9b110e9935b006a8e569aee4c541
+  SHA-256 26b3d50971ad779006a9cc12d2f120f876cf15aaff3e1b3a3aff2bca587bba71
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 e1896ed11119870c31538b1dc87e63055e40485656073409227b4fe049a53990
+  SHA-256 795c3c44010acb51c7416d41221e076a26237502195b654894cb6a3f2700eb77
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 a3236f0aa964f8680a1e8cb79d86c67973c808024f1fa75ae86cf1e2870d3ff0
+  SHA-256 6214136e390d654e8a5e08625b015febd3e5bc8563bc7fa328f8052c4f61050a
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -80,5 +80,6 @@ Verified
   jsdom.
 - The dashboard uses one styled Pause pill (pause icon, native dropdown,
   chevron): choosing a duration (5 minutes through 24 hours, or until resumed)
-  pauses immediately. Resume remains a button.
+  pauses immediately. The pill then shows the remaining time and ticks down;
+  Resume remains a button. The selected text is left-aligned in the pill.
 - Dashboard, query log, gravity/rules and stats screens verified.

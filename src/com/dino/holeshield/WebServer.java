@@ -285,6 +285,7 @@ final class WebServer {
         root.put("categories", categories);
         root.put("clients", clients);
         root.put("blocking", p.blockingActive());
+        root.put("blocking_timer", p.blockingRemainingSeconds());
         root.put("took", 0.001);
         return root;
     }
