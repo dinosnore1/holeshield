@@ -1,9 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
+<script>
+(function(){
+  try {
+    var saved = localStorage.getItem("holeshield_theme");
+    if (saved === "light" || saved === "dark") {
+      document.documentElement.setAttribute("data-theme", saved);
+    }
+  } catch (e) {}
+})();
+</script>
 <title>Hole Shield</title>
 <style>
 :root{
@@ -11,14 +21,29 @@
   --text:#dee4de; --muted:#bfc9c1; --green:#8ed5b2; --green2:#6ac79a;
   --red:#ffb4ab; --amber:#a5ccde; --blue:#b4ccbd; --violet:#c1e9fb;
   --outline:#8a938c; --shadow:0 20px 48px rgba(0,0,0,.42);
+  --glow1:rgba(142,213,178,.12); --glow2:rgba(165,204,222,.10);
+  --hover-border:#6c7a70; --hover-bg:#2b332e;
+  --row-line:rgba(64,73,67,.6); --row-hover:rgba(255,255,255,.025);
+  color-scheme:dark;
+}
+html[data-theme="light"]{
+  --bg:#f4f7f4; --panel:#ffffff; --panel2:#e9efea; --line:#c9d5cc;
+  --text:#132019; --muted:#4d5f54; --green:#1b7f5c; --green2:#146b4c;
+  --red:#b3261e; --amber:#8a5a00; --blue:#245c75; --violet:#3f4f8a;
+  --outline:#6b7a70; --shadow:0 20px 48px rgba(20,40,30,.14);
+  --glow1:rgba(27,127,92,.10); --glow2:rgba(36,92,117,.08);
+  --hover-border:#9fb3a6; --hover-bg:#dde8e0;
+  --row-line:#d7e1d9; --row-hover:rgba(20,40,30,.04);
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   background:
-    radial-gradient(900px 480px at 12% -10%, rgba(142,213,178,.12), transparent 60%),
-    radial-gradient(800px 480px at 100% 0%, rgba(165,204,222,.10), transparent 55%),
+    radial-gradient(900px 480px at 12% -10%, var(--glow1), transparent 60%),
+    radial-gradient(800px 480px at 100% 0%, var(--glow2), transparent 55%),
     var(--bg);
+  transition:background .2s ease,color .2s ease;
   color:var(--text);
   font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   min-height:100vh;
@@ -48,7 +73,7 @@ button,.btn{
   transition:transform .08s ease,border-color .15s ease,background .15s ease;
   text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
 }
-button:hover,.btn:hover{border-color:#6c7a70;background:#2b332e}
+button:hover,.btn:hover{border-color:var(--hover-border);background:var(--hover-bg)}
 button:active{transform:translateY(1px)}
 button.primary{background:linear-gradient(180deg,var(--green),var(--green2));border-color:transparent;color:#003825}
 button.primary:hover{filter:brightness(1.05)}
@@ -94,8 +119,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 table{width:100%;border-collapse:collapse;min-width:760px}
 th{position:sticky;top:0;background:var(--panel);text-align:left;color:var(--muted);font-size:11px;
   text-transform:uppercase;letter-spacing:.08em;padding:10px 10px;border-bottom:1px solid var(--line);z-index:1}
-td{padding:9px 10px;border-bottom:1px solid rgba(64,73,67,.6);vertical-align:top;font-size:12.8px}
-tr:hover td{background:rgba(255,255,255,.025)}
+td{padding:9px 10px;border-bottom:1px solid var(--row-line);vertical-align:top;font-size:12.8px}
+tr:hover td{background:var(--row-hover)}
 td.domain{font-weight:650;color:var(--text);word-break:break-word}
 td.mono{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
 .badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.04em}
@@ -113,6 +138,18 @@ td.mono{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
 .filters input:focus{border-color:var(--green)}
 .filters button{padding:6px 12px;font-size:12px}
 .filters button.active{border-color:rgba(142,213,178,.5);background:rgba(142,213,178,.12);color:#a9f2cd}
+html[data-theme="light"] .badge.blocked,
+html[data-theme="light"] .badge.deny{background:rgba(179,38,30,.10);color:#8c1d18;border-color:rgba(179,38,30,.28)}
+html[data-theme="light"] .badge.allowed,
+html[data-theme="light"] .badge.forwarded,
+html[data-theme="light"] .badge.allow{background:rgba(27,127,92,.10);color:#146b4c;border-color:rgba(27,127,92,.25)}
+html[data-theme="light"] .badge.cached{background:rgba(36,92,117,.10);color:#245c75;border-color:rgba(36,92,117,.25)}
+html[data-theme="light"] .badge.error{background:rgba(63,79,138,.10);color:#3f4f8a;border-color:rgba(63,79,138,.25)}
+html[data-theme="light"] .filters button.active{border-color:rgba(27,127,92,.5);background:rgba(27,127,92,.10);color:#146b4c}
+html[data-theme="light"] .note code{background:#eef4ef;color:#146b4c}
+html[data-theme="light"] button.danger{color:#8c1d18;background:rgba(179,38,30,.07);border-color:rgba(179,38,30,.25)}
+html[data-theme="light"] .overlay{background:rgba(20,40,30,.45)}
+html[data-theme="light"] .hero{background:linear-gradient(135deg,rgba(27,127,92,.08),rgba(255,255,255,.94) 55%)}
 form.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 input,select{
   background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;
@@ -163,7 +200,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <div class="logo">π</div>
+      <div class="logo">H</div>
       <div>
         <h1>Hole Shield</h1>
         <small>Built-in DNS filter · <span id="hostline">loading…</span></small>
@@ -171,6 +208,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     </div>
     <div class="spacer"></div>
     <div id="status" class="pill"><span class="dot"></span><span id="statusText">Checking…</span></div>
+    <button id="theme" class="small" data-theme-toggle title="Toggle light/dark mode">Light</button>
     <button id="refresh" title="Refresh now">Refresh</button>
   </header>
 
@@ -293,6 +331,9 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
 
 <div id="login" class="overlay hidden">
   <form class="login" id="loginForm">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button class="small" type="button" data-theme-toggle style="width:auto" title="Toggle light/dark mode">Light</button>
+    </div>
     <h2>Hole Shield</h2>
     <p>Enter the web username and password set on this device. Leave the username blank if only a password is configured. If no login is configured, just refresh.</p>
     <input id="username" type="text" placeholder="Web username (if set)" autocomplete="username" style="display:none">
@@ -351,6 +392,23 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     });
   }
   function hideLogin(){ $("#login").classList.add("hidden"); }
+
+  function themeName(){
+    return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  }
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("holeshield_theme", theme); } catch (e) {}
+    $$("[data-theme-toggle]").forEach(function(button){
+      button.textContent = theme === "light" ? "Dark" : "Light";
+    });
+  }
+  applyTheme(themeName());
+  $$("[data-theme-toggle]").forEach(function(button){
+    button.addEventListener("click", function(){
+      applyTheme(themeName() === "light" ? "dark" : "light");
+    });
+  });
 
   function api(path, opts){
     opts = opts || {};

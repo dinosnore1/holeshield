@@ -33,7 +33,8 @@ This is the new `com.dino.holeshield` package; uninstall the old
   Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
   and classic hosts lists. Tracker/telemetry and malware/phishing categories can be
   added or removed independently. The web dashboard shows Ads, Trackers and
-  Malware domain counts. Multiple list URLs are supported.
+  Malware domain counts, with a dark/light theme toggle. Multiple list URLs are
+  supported.
 - **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict
   subdomains, not the apex; `/regex/` supports Java regular expressions.

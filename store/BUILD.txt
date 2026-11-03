@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 1490fd17123265fab6183ddb0a0e9fcbeac708ba4c8fe255c22e4be89b302361
+  SHA-256 60e218a7ed1ea7f97cd403cd4e23c9e14cda29523e2fe5004b0a3067ba92245c
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 9e85c64eea249b7b775c155b665dc7f6967e46d588ed16eedff054308ebf50fb
+  SHA-256 d8b5dc3c813602e52c48fc2511476598ed5b92749a065087fb52eb3a5981941b
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 c42726b1e90649b7b4f09073e88cb9e2588dd7bd424070d05fe571bc5bd2ff26
+  SHA-256 21625efd2e6a7dfd9e9287bdea9459e1b1ed17085155c05a344bca1abd8778ec
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -75,4 +75,7 @@ Verified
   `example.com` resolves normally.
 - The web dashboard summary now returns `categories.ads`, `categories.trackers`
   and `categories.malware`; the dashboard renders them in a LIST COVERAGE row.
+- The web dashboard has a dark/light theme toggle on both the header and login
+  screen; the choice is stored in localStorage. The DOM toggle was exercised
+  with jsdom.
 - Dashboard, query log, gravity/rules and stats screens verified.
