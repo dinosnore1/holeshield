@@ -171,6 +171,18 @@ final class WebServer {
         String[] seg = rest.split("/");
         String get = r.method;
 
+        if ("auth/logout".equals(rest)) {
+            if (!"POST".equals(r.method)) {
+                sendJson(out, 405, "{\"error\":\"POST required\"}");
+                return;
+            }
+            String sid = r.header("x-ftl-sid");
+            if (sid == null || sid.isEmpty()) sid = r.param("sid", "");
+            if (sid == null || sid.isEmpty()) sid = cookie(r, "sid");
+            if (sid != null && !sid.isEmpty()) sessions.remove(sid);
+            sendJson(out, 200, "{\"loggedOut\":true}");
+            return;
+        }
         if ("auth".equals(rest)) {
             auth(r, out, p);
             return;

@@ -47,6 +47,8 @@ classic hosts lists so they are included when the cap is reached.
   Malware domain counts.
 - The web dashboard has icon-only **sun/moon** theme and **refresh** buttons;
   the theme choice is remembered in the browser.
+- The dashboard tab has a shield favicon, and a **Log out** button appears when
+  a web login is configured.
 - A single compact **Pause** pill (pause icon, dropdown, chevron) pauses
   immediately for 5 minutes through 24 hours, or until resumed. It then shows
   the remaining time and counts down in place; the pill width follows the label,
@@ -58,6 +60,6 @@ classic hosts lists so they are included when the cap is reached.
 ## SHA-256
 
 ```
-a7446a7c07c6152e13b56f613fce3a4a6e57d7b3b4466c5d6c9bb31562c72c83  holeshield.aab
-539c6d0000df16915c77a3aa5f71eb577e5bd620fed7e5008b89e2946bf3fbbb  holeshield.apk
+47a10d2e9096402c17730a1c80c23da3c8c5cd92078fb269cdf4e49feb54288e  holeshield.aab
+c41c2d7b33348af42ae1d14bcd6b92bfddb5526c01f5a202b0acb690ded228d5  holeshield.apk
 ```

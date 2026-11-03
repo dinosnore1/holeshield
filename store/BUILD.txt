@@ -11,16 +11,16 @@ Built:         2026-11-03
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 a7446a7c07c6152e13b56f613fce3a4a6e57d7b3b4466c5d6c9bb31562c72c83
+  SHA-256 47a10d2e9096402c17730a1c80c23da3c8c5cd92078fb269cdf4e49feb54288e
   Size    124 KB
 
 build/holeshield.apk
-  SHA-256 539c6d0000df16915c77a3aa5f71eb577e5bd620fed7e5008b89e2946bf3fbbb
+  SHA-256 c41c2d7b33348af42ae1d14bcd6b92bfddb5526c01f5a202b0acb690ded228d5
   Size    129 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 efce1e724a4cef51a7214964f75d3c70ffaebd87c614bac1bb77efadb6e3deeb
+  SHA-256 4b31d5e8b5f560a34f8b94549dc3b638593b90a569e88a24a5df384b5c498e7d
   Size    133 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -78,6 +78,9 @@ Verified
 - The web dashboard has icon-only sun/moon theme and refresh buttons; the theme
   choice is stored in localStorage. Both icons and labels were exercised with
   jsdom.
+- The dashboard tab has an inline SVG favicon. A Log out button appears when a
+  web login is configured, clears the local SID, invalidates the server session,
+  and returns to the login form.
 - The dashboard uses one styled Pause pill (pause icon, native dropdown,
   chevron): choosing a duration (5 minutes through 24 hours, or until resumed)
   pauses immediately. The pill then shows the remaining time and ticks down;
