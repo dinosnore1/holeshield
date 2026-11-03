@@ -90,7 +90,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .hero h2{margin:0 0 4px;font-size:23px;letter-spacing:-.01em}
 .hero p{margin:0;color:var(--muted);max-width:640px}
 .hero .actions{display:flex;gap:9px;flex-wrap:wrap;margin-left:auto;align-items:center}
-.hero .actions select{padding:9px 30px 9px 12px;border-radius:999px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font:inherit;font-weight:650;cursor:pointer}
+.hero .actions select{padding:9px 30px 9px 12px;border-radius:999px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font:inherit;font-weight:650;cursor:pointer;min-width:160px}
 .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
 .coverageTitle{margin:24px 0 0;font-size:12px;letter-spacing:.12em;color:var(--muted)}
 .coverage{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px;margin-bottom:0}
@@ -221,17 +221,17 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
       <p id="heroSub">Loading the embedded resolver and dashboard.</p>
     </div>
     <div class="actions">
-      <select id="pauseTime" aria-label="Pause duration" title="Pause duration">
-        <option value="300">5 minutes</option>
-        <option value="1800" selected>30 minutes</option>
-        <option value="3600">1 hour</option>
-        <option value="7200">2 hours</option>
-        <option value="21600">6 hours</option>
-        <option value="43200">12 hours</option>
-        <option value="86400">24 hours</option>
-        <option value="0">Until resumed</option>
+      <select id="pause" aria-label="Pause blocking" title="Pause blocking">
+        <option value="" selected>Pause…</option>
+        <option value="300">Pause 5 minutes</option>
+        <option value="1800">Pause 30 minutes</option>
+        <option value="3600">Pause 1 hour</option>
+        <option value="7200">Pause 2 hours</option>
+        <option value="21600">Pause 6 hours</option>
+        <option value="43200">Pause 12 hours</option>
+        <option value="86400">Pause 24 hours</option>
+        <option value="0">Pause until resumed</option>
       </select>
-      <button id="pause">Pause</button>
       <button id="resume" class="primary">Resume</button>
     </div>
   </section>
@@ -488,7 +488,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
       : "DNS still resolves, but gravity and block rules are temporarily off.";
     $("#resume").disabled = on;
     $("#pause").disabled = !on;
-    $("#pauseTime").disabled = !on;
+    if(!on) $("#pause").value = "";
   }
 
   function renderQueries(data){
@@ -634,8 +634,11 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     el.className = "msg " + (ok === false ? "err" : ok ? "ok" : "");
   }
 
-  $("#pause").addEventListener("click", function(){
-    setBlocking(false, Number($("#pauseTime").value) || 0);
+  $("#pause").addEventListener("change", function(){
+    var value = this.value;
+    if(value === "") return;
+    setBlocking(false, Number(value) || 0);
+    this.value = "";
   });
   $("#resume").addEventListener("click", function(){ setBlocking(true, 0); });
   $("#refresh").addEventListener("click", loadAll);

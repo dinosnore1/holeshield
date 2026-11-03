@@ -47,14 +47,14 @@ classic hosts lists so they are included when the cap is reached.
   Malware domain counts.
 - The web dashboard has icon-only **sun/moon** theme and **refresh** buttons;
   the theme choice is remembered in the browser.
-- Pause duration is chosen from a dropdown (5 minutes through 24 hours, or
-  until resumed) instead of separate pause buttons.
+- A single **Pause** dropdown pauses immediately for 5 minutes through 24
+  hours, or until resumed.
 - URLhaus (`02teste.cc`), Phishing Army (`0-ilxrc-w285.p9bckp.sbs`) and tracker
   `app-measurement.com` resolve to 0.0.0.0; `example.com` resolves normally.
 
 ## SHA-256
 
 ```
-6e2d4ea9a302b8f96b09d92ba871de86cd2effd21fd0ba781e212b714950df24  holeshield.aab
-cbe1f426095c43c8971ef8f11a90c10764bc0ce11ff154f1ab9c367dee640ab2  holeshield.apk
+54315faa00b4f3256519df65a4bcc543742d7a4bd5a986655ff9adf19b1d3146  holeshield.aab
+77a3ec5a6b0439826117843f2bca270aab85f4cde618b3549ddd04e051f4e1d1  holeshield.apk
 ```
