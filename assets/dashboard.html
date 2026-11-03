@@ -111,7 +111,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
   opacity:0;z-index:2;
 }
 .pauseControl select:disabled{cursor:not-allowed;opacity:.55}
-.pauseControl:has(select:disabled){opacity:.45;pointer-events:none}
+.pauseControl:has(select:disabled){opacity:.45;pointer-events:none;box-shadow:none;border-color:var(--line)}
+.pauseControl:has(select:disabled):focus-within{box-shadow:none}
 .pauseControl .pauseIcon,.pauseControl .chevron{
   position:absolute;pointer-events:none;color:var(--muted);z-index:3;
 }
@@ -119,6 +120,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .pauseControl .chevron{right:10px;width:13px;height:13px}
 .pauseControl option{background:var(--panel);color:var(--text)}
 html[data-theme="light"] .pauseControl{box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
+html[data-theme="light"] .pauseControl:has(select:disabled){box-shadow:none}
 html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27,127,92,.18)}
 .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
 .coverageTitle{margin:24px 0 0;font-size:12px;letter-spacing:.12em;color:var(--muted)}
@@ -572,6 +574,7 @@ footer{color:var(--outline);font-size:11.5px;text-align:center;margin-top:22px}
     var labelEl = $("#pauseLabel");
     if(labelEl) labelEl.textContent = label;
     select.value = "";
+    if(select.disabled) select.blur();
     select.setAttribute("aria-label", state.blocking ? "Pause blocking" : label);
   }
 
