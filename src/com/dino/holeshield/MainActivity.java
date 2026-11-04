@@ -11,10 +11,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.net.ConnectivityManager;
 import android.net.LinkProperties;
 import android.net.Network;
@@ -55,8 +57,10 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -98,6 +102,8 @@ public class MainActivity extends Activity {
     // Home screen views, updated in place so focus is never lost.
     private ShieldView shield;
     private TextView chip;
+    private TextView railChip;
+    private LinkedHashMap<Screen, LinearLayout> navItems;
     private TextView heroTitle;
     private TextView heroSub;
     private TextView primaryLabel;
@@ -364,7 +370,8 @@ public class MainActivity extends Activity {
         page.setPadding(h, v, h, bottom);
         scroll.addView(page, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(scroll, new FrameLayout.LayoutParams(
+        FrameLayout content = new FrameLayout(this);
+        content.addView(scroll, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         if (useEdgeFade) {
             View bottomFade = new View(this);
@@ -377,7 +384,20 @@ public class MainActivity extends Activity {
             FrameLayout.LayoutParams fadeLp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, isTv ? 72 : 40));
             fadeLp.gravity = Gravity.BOTTOM;
-            root.addView(bottomFade, fadeLp);
+            content.addView(bottomFade, fadeLp);
+        }
+        if (isTv) {
+            LinearLayout shell = Ui.row(this);
+            shell.setBackgroundColor(Ui.BG);
+            shell.addView(navRail(), new LinearLayout.LayoutParams(
+                    Ui.dp(this, 250), ViewGroup.LayoutParams.MATCH_PARENT));
+            shell.addView(content, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+            root.addView(shell, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        } else {
+            root.addView(content, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         if (!isTv && Build.VERSION.SDK_INT >= 35) {
             root.setOnApplyWindowInsetsListener((view, insets) -> {
@@ -388,6 +408,97 @@ public class MainActivity extends Activity {
             });
         }
         return root;
+    }
+
+    /** Persistent TV navigation rail. */
+    private View navRail() {
+        LinearLayout rail = Ui.column(this);
+        rail.setBackground(Ui.rounded(this, Ui.SURFACE_CONTAINER_LOW, 0, 1, Ui.STROKE));
+        rail.setPadding(Ui.dp(this, 16), Ui.dp(this, 22),
+                Ui.dp(this, 16), Ui.dp(this, 18));
+
+        LinearLayout brand = Ui.row(this);
+        ShieldView logo = new ShieldView(this);
+        logo.setOn(true);
+        logo.setContentDescription("Hole Shield");
+        logo.setLayoutParams(Ui.lp(Ui.dp(this, 38), Ui.dp(this, 38)));
+        brand.addView(logo);
+        LinearLayout brandText = Ui.column(this);
+        TextView name = Ui.text(this, "HOLE SHIELD TV", 15, Ui.TEXT, true);
+        name.setLetterSpacing(0.08f);
+        brandText.addView(name);
+        brandText.addView(Ui.caption(this, "SYSTEM DNS FILTER"));
+        brand.addView(brandText, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
+        rail.addView(brand);
+
+        railChip = Ui.chip(this);
+        rail.addView(railChip, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 16), 0, 0));
+
+        rail.addView(section("NAVIGATION"));
+        navItems = new LinkedHashMap<>();
+        navItems.put(Screen.HOME, navItem("Home", Screen.HOME));
+        navItems.put(Screen.PIHOLE, navItem("Server", Screen.PIHOLE));
+        navItems.put(Screen.LISTS, navItem("Gravity & rules", Screen.LISTS));
+        navItems.put(Screen.LOG, navItem("Query log", Screen.LOG));
+        navItems.put(Screen.SETTINGS, navItem("Settings", Screen.SETTINGS));
+        List<LinearLayout> items = new ArrayList<>(navItems.values());
+        int[] ids = new int[items.size()];
+        for (int i = 0; i < items.size(); i++) ids[i] = View.generateViewId();
+        for (int i = 0; i < items.size(); i++) {
+            LinearLayout item = items.get(i);
+            item.setId(ids[i]);
+            item.setNextFocusDownId(ids[i < ids.length - 1 ? i + 1 : i]);
+            item.setNextFocusUpId(ids[i > 0 ? i - 1 : i]);
+            rail.addView(item, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, i == 0 ? 0 : Ui.dp(this, 4), 0, 0));
+        }
+        rail.addView(new View(this), Ui.lp(0, 1, 1f));
+        rail.addView(Ui.text(this, "v" + Device.versionName(this), 10, Ui.FAINT, false));
+        return rail;
+    }
+
+    private LinearLayout navItem(String label, Screen target) {
+        LinearLayout item = Ui.focusableCard(this, 16);
+        item.setTag("nav:" + target.name());
+        item.setOrientation(LinearLayout.HORIZONTAL);
+        TextView text = Ui.text(this, label, 15, Ui.DIM, true);
+        text.setTextColor(navColors());
+        item.addView(text);
+        item.setBackground(navBg());
+        item.setOnClickListener(v -> show(target));
+        return item;
+    }
+
+    private ColorStateList navColors() {
+        int[][] states = {
+                new int[]{android.R.attr.state_focused},
+                new int[]{android.R.attr.state_selected},
+                new int[]{}
+        };
+        int[] colors = {Ui.PRIMARY, Ui.ON_PRIMARY_CONTAINER, Ui.DIM};
+        return new ColorStateList(states, colors);
+    }
+
+    private StateListDrawable navBg() {
+        StateListDrawable s = new StateListDrawable();
+        s.addState(new int[]{android.R.attr.state_focused},
+                Ui.rounded(this, Ui.SURFACE_CONTAINER_HIGH, 16, 2,
+                        Ui.withAlpha(Ui.PRIMARY, 0xCC)));
+        s.addState(new int[]{android.R.attr.state_selected},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 16, 1,
+                        Ui.withAlpha(Ui.PRIMARY, 0x66)));
+        s.addState(new int[]{}, Ui.rounded(this, Color.TRANSPARENT, 16, 0, 0));
+        return s;
+    }
+
+    private void updateNav() {
+        if (navItems == null) return;
+        Screen selected = screen == Screen.NETWORK ? Screen.SETTINGS : screen;
+        for (Map.Entry<Screen, LinearLayout> entry : navItems.entrySet()) {
+            entry.getValue().setSelected(entry.getKey() == selected);
+        }
     }
 
     // ---------------------------------------------------------------- lifecycle
@@ -537,6 +648,7 @@ public class MainActivity extends Activity {
             }
         }
         updateLive();
+        updateNav();
     }
 
     /** Finds the setting-row tag around the currently focused view. */
@@ -553,7 +665,7 @@ public class MainActivity extends Activity {
 
     private void clearRefs() {
         shield = null;
-        chip = null;
+        chip = isTv ? railChip : null;
         heroTitle = null;
         heroSub = null;
         primaryLabel = null;
@@ -579,36 +691,23 @@ public class MainActivity extends Activity {
     private LinearLayout homeScreen() {
         LinearLayout col = Ui.column(this);
 
-        ShieldView logo = new ShieldView(this);
-        logo.setOn(true);
-        logo.setContentDescription("Hole Shield logo");
-        logo.setLayoutParams(Ui.lp(Ui.dp(this, isTv ? 42 : 36),
-                Ui.dp(this, isTv ? 42 : 36)));
-        LinearLayout brand = Ui.column(this);
-        TextView name = Ui.text(this, isTv ? "HOLE SHIELD TV" : "HOLE SHIELD",
-                isTv ? 19 : 17, Ui.TEXT, true);
-        name.setLetterSpacing(0.10f);
-        brand.addView(name);
-        TextView tag = Ui.caption(this, "SYSTEM-WIDE DNS FILTER");
-        tag.setTextSize(9.5f);
-        brand.addView(tag);
+        if (!isTv) {
+            ShieldView logo = new ShieldView(this);
+            logo.setOn(true);
+            logo.setContentDescription("Hole Shield logo");
+            logo.setLayoutParams(Ui.lp(Ui.dp(this, 36), Ui.dp(this, 36)));
+            LinearLayout brand = Ui.column(this);
+            TextView name = Ui.text(this, "HOLE SHIELD", 17, Ui.TEXT, true);
+            name.setLetterSpacing(0.10f);
+            brand.addView(name);
+            TextView tag = Ui.caption(this, "SYSTEM-WIDE DNS FILTER");
+            tag.setTextSize(9.5f);
+            brand.addView(tag);
 
-        TextView settings = Ui.button(this, "Settings", false);
-        settings.setMinWidth(Ui.dp(this, isTv ? 120 : 0));
-        settings.setOnClickListener(v -> show(Screen.SETTINGS));
-        chip = Ui.chip(this);
+            TextView settings = Ui.button(this, "Settings", false);
+            settings.setOnClickListener(v -> show(Screen.SETTINGS));
+            chip = Ui.chip(this);
 
-        if (isTv) {
-            LinearLayout header = Ui.row(this);
-            header.addView(logo);
-            header.addView(brand, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 14), 0, 0, 0));
-            header.addView(new View(this), Ui.lp(0, 1, 1f));
-            header.addView(chip);
-            header.addView(settings, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 16), 0, 0, 0));
-            add(col, header, 0);
-        } else {
             LinearLayout header = Ui.column(this);
             LinearLayout top = Ui.row(this);
             top.addView(logo);
@@ -1682,6 +1781,7 @@ public class MainActivity extends Activity {
                             ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
                     TextView name = Ui.text(this, e.domain, 14, Ui.TEXT, false);
                     name.setSingleLine(true);
+                    name.setEllipsize(android.text.TextUtils.TruncateAt.END);
                     row.addView(name, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
                             Ui.dp(this, 10), 0, 0, 0));
                     row.addView(Ui.text(this, e.typeName(), 10, Ui.FAINT, false));
@@ -2202,16 +2302,18 @@ public class MainActivity extends Activity {
 
     private LinearLayout subHeader(String title, String subtitle) {
         LinearLayout head = Ui.row(this);
-        TextView back = Ui.button(this, "‹ Back", false);
-        back.setMinWidth(Ui.dp(this, isTv ? 104 : 80));
-        back.setOnClickListener(v -> show(Screen.HOME));
-        head.addView(back);
+        if (!isTv) {
+            TextView back = Ui.button(this, "‹ Back", false);
+            back.setMinWidth(Ui.dp(this, 80));
+            back.setOnClickListener(v -> show(Screen.HOME));
+            head.addView(back);
+        }
         LinearLayout text = Ui.column(this);
         TextView t = Ui.text(this, title, isTv ? 28 : 24, Ui.TEXT, true);
         text.addView(t);
         text.addView(Ui.text(this, subtitle, isTv ? 12 : 11.5f, Ui.FAINT, false));
         head.addView(text, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-                Ui.dp(this, isTv ? 20 : 12), 0, 0, 0));
+                Ui.dp(this, isTv ? 0 : 12), 0, 0, 0));
         return head;
     }
 

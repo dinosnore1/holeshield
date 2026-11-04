@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 737eb92cdd26f24bb22a9696972cea4eacf1f21c6294aa1d71c5437a6bb7b701
+  SHA-256 4a2e4008c588abdc80b657d74ffe39fd499cb27872ae7d9a8fc1523c016e6665
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 d3de671f8ae500f0fb7053fd1d9c20087bc75f49b810e7da4ff10440ccb43fa8
+  SHA-256 4726ee0a4df2a54eb421cf3a0f52c372f2bcd28c374cd4fbfeedd12f581ed52f
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 3a2b427df00ce5f9b2948fc00e866db734f9fb5dc603c2ac34ea8bcde9683af4
+  SHA-256 f1e67c5eb0fd1a69214433a9ac62a6b89cbec497a493684f8615ef42f495d065
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -122,6 +122,11 @@ Verified
   Ads/Trackers/Malware and SafeSearch. Action rows keep chevrons.
 - Focus no longer scales rows. The focused row uses a bright outline, tinted
   surface, left accent bar and soft lift instead.
+- Redesigned the TV shell with a persistent left navigation rail (Home, Server,
+  Gravity & rules, Query log, Settings). Brand and protection status moved into
+  the rail; TV subheaders no longer repeat a Back button; long query domains
+  ellipsize instead of colliding with the type column. Phone keeps its top
+  header.
 - Reduced the vertical gap between setting rows (4dp on TV, 3dp on phone).
 - 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
   tile and a home-screen widget. The notification exposes Pause 30 min and

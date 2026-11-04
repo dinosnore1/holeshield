@@ -38,6 +38,9 @@ rules, blocklists and statistics are kept.
   chevrons. Row spacing was tightened for a denser settings list.
 - Focus no longer scales rows; the focused row uses an outline, tinted surface,
   left accent bar and soft lift instead.
+- TV now uses a persistent left navigation rail for Home, Server, Gravity & rules,
+  Query log and Settings. Brand/status live in the rail, TV subheaders drop the
+  redundant Back button, and long query domains ellipsize cleanly.
 
 ## Also included from 2.3.0
 
@@ -61,6 +64,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-737eb92cdd26f24bb22a9696972cea4eacf1f21c6294aa1d71c5437a6bb7b701  holeshield.aab
-d3de671f8ae500f0fb7053fd1d9c20087bc75f49b810e7da4ff10440ccb43fa8  holeshield.apk
+4a2e4008c588abdc80b657d74ffe39fd499cb27872ae7d9a8fc1523c016e6665  holeshield.aab
+4726ee0a4df2a54eb421cf3a0f52c372f2bcd28c374cd4fbfeedd12f581ed52f  holeshield.apk
 ```
