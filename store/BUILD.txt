@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 0dd9fff2f74bc3bb4ea8620a8ced23d7675313788dd394a3d91218059b318157
+  SHA-256 ef61ad4b400b3a67f1c37b7ccf2ff20c7eb00187b382d267d926ed53bd3494aa
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 437f590db62d4db475e93fcb517d7a0219b473602e46b978d9bd9f61248b7246
+  SHA-256 391b32785127dbb5e08cac0a86771c364b86047a7827b4c1cd8900971e6fac0e
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 3eb9bb70fad9b1828adae91e366e977ae25007927f740d08c0e958c01c28ccc9
+  SHA-256 63dd50ea21e0fc4647203d696ab48927438e8b2cdd13ae4ecd77043f78172926
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -137,6 +137,10 @@ Verified
   shortened so they fit on one line.
 - Added icons to the phone bottom navigation for Home, Server, Gravity, Log and
   Settings, with tinted selected/unselected states.
+- Added an update channel (Stable, Beta, Off) and a manual Check for updates
+  action. It reads the public manifest at
+  https://dinosnore1.github.io/holeshield-privacy/latest.json, compares the
+  installed version code, and opens the release page when a newer build exists.
 - Multi-option settings now open single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout: title, option rows and Cancel stay

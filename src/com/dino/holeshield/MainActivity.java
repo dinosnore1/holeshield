@@ -2237,6 +2237,19 @@ public class MainActivity extends Activity {
                         themeIndex(), this::setThemeMode)), rowLp(0));
         add(col, appearance, 8);
 
+        col.addView(section("UPDATES"));
+        LinearLayout updates = Ui.column(this);
+        updates.addView(settingRow("Update channel",
+                "Stable, beta or off",
+                updateChannelLabel(), () -> chooseOption("Update channel",
+                        "Choose which releases to check",
+                        new String[]{"Stable", "Beta", "Off"},
+                        updateChannelIndex(), this::setUpdateChannel)), rowLp(0));
+        updates.addView(settingRow("Check for updates",
+                "Check the public release manifest",
+                lastUpdateCheckLabel(), this::checkForUpdates), rowLp(1));
+        add(col, updates, 8);
+
         col.addView(section("SYSTEM"));
         LinearLayout sys = Ui.column(this);
         sys.addView(settingRow("Restart protection", "Apply network changes",
@@ -2412,6 +2425,96 @@ public class MainActivity extends Activity {
         setContentView(createShell());
         show(Screen.SETTINGS);
         Ui.toast(this, value <= 0 ? "TV safe area off" : "TV safe area " + value + "%");
+    }
+
+    private String updateChannelLabel() {
+        if ("beta".equals(prefs.updateChannel)) return "Beta";
+        if ("off".equals(prefs.updateChannel)) return "Off";
+        return "Stable";
+    }
+
+    private int updateChannelIndex() {
+        if ("beta".equals(prefs.updateChannel)) return 1;
+        if ("off".equals(prefs.updateChannel)) return 2;
+        return 0;
+    }
+
+    private void setUpdateChannel(int which) {
+        prefs.updateChannel = which == 1 ? "beta" : which == 2 ? "off" : "stable";
+        prefs.save(this);
+        show(Screen.SETTINGS);
+    }
+
+    private String lastUpdateCheckLabel() {
+        return prefs.lastUpdateCheck > 0
+                ? "checked " + Ui.ago(prefs.lastUpdateCheck) : "Check now";
+    }
+
+    private void checkForUpdates() {
+        if ("off".equals(prefs.updateChannel)) {
+            Ui.toast(this, "Updates are turned off");
+            return;
+        }
+        Ui.toast(this, "Checking for updates…");
+        final String channel = prefs.updateChannel;
+        io.execute(() -> {
+            UpdateChecker.Release release = null;
+            String error = null;
+            try {
+                release = UpdateChecker.check(channel);
+            } catch (Exception e) {
+                error = e.getMessage() == null ? "Could not check for updates" : e.getMessage();
+            }
+            final UpdateChecker.Release result = release;
+            final String failure = error;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                prefs = Prefs.load(this);
+                prefs.lastUpdateCheck = System.currentTimeMillis();
+                prefs.save(this);
+                if (screen == Screen.SETTINGS) show(Screen.SETTINGS);
+                if (result == null) {
+                    Ui.toast(this, failure == null ? "Could not check for updates" : failure);
+                } else {
+                    showUpdateResult(result);
+                }
+            });
+        });
+    }
+
+    private void showUpdateResult(UpdateChecker.Release release) {
+        int installed = Device.versionCode(this);
+        boolean newer = UpdateChecker.isNewer(release, installed);
+        StringBuilder message = new StringBuilder();
+        message.append("Installed: ").append(Device.versionName(this));
+        message.append("\nLatest ").append(release.channel).append(": ")
+                .append(release.version);
+        message.append(newer
+                ? "\n\nA newer version is available."
+                : "\n\nYou are up to date.");
+        if (!release.notes.isEmpty()) {
+            message.append("\n\n").append(release.notes);
+        }
+        AlertDialog.Builder builder = Ui.builder(this)
+                .setTitle(newer ? "Update available" : "You're up to date")
+                .setMessage(message.toString())
+                .setPositiveButton(newer ? "Open release" : "Close", (d, w) -> {
+                    if (newer) openRelease(release.url);
+                });
+        if (newer) builder.setNegativeButton("Close", null);
+        builder.show();
+    }
+
+    private void openRelease(String url) {
+        if (url == null || url.isEmpty()) {
+            Ui.toast(this, "No download link is configured");
+            return;
+        }
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception e) {
+            Ui.toast(this, "No browser is available");
+        }
     }
 
     private String themeLabel() {

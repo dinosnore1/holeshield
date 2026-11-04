@@ -48,6 +48,8 @@ rules, blocklists and statistics are kept.
   (Home, Server, Gravity, Log, Settings), with redundant Back buttons removed.
 - Phone bottom navigation now includes icons for Home, Server, Gravity, Log and
   Settings.
+- Added Stable/Beta/Off update channels with a manual Check for updates action
+  using the public release manifest.
 - Multi-option settings use single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout so options and buttons stay clear
@@ -76,6 +78,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-0dd9fff2f74bc3bb4ea8620a8ced23d7675313788dd394a3d91218059b318157  holeshield.aab
-437f590db62d4db475e93fcb517d7a0219b473602e46b978d9bd9f61248b7246  holeshield.apk
+ef61ad4b400b3a67f1c37b7ccf2ff20c7eb00187b382d267d926ed53bd3494aa  holeshield.aab
+391b32785127dbb5e08cac0a86771c364b86047a7827b4c1cd8900971e6fac0e  holeshield.apk
 ```

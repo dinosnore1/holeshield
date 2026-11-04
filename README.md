@@ -55,6 +55,9 @@ before installing it.
   `192.168.1.50 !example.com` allows, and `*.example.com` matches subdomains.
 - **Backup and restore.** Export settings, custom rules, blocklist sources and
   the query log as one JSON file through the system document picker.
+- **Update channel.** Choose Stable, Beta or Off in Settings → Updates and run
+  Check for updates. The app reads a public release manifest and opens the
+  release page when a newer build is available; it never installs silently.
 - **Pause / resume** indefinitely or for 5/30 minutes, with timer state persisted
   across restarts. Notification actions, a Quick Settings tile and a home-screen
   widget expose pause, resume and status.

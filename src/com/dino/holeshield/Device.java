@@ -25,6 +25,18 @@ final class Device {
         return isTv(c) ? "this TV" : "this phone";
     }
 
+    /** Version code from the installed package. */
+    static int versionCode(Context c) {
+        try {
+            android.content.pm.PackageInfo info = c.getPackageManager()
+                    .getPackageInfo(c.getPackageName(), 0);
+            return android.os.Build.VERSION.SDK_INT >= 28
+                    ? (int) info.getLongVersionCode() : info.versionCode;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     /** Version name from the installed package, avoiding duplicated strings. */
     static String versionName(Context c) {
         try {

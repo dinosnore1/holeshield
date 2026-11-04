@@ -30,6 +30,8 @@ final class Backup {
         s.put("startOnBoot", p.startOnBoot);
         s.put("tvSafeArea", p.tvSafeArea);
         s.put("theme", p.theme);
+        s.put("updateChannel", p.updateChannel);
+        s.put("lastUpdateCheck", p.lastUpdateCheck);
         s.put("fallback", p.fallback);
         s.put("dohUrl", p.dohUrl);
         s.put("dotHost", p.dotHost);
@@ -82,6 +84,8 @@ final class Backup {
         p.startOnBoot = s.optBoolean("startOnBoot", p.startOnBoot);
         p.tvSafeArea = s.optInt("tvSafeArea", p.tvSafeArea);
         p.theme = s.optString("theme", p.theme);
+        p.updateChannel = s.optString("updateChannel", p.updateChannel);
+        p.lastUpdateCheck = s.optLong("lastUpdateCheck", p.lastUpdateCheck);
         p.fallback = s.optString("fallback", p.fallback);
         p.dohUrl = s.optString("dohUrl", p.dohUrl);
         p.dotHost = s.optString("dotHost", p.dotHost);

@@ -23,6 +23,9 @@ final class Prefs {
     int tvSafeArea = 0;
     /** "system", "dark" or "light". */
     String theme = "system";
+    /** "stable", "beta" or "off". */
+    String updateChannel = "stable";
+    long lastUpdateCheck = 0L;
 
     /** Legacy external-Pi-hole fields; the built-in server is the default now. */
     boolean usePihole = false;
@@ -112,6 +115,8 @@ final class Prefs {
         s.startOnBoot = p.getBoolean("startOnBoot", s.startOnBoot);
         s.tvSafeArea = p.getInt("tvSafeArea2", s.tvSafeArea);
         s.theme = p.getString("theme", s.theme);
+        s.updateChannel = p.getString("updateChannel", s.updateChannel);
+        s.lastUpdateCheck = p.getLong("lastUpdateCheck", s.lastUpdateCheck);
         // The embedded resolver replaced the legacy external-Pi-hole mode.
         // Ignore an old true value so upgrades cannot route around the
         // on-device gravity engine.
@@ -189,6 +194,8 @@ final class Prefs {
                 .putBoolean("startOnBoot", startOnBoot)
                 .putInt("tvSafeArea2", tvSafeArea)
                 .putString("theme", theme)
+                .putString("updateChannel", updateChannel)
+                .putLong("lastUpdateCheck", lastUpdateCheck)
                 .putBoolean("usePihole", usePihole)
                 .putString("piholeHost", piholeHost)
                 .putInt("piholePort", piholePort)
