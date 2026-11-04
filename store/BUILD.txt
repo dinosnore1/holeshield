@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 d7f247916ca2eae1b6d3e0cfde82e5143d0862bed4f422a2652f234cfb1df497
+  SHA-256 3b123e76e0b2f4ea1bf22a566f3b84c41dee937f4da5b331eafe857cbed34c92
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 ccd97d9f2c7838308c7f571a80c36c896300492c41ea6c2dff8f1919ec720a8e
+  SHA-256 2388afd4200df7445de2fb66828d2bc124a793eac9cd7d1dca749066bf087d59
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 50094f392375e9161774da3c4423574eb17abbadc6fcfe3259589019b3ea49a0
+  SHA-256 bedf6224a4b7ff63b2f0a65d33fb7242954b79cd07952950ecfe33f12a256e3e
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -135,6 +135,8 @@ Verified
   navigation bar (Home, Server, Gravity, Log, Settings). Redundant Back buttons
   were removed because the bottom bar is always available. Stat subtitles were
   shortened so they fit on one line.
+- Added header action icons: theme toggle on phone and TV rail, plus a Settings
+  gear on phone.
 - Multi-option settings now open single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout: title, option rows and Cancel stay

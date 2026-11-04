@@ -46,6 +46,8 @@ rules, blocklists and statistics are kept.
   theme-aware switches. The choice is persisted and backed up.
 - Phone layout now uses a compact header and a persistent bottom navigation bar
   (Home, Server, Gravity, Log, Settings), with redundant Back buttons removed.
+- Header action icons: quick theme toggle on phone and TV, plus a Settings gear
+  on phone.
 - Multi-option settings use single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout so options and buttons stay clear
@@ -74,6 +76,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-d7f247916ca2eae1b6d3e0cfde82e5143d0862bed4f422a2652f234cfb1df497  holeshield.aab
-ccd97d9f2c7838308c7f571a80c36c896300492c41ea6c2dff8f1919ec720a8e  holeshield.apk
+3b123e76e0b2f4ea1bf22a566f3b84c41dee937f4da5b331eafe857cbed34c92  holeshield.aab
+2388afd4200df7445de2fb66828d2bc124a793eac9cd7d1dca749066bf087d59  holeshield.apk
 ```

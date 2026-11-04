@@ -125,6 +125,7 @@ Hole Shield 2.3.1
 • Persistent TV navigation rail for Home, Server, Gravity & rules, Query log and Settings.
 • System, dark and light appearance modes for the native app.
 • Persistent bottom navigation on phones: Home, Server, Gravity, Log, Settings.
+• Header icons for theme switching and quick Settings access.
 • Dropdown dialogs for Fallback DNS, DoH/DoT presets, blocked response and TV safe area.
 • Dashboard and LAN DNS are now opt-in, with a first-run setup screen.
 • Notification actions, a Quick Settings tile and a home-screen widget.
