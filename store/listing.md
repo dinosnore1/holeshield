@@ -74,7 +74,8 @@ SEE WHAT IS HAPPENING
 • Live query log with blocked/allowed filters and search.
 • Counters for queries, blocks, cache hits, forwards and errors.
 • Top domains, clients, query types and upstreams.
-• Optional web dashboard at http://DEVICE-IP:8080/admin/.
+• Optional web dashboard at http://DEVICE-IP:8080/admin/. Desktop uses a sticky
+  section sidebar with scroll spy; phones use a fixed icon bottom bar.
 
 BUILT FOR THE TV AND THE PHONE
 • D-pad navigation and focus rings for Android TV remotes.
@@ -117,6 +118,7 @@ Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 Hole Shield 2.3.1
 • Refreshed the whole web dashboard: branded header, hero summary, icon cards,
+  desktop section sidebar, phone bottom navigation,
   cleaner panels, tables, forms, login screen and mobile layout.
 • Settings keeps its scroll position, and SafeSearch is available in Settings.
 • Clearer blocklist health, query-log categories, server details and top clients.

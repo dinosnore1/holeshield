@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 ef61ad4b400b3a67f1c37b7ccf2ff20c7eb00187b382d267d926ed53bd3494aa
+  SHA-256 688cd12e9951150cc5a3091c72ebdfba2a57e1dcad00b798b850b9f526506c85
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 391b32785127dbb5e08cac0a86771c364b86047a7827b4c1cd8900971e6fac0e
+  SHA-256 d1a0318c1c9d39f3b0e9ef9d8fa352412312dd74c17ecdc8507965ab4cefd068
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 63dd50ea21e0fc4647203d696ab48927438e8b2cdd13ae4ecd77043f78172926
+  SHA-256 226556c323dd1c670cf0f9edbe881de620820cad300a354b98be11f937e95917
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -141,6 +141,9 @@ Verified
   action. It reads the public manifest at
   https://dinosnore1.github.io/holeshield-privacy/latest.json, compares the
   installed version code, and opens the release page when a newer build exists.
+- Redesigned the web dashboard shell: desktop gets a sticky section sidebar and
+  scroll-spy navigation; phones get a fixed icon bottom bar. Unique section
+  anchors prevent the query/rules tables from colliding with their data IDs.
 - Multi-option settings now open single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout: title, option rows and Cancel stay

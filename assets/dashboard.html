@@ -93,8 +93,33 @@ body::before{
   mask-image:radial-gradient(900px 600px at 50% 0%,#000 20%,transparent 78%);
   -webkit-mask-image:radial-gradient(900px 600px at 50% 0%,#000 20%,transparent 78%);
 }
-.wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:22px 22px 46px}
-header.top{
+.wrap{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:22px 22px 46px;
+  display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start}
+.content{min-width:0;display:flex;flex-direction:column}
+.side{position:sticky;top:88px;display:flex;flex-direction:column;gap:8px;
+  padding:14px;border:1px solid var(--md-outline-variant);border-radius:22px;
+  background:linear-gradient(180deg,var(--md-surface-container-high),var(--md-surface-container));
+  box-shadow:var(--shadow-soft)}
+.sideCaption{color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.14em;padding:2px 10px 6px}
+.sideNav{display:flex;flex-direction:column;gap:3px}
+.sideNav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+  color:var(--muted);text-decoration:none;font-size:13px;font-weight:650;transition:background .15s ease,color .15s ease}
+.sideNav a::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;flex:none}
+.sideNav a:hover{background:var(--hover-bg);color:var(--text)}
+.sideNav a.active{background:var(--md-primary-container);color:var(--md-on-primary-container)}
+.sideNav a.active::before{opacity:1}
+.sideFoot{margin-top:8px;padding:10px;color:var(--outline);font-size:10.5px;border-top:1px solid var(--row-line)}
+.mobileNav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:90;
+  background:var(--header-bg);border-top:1px solid var(--header-border);
+  backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+.mobileNav nav{display:flex;gap:4px;max-width:640px;margin:0 auto}
+.mobileNav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 2px;border-radius:12px;color:var(--muted);text-decoration:none;font-size:10.5px;font-weight:700}
+.mobileNav a svg{width:18px;height:18px}
+.mobileNav a.active{background:var(--md-primary-container);color:var(--md-on-primary-container)}
+section[id]{scroll-margin-top:88px}
+header.top{grid-column:1/-1;
   display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   position:sticky;top:0;z-index:30;
   margin:0 -22px 22px;padding:14px 22px;
@@ -355,6 +380,9 @@ footer{display:flex;align-items:center;justify-content:center;gap:8px;color:var(
 .loginFoot{margin-top:24px;color:var(--muted);font-size:11px;text-align:center}
 html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,127,92,.16)}
 @media (max-width:1050px){
+  .wrap{display:block;padding-bottom:104px}
+  .side{display:none}
+  .mobileNav{display:block}
   .cards{grid-template-columns:repeat(3,minmax(0,1fr))}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .grid2{grid-template-columns:1fr}
@@ -436,7 +464,19 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
   </header>
 
-  <section class="hero">
+  <aside class="side" aria-label="Sections">
+    <div class="sideCaption">SECTIONS</div>
+    <nav class="sideNav">
+      <a href="#overview" class="active">Overview</a>
+      <a href="#query-log">Query log</a>
+      <a href="#rule-panel">Rules</a>
+      <a href="#server">Server</a>
+    </nav>
+    <div class="sideFoot">Hole Shield · <span id="sideVersion">2.3.1</span></div>
+  </aside>
+
+  <main class="content">
+  <section id="overview" class="hero">
     <div class="heroCopy">
       <h2 id="heroTitle">Hole Shield is starting…</h2>
       <p id="heroSub">Loading the embedded resolver and dashboard.</p>
@@ -560,7 +600,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
   </section>
 
-  <section class="panel" style="margin-bottom:18px">
+  <section id="query-log" class="panel" style="margin-bottom:18px">
     <div class="panel-head">
       <h3>Query log</h3>
       <div class="filters">
@@ -580,7 +620,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
   </section>
 
-  <section class="grid2">
+  <section id="rule-panel" class="grid2">
     <div class="panel">
       <h3>Allow or block a domain</h3>
       <form id="ruleForm" class="row">
@@ -623,7 +663,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
   </section>
 
-  <section class="panel">
+  <section id="server" class="panel">
     <h3>Server</h3>
     <div class="server" id="serverInfo">
       <div class="box"><span>Dashboard</span><b>loading…</b></div>
@@ -631,6 +671,28 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   </section>
 
   <footer>Hole Shield · embedded DNS filter · <span id="footVersion">2.3.1</span></footer>
+  </main>
+</div>
+
+<div class="mobileNav" role="navigation" aria-label="Sections">
+  <nav>
+    <a href="#overview" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
+      Overview
+    </a>
+    <a href="#query-log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+      Queries
+    </a>
+    <a href="#rule-panel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6Z"/></svg>
+      Rules
+    </a>
+    <a href="#server">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg>
+      Server
+    </a>
+  </nav>
 </div>
 
 <div id="login" class="loginPage hidden">
@@ -1119,6 +1181,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       '<div class="box"><span>SafeSearch</span><b>' + (h.safe_search ? "On" : "Off") + '</b></div>' +
       '<div class="box"><span>Version</span><b>' + esc(h.version || "2.3.1") + '</b></div>';
     $("#footVersion").textContent = h.version || "2.3.1";
+    if($("#sideVersion")) $("#sideVersion").textContent = h.version || "2.3.1";
     if($("#heroUpstream")) $("#heroUpstream").textContent = h.upstream || "Encrypted DNS";
     if($("#heroSchedule")) $("#heroSchedule").textContent = h.schedule_enabled
       ? (h.schedule_label || "Scheduled") : "Always on";
@@ -1485,6 +1548,28 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     if(!$("#login").classList.contains("hidden")) return;
     loadChart();
   }, 2000);
+
+  (function scrollSpy(){
+    var links = $$(".sideNav a, .mobileNav a");
+    var targets = [];
+    links.forEach(function(link){
+      var id = link.getAttribute("href");
+      var target = id ? document.querySelector(id) : null;
+      if(target && targets.indexOf(target) < 0) targets.push(target);
+    });
+    if(!targets.length) return;
+    function update(){
+      var current = targets[0];
+      targets.forEach(function(target){
+        if(target.getBoundingClientRect().top <= 140) current = target;
+      });
+      links.forEach(function(link){
+        link.classList.toggle("active", link.getAttribute("href") === "#" + current.id);
+      });
+    }
+    window.addEventListener("scroll", update, {passive:true});
+    update();
+  })();
 })();
 </script>
 </body>

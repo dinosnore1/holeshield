@@ -65,7 +65,8 @@ before installing it.
   clients, types, top domains and upstreams. The log survives app restarts and
   is rolled over daily.
 - **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional
-  username/password login. New passwords are stored as PBKDF2 hashes, repeated
+  username/password login. Desktop uses a sticky section sidebar with scroll
+  spy; phones use a fixed icon bottom bar. New passwords are stored as PBKDF2 hashes, repeated
   failures trigger a lockout, and the Log out menu can end this browser or every
   session. The
   dashboard adds a live, 24-hour, week and month chart, blocked-by-category breakdown, runtime category

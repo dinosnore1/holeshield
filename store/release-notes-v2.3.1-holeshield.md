@@ -50,6 +50,8 @@ rules, blocklists and statistics are kept.
   Settings.
 - Added Stable/Beta/Off update channels with a manual Check for updates action
   using the public release manifest.
+- Web dashboard shell redesign: sticky desktop section sidebar with scroll spy,
+  and a fixed icon bottom navigation on phones.
 - Multi-option settings use single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout so options and buttons stay clear
@@ -78,6 +80,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-ef61ad4b400b3a67f1c37b7ccf2ff20c7eb00187b382d267d926ed53bd3494aa  holeshield.aab
-391b32785127dbb5e08cac0a86771c364b86047a7827b4c1cd8900971e6fac0e  holeshield.apk
+688cd12e9951150cc5a3091c72ebdfba2a57e1dcad00b798b850b9f526506c85  holeshield.aab
+d1a0318c1c9d39f3b0e9ef9d8fa352412312dd74c17ecdc8507965ab4cefd068  holeshield.apk
 ```
