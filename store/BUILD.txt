@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 c188ffb61a35337228a4483b47d507b4847bf8d2c85d6c743e4dc96f48a44308
+  SHA-256 d7f247916ca2eae1b6d3e0cfde82e5143d0862bed4f422a2652f234cfb1df497
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 f5db5f195d541c09862f1398f09aaa2455ee65e686e2cf88cd7f5b5606b10342
+  SHA-256 ccd97d9f2c7838308c7f571a80c36c896300492c41ea6c2dff8f1919ec720a8e
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 b76aeedc344eefe6dea38802c88d77245c744de03392e3bca0e00b93d5b635dc
+  SHA-256 50094f392375e9161774da3c4423574eb17abbadc6fcfe3259589019b3ea49a0
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -131,6 +131,10 @@ Verified
   Dark and Light modes. Light mode has its own Material 3 palette, light dialog
   background, light system-bar icons and theme-aware switches. The choice is
   persisted and included in backups.
+- Phone layout now has a compact brand/status header and a persistent bottom
+  navigation bar (Home, Server, Gravity, Log, Settings). Redundant Back buttons
+  were removed because the bottom bar is always available. Stat subtitles were
+  shortened so they fit on one line.
 - Multi-option settings now open single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout: title, option rows and Cancel stay

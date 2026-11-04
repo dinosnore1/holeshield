@@ -106,6 +106,8 @@ public class MainActivity extends Activity {
     private TextView chip;
     private TextView railChip;
     private LinkedHashMap<Screen, LinearLayout> navItems;
+    private LinkedHashMap<Screen, TextView> phoneNavItems;
+    private LinearLayout phoneNav;
     private TextView heroTitle;
     private TextView heroSub;
     private TextView primaryLabel;
@@ -404,14 +406,23 @@ public class MainActivity extends Activity {
             root.addView(shell, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         } else {
-            root.addView(content, new FrameLayout.LayoutParams(
+            navItems = null;
+            LinearLayout shell = Ui.column(this);
+            shell.addView(content, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+            shell.addView(phoneNav(), new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            root.addView(shell, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         if (!isTv && Build.VERSION.SDK_INT >= 35) {
             root.setOnApplyWindowInsetsListener((view, insets) -> {
                 Insets bars = insets.getInsets(
                         WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
-                scroll.setPadding(0, bars.top, 0, bars.bottom);
+                scroll.setPadding(0, bars.top, 0, 0);
+                if (phoneNav != null) {
+                    phoneNav.setPadding(0, Ui.dp(this, 4), 0, bars.bottom);
+                }
                 return insets;
             });
         }
@@ -502,11 +513,56 @@ public class MainActivity extends Activity {
     }
 
     private void updateNav() {
-        if (navItems == null) return;
         Screen selected = screen == Screen.NETWORK ? Screen.SETTINGS : screen;
-        for (Map.Entry<Screen, LinearLayout> entry : navItems.entrySet()) {
-            entry.getValue().setSelected(entry.getKey() == selected);
+        if (navItems != null) {
+            for (Map.Entry<Screen, LinearLayout> entry : navItems.entrySet()) {
+                entry.getValue().setSelected(entry.getKey() == selected);
+            }
         }
+        if (phoneNavItems != null) {
+            for (Map.Entry<Screen, TextView> entry : phoneNavItems.entrySet()) {
+                boolean on = entry.getKey() == selected;
+                TextView item = entry.getValue();
+                item.setTextColor(on ? Ui.ON_PRIMARY_CONTAINER : Ui.DIM);
+                item.setBackground(on ? Ui.rounded(this, Ui.PRIMARY_CONTAINER, 14) : null);
+            }
+        }
+    }
+
+    /** Compact bottom navigation for phones. */
+    private LinearLayout phoneNav() {
+        LinearLayout bar = Ui.column(this);
+        bar.setBackgroundColor(Ui.SURFACE_CONTAINER_LOW);
+        View line = new View(this);
+        line.setBackgroundColor(Ui.withAlpha(Ui.OUTLINE_VARIANT, 0x99));
+        bar.addView(line, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 1)));
+        LinearLayout row = Ui.row(this);
+        row.setPadding(Ui.dp(this, 4), Ui.dp(this, 5),
+                Ui.dp(this, 4), Ui.dp(this, 5));
+        phoneNavItems = new LinkedHashMap<>();
+        phoneNavItems.put(Screen.HOME, phoneNavItem("Home", Screen.HOME));
+        phoneNavItems.put(Screen.PIHOLE, phoneNavItem("Server", Screen.PIHOLE));
+        phoneNavItems.put(Screen.LISTS, phoneNavItem("Gravity", Screen.LISTS));
+        phoneNavItems.put(Screen.LOG, phoneNavItem("Log", Screen.LOG));
+        phoneNavItems.put(Screen.SETTINGS, phoneNavItem("Settings", Screen.SETTINGS));
+        for (TextView item : phoneNavItems.values()) {
+            row.addView(item, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                    Ui.dp(this, 2), 0, Ui.dp(this, 2), 0));
+        }
+        bar.addView(row);
+        phoneNav = bar;
+        return bar;
+    }
+
+    private TextView phoneNavItem(String label, Screen target) {
+        TextView item = Ui.text(this, label, 11.5f, Ui.DIM, true);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(Ui.dp(this, 2), Ui.dp(this, 9),
+                Ui.dp(this, 2), Ui.dp(this, 9));
+        item.setClickable(true);
+        item.setFocusable(true);
+        item.setOnClickListener(v -> show(target));
+        return item;
     }
 
     // ---------------------------------------------------------------- lifecycle
@@ -713,21 +769,15 @@ public class MainActivity extends Activity {
             tag.setTextSize(9.5f);
             brand.addView(tag);
 
-            TextView settings = Ui.button(this, "Settings", false);
-            settings.setOnClickListener(v -> show(Screen.SETTINGS));
             chip = Ui.chip(this);
 
-            LinearLayout header = Ui.column(this);
             LinearLayout top = Ui.row(this);
             top.addView(logo);
             top.addView(brand, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
             top.addView(new View(this), Ui.lp(0, 1, 1f));
-            top.addView(settings);
-            header.addView(top);
-            header.addView(chip, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
-            add(col, header, 0);
+            top.addView(chip);
+            add(col, top, 0);
         }
 
         // Hero
@@ -801,7 +851,7 @@ public class MainActivity extends Activity {
         LinearLayout stats = Ui.row(this);
         statQueries = statCard(stats, isTv ? "DNS QUERIES" : "QUERIES",
                 "today, all clients", Ui.GREEN);
-        statBlocked = statCard(stats, "BLOCKED", "by gravity & rules", Ui.RED);
+        statBlocked = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
         statRate = statCard(stats, "BLOCK RATE", "of all lookups", Ui.BLUE);
         add(col, stats, isTv ? 18 : 14);
 
@@ -2503,18 +2553,11 @@ public class MainActivity extends Activity {
 
     private LinearLayout subHeader(String title, String subtitle) {
         LinearLayout head = Ui.row(this);
-        if (!isTv) {
-            TextView back = Ui.button(this, "‹ Back", false);
-            back.setMinWidth(Ui.dp(this, 80));
-            back.setOnClickListener(v -> show(Screen.HOME));
-            head.addView(back);
-        }
         LinearLayout text = Ui.column(this);
         TextView t = Ui.text(this, title, isTv ? 28 : 24, Ui.TEXT, true);
         text.addView(t);
         text.addView(Ui.text(this, subtitle, isTv ? 12 : 11.5f, Ui.FAINT, false));
-        head.addView(text, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-                Ui.dp(this, isTv ? 0 : 12), 0, 0, 0));
+        head.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         return head;
     }
 

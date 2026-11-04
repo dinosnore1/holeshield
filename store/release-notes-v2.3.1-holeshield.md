@@ -44,6 +44,8 @@ rules, blocklists and statistics are kept.
 - Native app now supports System, Dark and Light appearance modes under
   Settings → Appearance → Theme, with a full light palette, light dialogs and
   theme-aware switches. The choice is persisted and backed up.
+- Phone layout now uses a compact header and a persistent bottom navigation bar
+  (Home, Server, Gravity, Log, Settings), with redundant Back buttons removed.
 - Multi-option settings use single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout so options and buttons stay clear
@@ -72,6 +74,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-c188ffb61a35337228a4483b47d507b4847bf8d2c85d6c743e4dc96f48a44308  holeshield.aab
-f5db5f195d541c09862f1398f09aaa2455ee65e686e2cf88cd7f5b5606b10342  holeshield.apk
+d7f247916ca2eae1b6d3e0cfde82e5143d0862bed4f422a2652f234cfb1df497  holeshield.aab
+ccd97d9f2c7838308c7f571a80c36c896300492c41ea6c2dff8f1919ec720a8e  holeshield.apk
 ```
