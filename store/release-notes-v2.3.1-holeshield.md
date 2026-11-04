@@ -20,6 +20,8 @@ rules, blocklists and statistics are kept.
 - Responsive header, hero actions, cards and panels for phones.
 - Light and dark Material You palettes, subtle background grid, reduced-motion
   support and themed scrollbars.
+- Settings keeps its scroll position and focused row when an in-place option
+  such as Fallback DNS is changed.
 
 ## Also included from 2.3.0
 
@@ -43,6 +45,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-241e2aa10f1a26858b747fb33405839549aaa3a792c4b6c6337ca413cdd10a7c  holeshield.aab
-0842b4ec3cf694faffc86323ff6605bb79bc0691397ee88e59e742164acc1359  holeshield.apk
+b304378623ed5ff387e49f516882002b70ae9823cb506e3c56cbfff62be69ded  holeshield.aab
+d228c3ef7326968ebb0320dea0d260c59b3dfa4c665209945560d50335e3e5f2  holeshield.apk
 ```

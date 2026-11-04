@@ -465,6 +465,9 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------ screens
 
     private void show(Screen next) {
+        boolean sameScreen = screen == next;
+        int keepScroll = scroll == null ? 0 : scroll.getScrollY();
+        String keepFocus = sameScreen ? focusTag(getCurrentFocus()) : null;
         screen = next;
         initialFocus = null;
         clearRefs();
@@ -480,12 +483,37 @@ public class MainActivity extends Activity {
         }
         page.addView(content, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        scroll.scrollTo(0, 0);
-        if (initialFocus != null) {
-            final View focus = initialFocus;
-            focus.postDelayed(() -> focus.requestFocus(), 80);
+        if (sameScreen) {
+            // Rebuilding the same screen (a setting toggle, for example) must
+            // not jump back to the top. Re-focus the row the user was on, or
+            // restore the scroll offset when focus was elsewhere.
+            View target = keepFocus == null ? null : page.findViewWithTag(keepFocus);
+            if (target != null) {
+                final View focus = target;
+                focus.postDelayed(() -> focus.requestFocus(), 80);
+            } else {
+                scroll.post(() -> scroll.scrollTo(0, keepScroll));
+            }
+        } else {
+            scroll.scrollTo(0, 0);
+            if (initialFocus != null) {
+                final View focus = initialFocus;
+                focus.postDelayed(() -> focus.requestFocus(), 80);
+            }
         }
         updateLive();
+    }
+
+    /** Finds the setting-row tag around the currently focused view. */
+    private static String focusTag(View view) {
+        View current = view;
+        while (current != null) {
+            Object tag = current.getTag();
+            if (tag instanceof String) return (String) tag;
+            android.view.ViewParent parent = current.getParent();
+            current = parent instanceof View ? (View) parent : null;
+        }
+        return null;
     }
 
     private void clearRefs() {
@@ -2001,6 +2029,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout settingRow(String title, String subtitle, String value, Runnable action) {
         LinearLayout r = Ui.focusableCard(this, isTv ? 20 : 18);
+        r.setTag(title);
         r.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout text = Ui.column(this);
         TextView t = Ui.text(this, title, isTv ? 16 : 15, Ui.TEXT, true);

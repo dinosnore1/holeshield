@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 241e2aa10f1a26858b747fb33405839549aaa3a792c4b6c6337ca413cdd10a7c
+  SHA-256 b304378623ed5ff387e49f516882002b70ae9823cb506e3c56cbfff62be69ded
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 0842b4ec3cf694faffc86323ff6605bb79bc0691397ee88e59e742164acc1359
+  SHA-256 d228c3ef7326968ebb0320dea0d260c59b3dfa4c665209945560d50335e3e5f2
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 a0425283f69340379b5e3109f09173bdabbd75591eefc2c957b86927807a65a1
+  SHA-256 702a2dd0a17f2cf9a4b00fa0fb373735b1b10cd916a682cf2f5d45f6d22e474d
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -102,6 +102,9 @@ Verified
   chips, icon cards, tonal panels, cleaner tables/forms, polished login and a
   responsive mobile layout. Dark, light and 500px mobile layouts were checked
   in headless Chrome.
+- Settings no longer jumps to the top after changing Fallback DNS or another
+  in-place toggle; the focused row and scroll position are preserved. Verified
+  on the STB by cycling Fallback DNS DoH → DoT → Plain → Off → DoH.
 - 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
   tile and a home-screen widget. The notification exposes Pause 30 min and
   Resume; the widget pause/resume action was verified with an ADB broadcast.
