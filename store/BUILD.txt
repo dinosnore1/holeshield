@@ -1,8 +1,8 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.3.0
-versionCode:   7
+Version:       2.3.1
+versionCode:   8
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
@@ -11,17 +11,17 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 9e3a8dcc389613d38ab9aaad47c1f906cf60719a1fd972f7b60f1a842602d2f6
-  Size    157 KB
+  SHA-256 241e2aa10f1a26858b747fb33405839549aaa3a792c4b6c6337ca413cdd10a7c
+  Size    163 KB
 
 build/holeshield.apk
-  SHA-256 2b2db2f379278aab6f6e1c9ed90303c9a976e327b18d0c582e6f15d033fb8c0c
-  Size    165 KB
+  SHA-256 0842b4ec3cf694faffc86323ff6605bb79bc0691397ee88e59e742164acc1359
+  Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 a7f0a2e8ab4ca7408a43341ffc1e0e06b5363695d9e27135041452fbaca596e3
-  Size    165 KB
+  SHA-256 a0425283f69340379b5e3109f09173bdabbd75591eefc2c957b86927807a65a1
+  Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
 Use build/holeshield.apk for direct GitHub installs. Upload the AAB to Play;
@@ -96,8 +96,12 @@ Verified
   native select text is fully hidden, the paused label stays neutral (no red),
   and the focus ring/inset shadow is removed.
 - Dashboard, query log, gravity/rules and stats screens verified.
-- 2.3.0 installed on the STB at 192.168.2.133 (versionCode 7 / versionName
-  2.3.0).
+- 2.3.1 installed on the STB at 192.168.2.133 (versionCode 8 / versionName
+  2.3.1).
+- 2.3.1 refreshes the whole web dashboard: branded sticky header, hero summary
+  chips, icon cards, tonal panels, cleaner tables/forms, polished login and a
+  responsive mobile layout. Dark, light and 500px mobile layouts were checked
+  in headless Chrome.
 - 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
   tile and a home-screen widget. The notification exposes Pause 30 min and
   Resume; the widget pause/resume action was verified with an ADB broadcast.

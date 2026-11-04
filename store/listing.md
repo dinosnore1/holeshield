@@ -17,7 +17,7 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Contact email | `gaganpachory@gmail.com` |
 | Website | `https://dinosnore1.github.io/holeshield-privacy/` |
 | Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
-| Version | 2.3.0 (`versionCode 7`) |
+| Version | 2.3.1 (`versionCode 8`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
 | Form factors | Phone, tablet, Android TV |
@@ -112,10 +112,12 @@ Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
-### Release notes (versionCode 7)
+### Release notes (versionCode 8)
 
 ```
-Hole Shield 2.3.0
+Hole Shield 2.3.1
+• Refreshed the whole web dashboard: branded header, hero summary, icon cards,
+  cleaner panels, tables, forms, login screen and mobile layout.
 • Dashboard and LAN DNS are now opt-in, with a first-run setup screen.
 • Notification actions, a Quick Settings tile and a home-screen widget.
 • Query log quick allow/block, category column and CSV/JSON export.

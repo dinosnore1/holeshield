@@ -12,13 +12,14 @@ SDK command-line tools.
 
 ## Download
 
-The latest prebuilt Android APK and Play AAB are attached to the
+The latest published prebuilt APK and Play AAB are attached to the
 [GitHub release](https://github.com/dinosnore1/pihole-tv/releases/latest).
-This is the new `com.dino.holeshield` package; uninstall the old
-`com.dino.pihole` app before installing it.
+The current source build is **2.3.1** and is not published yet. This is the
+new `com.dino.holeshield` package; uninstall the old `com.dino.pihole` app
+before installing it.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.3.0 (`versionCode 7`)
+- **Version:** 2.3.1 (`versionCode 8`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
@@ -444,7 +445,7 @@ The app has been exercised on:
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
 - clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
-  the current `2.3.0` build and the Play screenshots.
+  the current `2.3.1` build and the Play screenshots.
 
 Verified across these devices:
 
@@ -459,7 +460,7 @@ Verified across these devices:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Current `2.3.0` build extras verified on the TV with the signed AAB test APK:
+Current `2.3.1` build extras verified on the TV with the signed AAB test APK:
 
 - in-app VPN disclosure before Android's VPN prompt;
 - `specialUse` foreground service starts and stays in the foreground;
@@ -473,7 +474,7 @@ Current `2.3.0` build extras verified on the TV with the signed AAB test APK:
 - URLhaus `02teste.cc` and Phishing Army `0-ilxrc-w285.p9bckp.sbs` →
   `0.0.0.0`, tracker `app-measurement.com` → `0.0.0.0`, while `example.com`
   resolves normally;
-- version strings now come from the installed package (`2.3.0`);
+- version strings now come from the installed package (`2.3.1`);
 - `doubleclick.net` → `0.0.0.0`, `example.com` resolves through DoH.
 - 2.3.0: notification actions (Pause 30 min / Resume), Quick Settings tile and
   widget are registered; widget pause/resume was exercised with ADB.
@@ -483,7 +484,7 @@ Current `2.3.0` build extras verified on the TV with the signed AAB test APK:
 - 2.3.0: dashboard and LAN DNS are off by default for new installs; existing
   installs keep their saved choice.
 
-Current `2.3.0` phone checks on the Android 15 and Android 16 emulators:
+Current `2.3.1` phone checks on the Android 15 and Android 16 emulators:
 
 - notification permission prompt; denying it does not crash the app;
 - first-run disclosure → Agree → Android VPN prompt → `PROTECTED`;
