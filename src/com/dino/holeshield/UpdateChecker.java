@@ -23,13 +23,16 @@ final class UpdateChecker {
         final String version;
         final int versionCode;
         final String url;
+        final String apk;
         final String notes;
 
-        Release(String channel, String version, int versionCode, String url, String notes) {
+        Release(String channel, String version, int versionCode, String url,
+                String apk, String notes) {
             this.channel = channel == null ? "stable" : channel;
             this.version = version == null ? "" : version;
             this.versionCode = versionCode;
             this.url = url == null ? "" : url;
+            this.apk = apk == null ? "" : apk;
             this.notes = notes == null ? "" : notes;
         }
     }
@@ -66,6 +69,7 @@ final class UpdateChecker {
                     item.optString("version", ""),
                     item.optInt("versionCode", 0),
                     item.optString("url", ""),
+                    item.optString("apk", ""),
                     item.optString("notes", ""));
         } finally {
             c.disconnect();

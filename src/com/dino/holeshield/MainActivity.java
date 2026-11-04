@@ -3,6 +3,7 @@ package com.dino.holeshield;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -27,6 +28,7 @@ import android.net.Uri;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -2495,14 +2497,43 @@ public class MainActivity extends Activity {
         if (!release.notes.isEmpty()) {
             message.append("\n\n").append(release.notes);
         }
+        boolean canDownload = newer && !release.apk.isEmpty();
         AlertDialog.Builder builder = Ui.builder(this)
                 .setTitle(newer ? "Update available" : "You're up to date")
                 .setMessage(message.toString())
-                .setPositiveButton(newer ? "Open release" : "Close", (d, w) -> {
-                    if (newer) openRelease(release.url);
+                .setPositiveButton(canDownload ? "Download update"
+                        : newer ? "Open release" : "Close", (d, w) -> {
+                    if (canDownload) downloadUpdate(release);
+                    else if (newer) openRelease(release.url);
                 });
         if (newer) builder.setNegativeButton("Close", null);
         builder.show();
+    }
+
+    private void downloadUpdate(UpdateChecker.Release release) {
+        try {
+            DownloadManager manager = getSystemService(DownloadManager.class);
+            if (manager == null) {
+                openRelease(release.url);
+                return;
+            }
+            DownloadManager.Request request = new DownloadManager.Request(
+                    Uri.parse(release.apk));
+            request.setTitle("Hole Shield " + release.version);
+            request.setDescription("Downloading the beta update");
+            request.setMimeType("application/vnd.android.package-archive");
+            request.setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(false);
+            request.setDestinationInExternalFilesDir(this,
+                    Environment.DIRECTORY_DOWNLOADS,
+                    "holeshield-" + release.version + ".apk");
+            manager.enqueue(request);
+            Ui.toast(this, "Downloading update… tap the notification to install");
+        } catch (Exception e) {
+            Ui.toast(this, "Could not start the download");
+        }
     }
 
     private void openRelease(String url) {

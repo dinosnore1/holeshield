@@ -24,7 +24,8 @@ settings, rules, blocklists and statistics are kept.
 1. Open **Settings → Updates**.
 2. Set **Update channel** to **Beta**.
 3. Choose **Check for updates**.
-4. The installed 2.3.1 build should report 2.3.2 available and offer **Open release**.
+4. The installed 2.3.1 build should report 2.3.2 available. Its button opens the
+   direct beta APK URL; the 2.3.2 build itself uses the in-app downloader.
 
 ## Verified
 
@@ -32,10 +33,13 @@ settings, rules, blocklists and statistics are kept.
 - Web dashboard desktop and phone layouts checked in dark and light themes.
 - Dashboard DOM test passes.
 - Not installed over ADB; this release is for the in-app beta channel test.
+- The beta APK is hosted at
+  https://dinosnore1.github.io/holeshield-privacy/holeshield-2.3.2-beta.apk
+  for direct download.
 
 ## SHA-256
 
 ```
-825a6b9b6a0d01b3947ab29ae11ff0f5c76e160ecc146288e9c0a8bcfb79298e  holeshield.aab
-74430b99c6168fb8f81a822d3704ee43083b8a950d4cd747c710a38ecb6e9674  holeshield.apk
+77585a231dfd5d87a80dd04b6e2120dc695cc94526fa96bc2d8afd75f520119d  holeshield.aab
+65171fc809cdab6a2c4b3f5efa4b91c2e4bbfc3873798f0a83cee2c2917e18ca  holeshield.apk
 ```
