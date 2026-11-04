@@ -76,7 +76,7 @@ before installing it.
   details screen with copyable dashboard/DNS addresses.
 - **D-pad and touch UI.** The same screens work with a TV remote and with a
   finger. TV uses a persistent left navigation rail, and phones use a persistent
-  bottom bar, for Home, Server, Gravity & rules, Query log and Settings. A **TV safe area** setting (Settings → System)
+  icon-based bottom bar for Home, Server, Gravity & rules, Query log and Settings. A **TV safe area** setting (Settings → System)
   is off by default and can inset the layout for TVs that crop the outer edges. Log rows are focusable on TV and expose quick allow/block actions. TV keeps its focus rings and immersive fullscreen; phones use a compact
   layout, show the system bars and rebuild cleanly between portrait and
   landscape.

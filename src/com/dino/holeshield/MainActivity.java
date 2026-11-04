@@ -523,7 +523,9 @@ public class MainActivity extends Activity {
             for (Map.Entry<Screen, TextView> entry : phoneNavItems.entrySet()) {
                 boolean on = entry.getKey() == selected;
                 TextView item = entry.getValue();
-                item.setTextColor(on ? Ui.ON_PRIMARY_CONTAINER : Ui.DIM);
+                int color = on ? Ui.ON_PRIMARY_CONTAINER : Ui.DIM;
+                item.setTextColor(color);
+                item.setCompoundDrawableTintList(ColorStateList.valueOf(color));
                 item.setBackground(on ? Ui.rounded(this, Ui.PRIMARY_CONTAINER, 14) : null);
             }
         }
@@ -540,11 +542,16 @@ public class MainActivity extends Activity {
         row.setPadding(Ui.dp(this, 4), Ui.dp(this, 5),
                 Ui.dp(this, 4), Ui.dp(this, 5));
         phoneNavItems = new LinkedHashMap<>();
-        phoneNavItems.put(Screen.HOME, phoneNavItem("Home", Screen.HOME));
-        phoneNavItems.put(Screen.PIHOLE, phoneNavItem("Server", Screen.PIHOLE));
-        phoneNavItems.put(Screen.LISTS, phoneNavItem("Gravity", Screen.LISTS));
-        phoneNavItems.put(Screen.LOG, phoneNavItem("Log", Screen.LOG));
-        phoneNavItems.put(Screen.SETTINGS, phoneNavItem("Settings", Screen.SETTINGS));
+        phoneNavItems.put(Screen.HOME,
+                phoneNavItem("Home", R.drawable.ic_nav_home, Screen.HOME));
+        phoneNavItems.put(Screen.PIHOLE,
+                phoneNavItem("Server", R.drawable.ic_nav_server, Screen.PIHOLE));
+        phoneNavItems.put(Screen.LISTS,
+                phoneNavItem("Gravity", R.drawable.ic_nav_gravity, Screen.LISTS));
+        phoneNavItems.put(Screen.LOG,
+                phoneNavItem("Log", R.drawable.ic_nav_log, Screen.LOG));
+        phoneNavItems.put(Screen.SETTINGS,
+                phoneNavItem("Settings", R.drawable.ic_nav_settings, Screen.SETTINGS));
         for (TextView item : phoneNavItems.values()) {
             row.addView(item, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
                     Ui.dp(this, 2), 0, Ui.dp(this, 2), 0));
@@ -554,11 +561,14 @@ public class MainActivity extends Activity {
         return bar;
     }
 
-    private TextView phoneNavItem(String label, Screen target) {
-        TextView item = Ui.text(this, label, 11.5f, Ui.DIM, true);
+    private TextView phoneNavItem(String label, int icon, Screen target) {
+        TextView item = Ui.text(this, label, 10.5f, Ui.DIM, true);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(Ui.dp(this, 2), Ui.dp(this, 9),
-                Ui.dp(this, 2), Ui.dp(this, 9));
+        item.setCompoundDrawablesWithIntrinsicBounds(0, icon, 0, 0);
+        item.setCompoundDrawablePadding(Ui.dp(this, 4));
+        item.setCompoundDrawableTintList(ColorStateList.valueOf(Ui.DIM));
+        item.setPadding(Ui.dp(this, 2), Ui.dp(this, 6),
+                Ui.dp(this, 2), Ui.dp(this, 6));
         item.setClickable(true);
         item.setFocusable(true);
         item.setOnClickListener(v -> show(target));
