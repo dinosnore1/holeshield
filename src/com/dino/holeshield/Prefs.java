@@ -18,6 +18,8 @@ final class Prefs {
     /** True after the first-run setup screen has been completed. */
     boolean onboardingDone = false;
     boolean startOnBoot = true;
+    /** Extra TV-only inset for displays that crop the outer edges. */
+    int tvSafeArea = 0;
 
     /** Legacy external-Pi-hole fields; the built-in server is the default now. */
     boolean usePihole = false;
@@ -105,6 +107,7 @@ final class Prefs {
         s.onboardingDone = p.getBoolean("onboardingDone",
                 p.contains("protectionWanted") || p.contains("blocklistPresetVersion"));
         s.startOnBoot = p.getBoolean("startOnBoot", s.startOnBoot);
+        s.tvSafeArea = p.getInt("tvSafeArea2", s.tvSafeArea);
         // The embedded resolver replaced the legacy external-Pi-hole mode.
         // Ignore an old true value so upgrades cannot route around the
         // on-device gravity engine.
@@ -180,6 +183,7 @@ final class Prefs {
                 .putBoolean("vpnDisclosureAccepted", vpnDisclosureAccepted)
                 .putBoolean("onboardingDone", onboardingDone)
                 .putBoolean("startOnBoot", startOnBoot)
+                .putInt("tvSafeArea2", tvSafeArea)
                 .putBoolean("usePihole", usePihole)
                 .putString("piholeHost", piholeHost)
                 .putInt("piholePort", piholePort)

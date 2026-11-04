@@ -31,6 +31,13 @@ rules, blocklists and statistics are kept.
   duplicate bare IPs, and query rows show their category.
 - Stat cards are tinted and use accent values; section headings have accent
   bars; the query log has a TV focus target.
+- Added an adjustable TV safe area in Settings → System. It is **off by
+  default**; options are Off, 5%, 10%, 12% and 15%. Enabling it adds insets and
+  a bottom scrim; Off keeps the original full-width layout.
+- Boolean settings now use Material-style toggle switches; action rows keep
+  chevrons. Row spacing was tightened for a denser settings list.
+- Focus no longer scales rows; the focused row uses an outline, tinted surface,
+  left accent bar and soft lift instead.
 
 ## Also included from 2.3.0
 
@@ -54,6 +61,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-2bbc954c936539c32d0e09ddd3d93d9a8ae29645e50a8df93718f2668f2c551e  holeshield.aab
-3e4ba72c5135b61245ae9c1169bd26acf7151ae380b29c3089590d8d4cde4124  holeshield.apk
+737eb92cdd26f24bb22a9696972cea4eacf1f21c6294aa1d71c5437a6bb7b701  holeshield.aab
+d3de671f8ae500f0fb7053fd1d9c20087bc75f49b810e7da4ff10440ccb43fa8  holeshield.apk
 ```

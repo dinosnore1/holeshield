@@ -28,6 +28,7 @@ final class Backup {
         s.put("vpnDisclosureAccepted", p.vpnDisclosureAccepted);
         s.put("onboardingDone", true);
         s.put("startOnBoot", p.startOnBoot);
+        s.put("tvSafeArea", p.tvSafeArea);
         s.put("fallback", p.fallback);
         s.put("dohUrl", p.dohUrl);
         s.put("dotHost", p.dotHost);
@@ -78,6 +79,7 @@ final class Backup {
         p.vpnDisclosureAccepted = s.optBoolean("vpnDisclosureAccepted", true);
         p.onboardingDone = true;
         p.startOnBoot = s.optBoolean("startOnBoot", p.startOnBoot);
+        p.tvSafeArea = s.optInt("tvSafeArea", p.tvSafeArea);
         p.fallback = s.optString("fallback", p.fallback);
         p.dohUrl = s.optString("dohUrl", p.dohUrl);
         p.dotHost = s.optString("dotHost", p.dotHost);

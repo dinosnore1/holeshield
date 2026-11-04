@@ -331,19 +331,54 @@ public class MainActivity extends Activity {
         root.addView(new Backdrop(this), new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+        boolean tvSafeOn = isTv && prefs.tvSafeArea > 0;
+        boolean useEdgeFade = !isTv || tvSafeOn;
         scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.setVerticalFadingEdgeEnabled(useEdgeFade);
+        scroll.setFadingEdgeLength(Ui.dp(this, 48));
         page = Ui.column(this);
-        int h = Ui.dp(this, isTv ? 44 : 20);
-        int v = Ui.dp(this, isTv ? 34 : 20);
-        page.setPadding(h, v, h, v);
+        int screenW = getResources().getDisplayMetrics().widthPixels;
+        int screenH = getResources().getDisplayMetrics().heightPixels;
+        int safe = isTv ? Math.max(0, Math.min(18, prefs.tvSafeArea)) : 0;
+        int h;
+        int v;
+        int bottom;
+        if (isTv && safe <= 0) {
+            h = Ui.dp(this, 44);
+            v = Ui.dp(this, 34);
+            bottom = v;
+        } else if (isTv) {
+            h = Math.max(Ui.dp(this, 48), Math.round(screenW * safe / 100f));
+            v = Math.max(Ui.dp(this, 30),
+                    Math.round(screenH * (safe * 0.6f) / 100f));
+            bottom = v + Ui.dp(this, 46);
+        } else {
+            h = Ui.dp(this, 20);
+            v = Ui.dp(this, 20);
+            bottom = v + Ui.dp(this, 28);
+        }
+        page.setPadding(h, v, h, bottom);
         scroll.addView(page, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (useEdgeFade) {
+            View bottomFade = new View(this);
+            bottomFade.setBackground(new GradientDrawable(
+                    GradientDrawable.Orientation.BOTTOM_TOP,
+                    new int[]{Ui.BG, Ui.withAlpha(Ui.BG, 0)}));
+            bottomFade.setClickable(false);
+            bottomFade.setFocusable(false);
+            bottomFade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            FrameLayout.LayoutParams fadeLp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, isTv ? 72 : 40));
+            fadeLp.gravity = Gravity.BOTTOM;
+            root.addView(bottomFade, fadeLp);
+        }
         if (!isTv && Build.VERSION.SDK_INT >= 35) {
             root.setOnApplyWindowInsetsListener((view, insets) -> {
                 Insets bars = insets.getInsets(
@@ -1256,18 +1291,18 @@ public class MainActivity extends Activity {
         initialFocus = update;
 
         LinearLayout rows = Ui.column(this);
-        rows.addView(settingRow("Gravity blocking",
+        rows.addView(settingRowToggle("Gravity blocking",
                 "Apply downloaded lists and custom rules on this device",
-                prefs.localBlocking ? "On" : "Off", () -> {
+                prefs.localBlocking, () -> {
                     prefs.localBlocking = !prefs.localBlocking;
                     prefs.save(this);
                     reloadService();
                     show(Screen.LISTS);
                 }), rowLp(0));
 
-        rows.addView(settingRow("Block subdomains of list entries",
+        rows.addView(settingRowToggle("Block subdomains of list entries",
                 "Match ads.example.com when example.com is on a list",
-                prefs.blockSubdomains ? "On" : "Off", () -> {
+                prefs.blockSubdomains, () -> {
                     prefs.blockSubdomains = !prefs.blockSubdomains;
                     prefs.save(this);
                     Blocklist.setBlockSubdomains(prefs.blockSubdomains);
@@ -1278,9 +1313,9 @@ public class MainActivity extends Activity {
         int customAllowed = countLines(prefs.customAllowed);
         rows.addView(settingRow("Add a custom rule", "Exact, wildcard or regex; allow or deny",
                 (customBlocked + customAllowed) + " custom", this::addCustomRule), rowLp(2));
-        rows.addView(settingRow("Block CNAME targets",
+        rows.addView(settingRowToggle("Block CNAME targets",
                 "Also inspect CNAMEs in upstream answers",
-                prefs.blockCname ? "On" : "Off", () -> {
+                prefs.blockCname, () -> {
                     prefs.blockCname = !prefs.blockCname;
                     prefs.save(this);
                     show(Screen.LISTS);
@@ -1335,8 +1370,8 @@ public class MainActivity extends Activity {
                     Blocklist.setCategoryMask(prefs.categoryMask());
                     show(Screen.LISTS);
                 }), rowLp(2));
-        cats.addView(settingRow("SafeSearch / parental filter",
-                safeSearchSubtitle(), prefs.safeSearch ? "On" : "Off",
+        cats.addView(settingRowToggle("SafeSearch / parental filter",
+                safeSearchSubtitle(), prefs.safeSearch,
                 () -> toggleSafeSearch(Screen.LISTS)), rowLp(3));
         add(col, cats, 8);
 
@@ -1374,7 +1409,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout categoryRow(String title, String subtitle, boolean on,
                                      Runnable action) {
-        return settingRow(title, subtitle, on ? "On" : "Off", action);
+        return settingRowToggle(title, subtitle, on, action);
     }
 
     private String safeSearchSubtitle() {
@@ -1812,27 +1847,27 @@ public class MainActivity extends Activity {
 
         col.addView(section("PROTECTION"));
         LinearLayout p = Ui.column(this);
-        p.addView(settingRow("Protection", "DNS filtering for every app on this device",
-                DnsVpnService.running ? "On" : "Off", () -> {
+        p.addView(settingRowToggle("Protection", "DNS filtering for every app on this device",
+                DnsVpnService.running, () -> {
                     toggleProtection();
-                    show(Screen.HOME);
+                    show(Screen.SETTINGS);
                 }), rowLp(0));
-        p.addView(settingRow("Start at boot", "Resume after the device restarts",
-                prefs.startOnBoot ? "On" : "Off", () -> {
+        p.addView(settingRowToggle("Start at boot", "Resume after the device restarts",
+                prefs.startOnBoot, () -> {
                     prefs.startOnBoot = !prefs.startOnBoot;
                     prefs.save(this);
                     show(Screen.SETTINGS);
                 }), rowLp(1));
-        p.addView(settingRow("Gravity blocking", "Apply downloaded lists and custom rules on this device",
-                prefs.localBlocking ? "On" : "Off", () -> {
+        p.addView(settingRowToggle("Gravity blocking", "Apply downloaded lists and custom rules on this device",
+                prefs.localBlocking, () -> {
                     prefs.localBlocking = !prefs.localBlocking;
                     prefs.save(this);
                     reloadService();
                     show(Screen.SETTINGS);
                 }), rowLp(2));
-        p.addView(settingRow("Force all DNS through the filter",
+        p.addView(settingRowToggle("Force all DNS through the filter",
                 "Capture hard-coded public resolvers (recommended)",
-                prefs.forceDns ? "On" : "Off", () -> {
+                prefs.forceDns, () -> {
                     prefs.forceDns = !prefs.forceDns;
                     prefs.save(this);
                     restartIfRunning();
@@ -1842,8 +1877,8 @@ public class MainActivity extends Activity {
 
         col.addView(section("BLOCKING HOURS"));
         LinearLayout hours = Ui.column(this);
-        hours.addView(settingRow("Scheduled blocking", "Only block inside the window below",
-                prefs.scheduleEnabled ? prefs.scheduleLabel() : "Off", () -> {
+        hours.addView(settingRowToggle("Scheduled blocking", "Only block inside the window below",
+                prefs.scheduleEnabled, () -> {
                     prefs.scheduleEnabled = !prefs.scheduleEnabled;
                     prefs.save(this);
                     reloadService();
@@ -1879,8 +1914,8 @@ public class MainActivity extends Activity {
 
         col.addView(section("BUILT-IN FILTER"));
         LinearLayout ph = Ui.column(this);
-        ph.addView(settingRow("Web dashboard", "Serve the dashboard and API on the LAN",
-                prefs.webEnabled ? "On" : "Off", () -> {
+        ph.addView(settingRowToggle("Web dashboard", "Serve the dashboard and API on the LAN",
+                prefs.webEnabled, () -> {
                     if (prefs.webEnabled) {
                         prefs.webEnabled = false;
                         prefs.save(this);
@@ -1949,8 +1984,8 @@ public class MainActivity extends Activity {
                     Ui.toast(this, "All web sessions will be signed out");
                     show(Screen.SETTINGS);
                 }), rowLp(5));
-        ph.addView(settingRow("LAN DNS server", "UDP and TCP listener for other devices",
-                prefs.lanDns ? "On" : "Off", () -> {
+        ph.addView(settingRowToggle("LAN DNS server", "UDP and TCP listener for other devices",
+                prefs.lanDns, () -> {
                     if (prefs.lanDns) {
                         prefs.lanDns = false;
                         prefs.save(this);
@@ -2040,9 +2075,8 @@ public class MainActivity extends Activity {
                 this::updateBlocklist), rowLp(0));
         bl.addView(settingRow("Blocklist sources", "One hosts/adblock URL per line",
                 listUrlCount(prefs.blocklistUrls) + " lists", this::editListUrls), rowLp(1));
-        bl.addView(settingRow("SafeSearch / parental filter", safeSearchSubtitle(),
-                prefs.safeSearch ? "On" : "Off",
-                () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(2));
+        bl.addView(settingRowToggle("SafeSearch / parental filter", safeSearchSubtitle(),
+                prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(2));
         bl.addView(settingRow("Test protection", "Resolve a known ad domain through the VPN",
                 "Run", this::testProtection), rowLp(3));
         add(col, bl, 8);
@@ -2054,13 +2088,20 @@ public class MainActivity extends Activity {
                     restartIfRunning();
                     Ui.toast(this, DnsVpnService.running ? "Restarting…" : "Protection is off");
                 }), rowLp(0));
+        int sysRow = 1;
+        if (isTv) {
+            sys.addView(settingRow("TV safe area",
+                    "Increase this if your TV crops the outer edges",
+                    prefs.tvSafeArea <= 0 ? "Off" : prefs.tvSafeArea + "%",
+                    this::cycleTvSafeArea), rowLp(sysRow++));
+        }
         sys.addView(settingRow(isTv ? "About Hole Shield TV" : "About Hole Shield",
                 "Version " + Device.versionName(this) + " · Material You · no analytics",
-                "", this::about), rowLp(1));
+                "", this::about), rowLp(sysRow++));
         sys.addView(settingRow("Back up settings", "Settings, rules, lists and query log as JSON",
-                "Export", this::startBackup), rowLp(2));
+                "Export", this::startBackup), rowLp(sysRow++));
         sys.addView(settingRow("Restore settings", "Replace settings and query log from a backup",
-                "Import", this::startRestore), rowLp(3));
+                "Import", this::startRestore), rowLp(sysRow));
         add(col, sys, 8);
 
         TextView foot = Ui.text(this, "Changing the web/LAN ports, upstream or capture "
@@ -2071,6 +2112,22 @@ public class MainActivity extends Activity {
 
         initialFocus = p.getChildAt(0);
         return col;
+    }
+
+    private void cycleTvSafeArea() {
+        int[] values = {0, 5, 10, 12, 15};
+        int next = values[0];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] == prefs.tvSafeArea) {
+                next = values[(i + 1) % values.length];
+                break;
+            }
+        }
+        prefs.tvSafeArea = next;
+        prefs.save(this);
+        setContentView(createShell());
+        show(Screen.SETTINGS);
+        Ui.toast(this, "TV safe area " + next + "%");
     }
 
     private LinearLayout section(String title) {
@@ -2114,10 +2171,32 @@ public class MainActivity extends Activity {
         return r;
     }
 
+    private LinearLayout settingRowToggle(String title, String subtitle,
+                                           boolean checked, Runnable action) {
+        LinearLayout r = Ui.focusableCard(this, isTv ? 20 : 18);
+        r.setTag(title);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout text = Ui.column(this);
+        TextView t = Ui.text(this, title, isTv ? 16 : 15, Ui.TEXT, true);
+        text.addView(t);
+        if (subtitle != null && !subtitle.isEmpty()) {
+            TextView s = Ui.text(this, subtitle, isTv ? 11.5f : 11, Ui.FAINT, false);
+            text.addView(s, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
+        }
+        r.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        SwitchView toggle = new SwitchView(this);
+        toggle.setCheckedImmediate(checked);
+        r.addView(toggle, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 16 : 10), 0, 0, 0));
+        r.setOnClickListener(v -> action.run());
+        return r;
+    }
+
     private LinearLayout.LayoutParams rowLp(int index) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Ui.dp(this, index == 0 ? 0 : isTv ? 8 : 6);
+        lp.topMargin = Ui.dp(this, index == 0 ? 0 : isTv ? 4 : 3);
         return lp;
     }
 

@@ -5,7 +5,9 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.os.Build;
 import android.util.TypedValue;
@@ -319,18 +321,28 @@ final class Ui {
 
     static StateListDrawable focusableBg(Context c, float radiusDp) {
         StateListDrawable s = new StateListDrawable();
-        s.addState(new int[]{android.R.attr.state_focused},
-                rounded(c, CARD_FOCUS, radiusDp, 2, STROKE_FOCUS));
-        s.addState(new int[]{android.R.attr.state_pressed},
-                rounded(c, CARD_FOCUS, radiusDp, 2, STROKE_FOCUS));
+        s.addState(new int[]{android.R.attr.state_focused}, focusLayer(c, radiusDp));
+        s.addState(new int[]{android.R.attr.state_pressed}, focusLayer(c, radiusDp));
         s.addState(new int[]{}, rounded(c, CARD, radiusDp, 1, STROKE));
         return s;
     }
 
+    /** Focused card: tinted surface, bright outline and a left accent bar. */
+    private static LayerDrawable focusLayer(Context c, float radiusDp) {
+        GradientDrawable base = rounded(c, CARD_FOCUS, radiusDp, 2, STROKE_FOCUS);
+        GradientDrawable bar = rounded(c, PRIMARY, 99);
+        LayerDrawable layer = new LayerDrawable(new Drawable[]{base, bar});
+        layer.setLayerWidth(1, dp(c, 4));
+        layer.setLayerGravity(1, Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        layer.setLayerInset(1, 0, dp(c, 14), 0, dp(c, 14));
+        return layer;
+    }
+
+    /** Keeps the card size stable: a soft lift instead of a scale-up. */
     static void focusScale(final View v) {
         v.setOnFocusChangeListener((view, focused) -> {
-            float scale = focused ? 1.02f : 1f;
-            view.animate().scaleX(scale).scaleY(scale).setDuration(120).start();
+            float z = focused ? dp(view.getContext(), 4) : 0f;
+            view.animate().translationZ(z).setDuration(120).start();
         });
     }
 

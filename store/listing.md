@@ -120,6 +120,8 @@ Hole Shield 2.3.1
   cleaner panels, tables, forms, login screen and mobile layout.
 • Settings keeps its scroll position, and SafeSearch is available in Settings.
 • Clearer blocklist health, query-log categories, server details and top clients.
+• Optional TV safe area for displays that crop the outer edges.
+• Material-style toggle switches for boolean settings.
 • Dashboard and LAN DNS are now opt-in, with a first-run setup screen.
 • Notification actions, a Quick Settings tile and a home-screen widget.
 • Query log quick allow/block, category column and CSV/JSON export.

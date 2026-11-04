@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 2bbc954c936539c32d0e09ddd3d93d9a8ae29645e50a8df93718f2668f2c551e
+  SHA-256 737eb92cdd26f24bb22a9696972cea4eacf1f21c6294aa1d71c5437a6bb7b701
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 3e4ba72c5135b61245ae9c1169bd26acf7151ae380b29c3089590d8d4cde4124
+  SHA-256 d3de671f8ae500f0fb7053fd1d9c20087bc75f49b810e7da4ff10440ccb43fa8
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 93f64a162e696f447d644fa7b842051ef9d37be7dfc17c1cddc35b9802dd2ae1
+  SHA-256 3a2b427df00ce5f9b2948fc00e866db734f9fb5dc603c2ac34ea8bcde9683af4
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -111,6 +111,18 @@ Verified
   repeat the dashboard URLs, and SafeSearch is available directly in Settings.
 - Visual polish: tinted stat cards with accent values, section accent bars,
   colored status hierarchy, and a TV focus target on the query log screen.
+- Added an adjustable TV safe area in Settings → System → TV safe area. It is
+  **off by default**; options are Off, 5%, 10%, 12% and 15%. When enabled it adds
+  side/top insets, a larger bottom safe area and a bottom scrim/fading edge.
+  When Off, the original full-width layout and no scrim are used. Verified on
+  the STB.
+- Boolean settings now use Material-style toggle switches instead of On/Off
+  text and chevrons: Protection, Start at boot, Gravity blocking, Force DNS,
+  Scheduled blocking, Web dashboard, LAN DNS, subdomain/CNAME blocking,
+  Ads/Trackers/Malware and SafeSearch. Action rows keep chevrons.
+- Focus no longer scales rows. The focused row uses a bright outline, tinted
+  surface, left accent bar and soft lift instead.
+- Reduced the vertical gap between setting rows (4dp on TV, 3dp on phone).
 - 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
   tile and a home-screen widget. The notification exposes Pause 30 min and
   Resume; the widget pause/resume action was verified with an ADB broadcast.
