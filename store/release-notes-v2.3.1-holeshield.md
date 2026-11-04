@@ -41,6 +41,9 @@ rules, blocklists and statistics are kept.
 - TV now uses a persistent left navigation rail for Home, Server, Gravity & rules,
   Query log and Settings. Brand/status live in the rail, TV subheaders drop the
   redundant Back button, and long query domains ellipsize cleanly.
+- Native app now supports System, Dark and Light appearance modes under
+  Settings → Appearance → Theme, with a full light palette, light dialogs and
+  theme-aware switches. The choice is persisted and backed up.
 - Multi-option settings use single-choice dropdown dialogs: Fallback DNS,
   DoH/DoT provider presets, Blocked response and TV safe area.
 - Dropdown popups use a custom padded layout so options and buttons stay clear
@@ -69,6 +72,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-b546b86917cccf9f36b2eb5c7572d3e4ceeb757cce8e28190eff9258499f9366  holeshield.aab
-328a41ee7a8f491a3adb42283086b4a161695f5970e897e76ab58127b5b1f79d  holeshield.apk
+c188ffb61a35337228a4483b47d507b4847bf8d2c85d6c743e4dc96f48a44308  holeshield.aab
+f5db5f195d541c09862f1398f09aaa2455ee65e686e2cf88cd7f5b5606b10342  holeshield.apk
 ```

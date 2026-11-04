@@ -59,6 +59,35 @@ final class Ui {
     private static final int F_OUTLINE = 0xFF8A938C;
     private static final int F_OUTLINE_VARIANT = 0xFF404943;
 
+    // Material 3 light scheme generated from the same seed.
+    private static final int L_PRIMARY = 0xFF1B7F5C;
+    private static final int L_ON_PRIMARY = 0xFFFFFFFF;
+    private static final int L_PRIMARY_CONTAINER = 0xFFA9F2CD;
+    private static final int L_ON_PRIMARY_CONTAINER = 0xFF002115;
+    private static final int L_SECONDARY = 0xFF4D6357;
+    private static final int L_ON_SECONDARY = 0xFFFFFFFF;
+    private static final int L_SECONDARY_CONTAINER = 0xFFCFE9D9;
+    private static final int L_ON_SECONDARY_CONTAINER = 0xFF0A1F16;
+    private static final int L_TERTIARY = 0xFF3D6373;
+    private static final int L_ON_TERTIARY = 0xFFFFFFFF;
+    private static final int L_TERTIARY_CONTAINER = 0xFFC1E9FB;
+    private static final int L_ON_TERTIARY_CONTAINER = 0xFF001F29;
+    private static final int L_ERROR = 0xFFBA1A1A;
+    private static final int L_ON_ERROR = 0xFFFFFFFF;
+    private static final int L_ERROR_CONTAINER = 0xFFFFDAD6;
+    private static final int L_ON_ERROR_CONTAINER = 0xFF410002;
+    private static final int L_SURFACE = 0xFFF7FBF7;
+    private static final int L_ON_SURFACE = 0xFF191C19;
+    private static final int L_SURFACE_VARIANT = 0xFFDFE4DE;
+    private static final int L_ON_SURFACE_VARIANT = 0xFF414942;
+    private static final int L_SURFACE_LOWEST = 0xFFFFFFFF;
+    private static final int L_SURFACE_LOW = 0xFFF1F5F1;
+    private static final int L_SURFACE_CONTAINER = 0xFFEBEFEB;
+    private static final int L_SURFACE_HIGH = 0xFFE5EAE5;
+    private static final int L_SURFACE_HIGHEST = 0xFFDFE4DF;
+    private static final int L_OUTLINE = 0xFF717971;
+    private static final int L_OUTLINE_VARIANT = 0xFFC1C9C1;
+
     static int PRIMARY;
     static int ON_PRIMARY;
     static int PRIMARY_CONTAINER;
@@ -103,6 +132,8 @@ final class Ui {
     static int RED;         // error
 
     private static String paletteKey = "";
+    /** True when the current palette is dark. */
+    static boolean dark = true;
 
     /** Smaller paddings and controls while running on a phone. */
     static boolean compact = false;
@@ -148,6 +179,37 @@ final class Ui {
         syncAliases();
     }
 
+    private static void setLight() {
+        PRIMARY = L_PRIMARY;
+        ON_PRIMARY = L_ON_PRIMARY;
+        PRIMARY_CONTAINER = L_PRIMARY_CONTAINER;
+        ON_PRIMARY_CONTAINER = L_ON_PRIMARY_CONTAINER;
+        SECONDARY = L_SECONDARY;
+        ON_SECONDARY = L_ON_SECONDARY;
+        SECONDARY_CONTAINER = L_SECONDARY_CONTAINER;
+        ON_SECONDARY_CONTAINER = L_ON_SECONDARY_CONTAINER;
+        TERTIARY = L_TERTIARY;
+        ON_TERTIARY = L_ON_TERTIARY;
+        TERTIARY_CONTAINER = L_TERTIARY_CONTAINER;
+        ON_TERTIARY_CONTAINER = L_ON_TERTIARY_CONTAINER;
+        ERROR = L_ERROR;
+        ON_ERROR = L_ON_ERROR;
+        ERROR_CONTAINER = L_ERROR_CONTAINER;
+        ON_ERROR_CONTAINER = L_ON_ERROR_CONTAINER;
+        SURFACE = L_SURFACE;
+        ON_SURFACE = L_ON_SURFACE;
+        SURFACE_VARIANT = L_SURFACE_VARIANT;
+        ON_SURFACE_VARIANT = L_ON_SURFACE_VARIANT;
+        SURFACE_CONTAINER_LOWEST = L_SURFACE_LOWEST;
+        SURFACE_CONTAINER_LOW = L_SURFACE_LOW;
+        SURFACE_CONTAINER = L_SURFACE_CONTAINER;
+        SURFACE_CONTAINER_HIGH = L_SURFACE_HIGH;
+        SURFACE_CONTAINER_HIGHEST = L_SURFACE_HIGHEST;
+        OUTLINE = L_OUTLINE;
+        OUTLINE_VARIANT = L_OUTLINE_VARIANT;
+        syncAliases();
+    }
+
     private static void syncAliases() {
         BG = SURFACE;
         TEXT = ON_SURFACE;
@@ -168,10 +230,17 @@ final class Ui {
      * Loads the current Material 3 palette. Returns true when the palette
      * differs from the one already applied to this process.
      */
-    static boolean init(Context c) {
-        // Keep a dark scheme even when the phone is in light mode. Dynamic
-        // colours are used for the accents; surfaces and text stay on the
-        // fixed dark Material 3 palette so the app always looks like Pi-hole.
+    static boolean init(Context c, boolean darkMode) {
+        if (!darkMode) {
+            boolean changed = !"light".equals(paletteKey);
+            setLight();
+            dark = false;
+            paletteKey = "light";
+            return changed;
+        }
+        dark = true;
+        // Dynamic colours are used for the accents; surfaces and text stay on
+        // the fixed dark Material 3 palette.
         int primaryLight = systemColor(c, "system_accent1_200", F_PRIMARY);
         int primaryDark = systemColor(c, "system_accent1_800", F_ON_PRIMARY);
         int primary = lighter(primaryLight, primaryDark);
@@ -195,7 +264,7 @@ final class Ui {
         int surface = F_SURFACE;
         int onSurface = F_ON_SURFACE;
 
-        String key = Integer.toHexString(primary) + ':'
+        String key = "dark:" + Integer.toHexString(primary) + ':'
                 + Integer.toHexString(secondary) + ':'
                 + Integer.toHexString(tertiary) + ':'
                 + Integer.toHexString(error) + ':'
@@ -439,7 +508,8 @@ final class Ui {
     /** A builder whose show() also matches the dialog text to the dynamic palette. */
     private static final class ThemedBuilder extends AlertDialog.Builder {
         ThemedBuilder(Context c) {
-            super(c, R.style.Theme_PiholeTV_Dialog);
+            super(c, dark ? R.style.Theme_PiholeTV_Dialog
+                    : R.style.Theme_PiholeTV_Dialog_Light);
         }
 
         @Override public AlertDialog show() {

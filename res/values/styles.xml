@@ -23,4 +23,15 @@
         <item name="android:backgroundDimAmount">0.68</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+
+    <style name="Theme.PiholeTV.Dialog.Light" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">@color/m3_light_primary</item>
+        <item name="android:colorBackground">@color/m3_light_surface_container_high</item>
+        <item name="android:colorForeground">@color/m3_light_on_surface</item>
+        <item name="android:textColorPrimary">@color/m3_light_on_surface</item>
+        <item name="android:textColorSecondary">@color/m3_light_on_surface_variant</item>
+        <item name="android:windowBackground">@drawable/m3_dialog_light</item>
+        <item name="android:backgroundDimAmount">0.38</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>

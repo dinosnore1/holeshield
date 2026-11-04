@@ -123,6 +123,7 @@ Hole Shield 2.3.1
 • Optional TV safe area for displays that crop the outer edges.
 • Material-style toggle switches for boolean settings.
 • Persistent TV navigation rail for Home, Server, Gravity & rules, Query log and Settings.
+• System, dark and light appearance modes for the native app.
 • Dropdown dialogs for Fallback DNS, DoH/DoT presets, blocked response and TV safe area.
 • Dashboard and LAN DNS are now opt-in, with a first-run setup screen.
 • Notification actions, a Quick Settings tile and a home-screen widget.

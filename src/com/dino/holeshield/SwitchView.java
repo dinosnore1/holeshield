@@ -52,7 +52,9 @@ final class SwitchView extends View {
         float radius = trackRect.height() / 2f;
 
         track.setStyle(Paint.Style.FILL);
-        track.setColor(checked ? Ui.PRIMARY_CONTAINER : Ui.SURFACE_CONTAINER_HIGHEST);
+        track.setColor(checked
+                ? (Ui.dark ? Ui.PRIMARY_CONTAINER : Ui.PRIMARY)
+                : Ui.SURFACE_CONTAINER_HIGHEST);
         canvas.drawRoundRect(trackRect, radius, radius, track);
 
         if (!checked) {
@@ -67,7 +69,9 @@ final class SwitchView extends View {
         float cx = trackRect.left + thumbR + travel * progress;
         float cy = trackRect.centerY();
         thumb.setStyle(Paint.Style.FILL);
-        thumb.setColor(Ui.TEXT);
+        thumb.setColor(checked
+                ? (Ui.dark ? Ui.TEXT : Ui.ON_PRIMARY)
+                : (Ui.dark ? Ui.TEXT : Ui.OUTLINE));
         canvas.drawCircle(cx, cy, thumbR, thumb);
     }
 

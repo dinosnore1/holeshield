@@ -17,4 +17,9 @@
     <color name="m3_surface_container_high">#FF252B28</color>
     <color name="m3_outline">#FF8A938C</color>
     <color name="m3_outline_variant">#FF404943</color>
+    <color name="m3_light_primary">#FF1B7F5C</color>
+    <color name="m3_light_surface_container_high">#FFE5EAE5</color>
+    <color name="m3_light_on_surface">#FF191C19</color>
+    <color name="m3_light_on_surface_variant">#FF414942</color>
+    <color name="m3_light_outline_variant">#FFC1C9C1</color>
 </resources>

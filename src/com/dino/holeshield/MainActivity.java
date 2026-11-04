@@ -15,6 +15,7 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Insets;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.net.ConnectivityManager;
@@ -161,8 +162,9 @@ public class MainActivity extends Activity {
         setRequestedOrientation(isTv
                 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-        Ui.init(this);
         prefs = Prefs.load(this);
+        Ui.init(this, prefs.darkTheme(this));
+        getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!DnsVpnService.running && !DnsVpnService.starting) {
             Stats.load(this);
@@ -325,7 +327,12 @@ public class MainActivity extends Activity {
         }
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Ui.BG);
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+        if (!Ui.dark) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(flags);
     }
 
     private static boolean isTelevision(Context c) {
@@ -508,11 +515,11 @@ public class MainActivity extends Activity {
         super.onResume();
         isTv = isTelevision(this);
         Ui.setCompact(!isTv);
-        if (Ui.init(this) && root != null) {
+        prefs = Prefs.load(this);
+        if (Ui.init(this, prefs.darkTheme(this)) && root != null) {
             setContentView(createShell());
             show(screen);
         }
-        prefs = Prefs.load(this);
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!autoStarted && prefs.protectionWanted && !DnsVpnService.running
                 && !vpnConsentNeeded) {
@@ -548,7 +555,8 @@ public class MainActivity extends Activity {
         setRequestedOrientation(isTv
                 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-        Ui.init(this);
+        prefs = Prefs.load(this);
+        Ui.init(this, prefs.darkTheme(this));
         if (root != null) {
             setContentView(createShell());
             show(screen);
@@ -915,6 +923,7 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------ live updating
 
     private void updateLive() {
+        updateStatusChip();
         if (screen == Screen.HOME) updateHomeLive();
         if (screen == Screen.PIHOLE) updatePiholeLive();
         if (screen == Screen.LISTS) updateListsLive();
@@ -923,6 +932,27 @@ public class MainActivity extends Activity {
     private void pausedChip(String label) {
         Ui.setChip(chip, label, Ui.ON_TERTIARY_CONTAINER,
                 Ui.TERTIARY_CONTAINER, Ui.withAlpha(Ui.TERTIARY, 0x66));
+    }
+
+    private void updateStatusChip() {
+        if (chip == null) return;
+        boolean running = DnsVpnService.running;
+        if (running && !prefs.blockingActive()) {
+            pausedChip(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
+                    ? "OUTSIDE HOURS" : "PAUSED");
+        } else if (running) {
+            Ui.setChip(chip, "PROTECTED", Ui.ON_PRIMARY_CONTAINER,
+                    Ui.PRIMARY_CONTAINER, Ui.withAlpha(Ui.PRIMARY, 0x66));
+        } else if (DnsVpnService.starting) {
+            pausedChip("STARTING");
+        } else if (!prefs.protectionWanted) {
+            Ui.setChip(chip, "OFF", Ui.DIM, Ui.SURFACE_CONTAINER_HIGH,
+                    Ui.OUTLINE_VARIANT);
+        } else if (vpnConsentNeeded) {
+            pausedChip("SETUP NEEDED");
+        } else {
+            pausedChip(DnsVpnService.lastError.isEmpty() ? "STARTING" : "SETUP NEEDED");
+        }
     }
 
     private void updateHomeLive() {
@@ -934,24 +964,7 @@ public class MainActivity extends Activity {
                     : running ? "Turn off protection" : "Turn on protection");
         }
 
-        if (chip != null) {
-            if (running && !prefs.blockingActive()) {
-                pausedChip(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
-                        ? "OUTSIDE HOURS" : "PAUSED");
-            } else if (running) {
-                Ui.setChip(chip, "PROTECTED", Ui.ON_PRIMARY_CONTAINER,
-                        Ui.PRIMARY_CONTAINER, Ui.withAlpha(Ui.PRIMARY, 0x66));
-            } else if (DnsVpnService.starting) {
-                pausedChip("STARTING");
-            } else if (!prefs.protectionWanted) {
-                Ui.setChip(chip, "OFF", Ui.DIM, Ui.SURFACE_CONTAINER_HIGH,
-                        Ui.OUTLINE_VARIANT);
-            } else if (vpnConsentNeeded) {
-                pausedChip("SETUP NEEDED");
-            } else {
-                pausedChip(DnsVpnService.lastError.isEmpty() ? "STARTING" : "SETUP NEEDED");
-            }
-        }
+        updateStatusChip();
 
         if (heroTitle != null) {
             if (running && !prefs.blockingActive()) {
@@ -2154,6 +2167,16 @@ public class MainActivity extends Activity {
                 "Run", this::testProtection), rowLp(3));
         add(col, bl, 8);
 
+        col.addView(section("APPEARANCE"));
+        LinearLayout appearance = Ui.column(this);
+        appearance.addView(settingRow("Theme",
+                "Follow the device, or force dark or light",
+                themeLabel(), () -> chooseOption("Theme",
+                        "Choose the app appearance",
+                        new String[]{"System", "Dark", "Light"},
+                        themeIndex(), this::setThemeMode)), rowLp(0));
+        add(col, appearance, 8);
+
         col.addView(section("SYSTEM"));
         LinearLayout sys = Ui.column(this);
         sys.addView(settingRow("Restart protection", "Apply network changes",
@@ -2329,6 +2352,28 @@ public class MainActivity extends Activity {
         setContentView(createShell());
         show(Screen.SETTINGS);
         Ui.toast(this, value <= 0 ? "TV safe area off" : "TV safe area " + value + "%");
+    }
+
+    private String themeLabel() {
+        if ("dark".equals(prefs.theme)) return "Dark";
+        if ("light".equals(prefs.theme)) return "Light";
+        return "System";
+    }
+
+    private int themeIndex() {
+        if ("dark".equals(prefs.theme)) return 1;
+        if ("light".equals(prefs.theme)) return 2;
+        return 0;
+    }
+
+    private void setThemeMode(int which) {
+        prefs.theme = which == 1 ? "dark" : which == 2 ? "light" : "system";
+        prefs.save(this);
+        Ui.init(this, prefs.darkTheme(this));
+        getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
+        setContentView(createShell());
+        show(Screen.SETTINGS);
+        immersive();
     }
 
     private void chooseDoh() {

@@ -80,10 +80,11 @@ before installing it.
   is off by default and can inset the layout for TVs that crop the outer edges. Log rows are focusable on TV and expose quick allow/block actions. TV keeps its focus rings and immersive fullscreen; phones use a compact
   layout, show the system bars and rebuild cleanly between portrait and
   landscape.
-- **Material You theme.** Dark Material 3 surfaces, tonal cards, pill buttons
-  and focus rings. Android 12+ uses the system's dynamic accent colors while the
-  surfaces stay dark; older devices use a matching scheme generated from the
-  Hole Shield green.
+- **Material You theme.** Dark and light Material 3 palettes with tonal cards,
+  pill buttons and focus rings. Choose System, Dark or Light in
+  Settings → Appearance. Android 12+ uses the system's dynamic accent colors in
+  dark mode; older devices use a matching scheme generated from the Hole Shield
+  green.
 
 ## Design
 

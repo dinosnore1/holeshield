@@ -2,6 +2,7 @@ package com.dino.holeshield;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 
 /**
  * One small preferences file. The VPN service and the dashboard both read it
@@ -20,6 +21,8 @@ final class Prefs {
     boolean startOnBoot = true;
     /** Extra TV-only inset for displays that crop the outer edges. */
     int tvSafeArea = 0;
+    /** "system", "dark" or "light". */
+    String theme = "system";
 
     /** Legacy external-Pi-hole fields; the built-in server is the default now. */
     boolean usePihole = false;
@@ -108,6 +111,7 @@ final class Prefs {
                 p.contains("protectionWanted") || p.contains("blocklistPresetVersion"));
         s.startOnBoot = p.getBoolean("startOnBoot", s.startOnBoot);
         s.tvSafeArea = p.getInt("tvSafeArea2", s.tvSafeArea);
+        s.theme = p.getString("theme", s.theme);
         // The embedded resolver replaced the legacy external-Pi-hole mode.
         // Ignore an old true value so upgrades cannot route around the
         // on-device gravity engine.
@@ -184,6 +188,7 @@ final class Prefs {
                 .putBoolean("onboardingDone", onboardingDone)
                 .putBoolean("startOnBoot", startOnBoot)
                 .putInt("tvSafeArea2", tvSafeArea)
+                .putString("theme", theme)
                 .putBoolean("usePihole", usePihole)
                 .putString("piholeHost", piholeHost)
                 .putInt("piholePort", piholePort)
@@ -226,6 +231,15 @@ final class Prefs {
                 .putInt("lanDnsPort", lanDnsPort)
                 .remove("webPassword")
                 .apply();
+    }
+
+    /** Resolves the appearance preference against the current system mode. */
+    boolean darkTheme(Context c) {
+        if ("dark".equals(theme)) return true;
+        if ("light".equals(theme)) return false;
+        int mode = c.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
+        return mode == Configuration.UI_MODE_NIGHT_YES;
     }
 
     boolean hasPihole() {
