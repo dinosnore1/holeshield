@@ -1,8 +1,8 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.3.1
-versionCode:   8
+Version:       2.3.2
+versionCode:   9
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
@@ -11,17 +11,17 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 688cd12e9951150cc5a3091c72ebdfba2a57e1dcad00b798b850b9f526506c85
-  Size    163 KB
+  SHA-256 825a6b9b6a0d01b3947ab29ae11ff0f5c76e160ecc146288e9c0a8bcfb79298e
+  Size    179 KB
 
 build/holeshield.apk
-  SHA-256 d1a0318c1c9d39f3b0e9ef9d8fa352412312dd74c17ecdc8507965ab4cefd068
-  Size    169 KB
+  SHA-256 74430b99c6168fb8f81a822d3704ee43083b8a950d4cd747c710a38ecb6e9674
+  Size    186 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 226556c323dd1c670cf0f9edbe881de620820cad300a354b98be11f937e95917
-  Size    169 KB
+  SHA-256 bd00a862b591063d6b4e4aa0b86a768b6d038482e4acc46e4e0290a04336f127
+  Size    186 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
 Use build/holeshield.apk for direct GitHub installs. Upload the AAB to Play;
@@ -96,8 +96,8 @@ Verified
   native select text is fully hidden, the paused label stays neutral (no red),
   and the focus ring/inset shadow is removed.
 - Dashboard, query log, gravity/rules and stats screens verified.
-- 2.3.1 installed on the STB at 192.168.2.133 (versionCode 8 / versionName
-  2.3.1).
+- 2.3.2 beta built (versionCode 9) and published to the beta channel. Not
+  installed over ADB; devices remain on 2.3.1 for the OTA test.
 - 2.3.1 refreshes the whole web dashboard: branded sticky header, hero summary
   chips, icon cards, tonal panels, cleaner tables/forms, polished login and a
   responsive mobile layout. Dark, light and 500px mobile layouts were checked

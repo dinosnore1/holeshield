@@ -17,7 +17,7 @@ with `AndroidManifest.xml` and `docs/privacy.html`.
 | Contact email | `gaganpachory@gmail.com` |
 | Website | `https://dinosnore1.github.io/holeshield-privacy/` |
 | Privacy policy | `https://dinosnore1.github.io/holeshield-privacy/privacy.html` |
-| Version | 2.3.1 (`versionCode 8`) |
+| Version | 2.3.2 (`versionCode 9`) |
 | Minimum Android | 8.0 (API 26) |
 | Target Android | 16 (API 36) |
 | Form factors | Phone, tablet, Android TV |
@@ -113,13 +113,16 @@ Website: https://dinosnore1.github.io/holeshield-privacy/
 Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 ```
 
-### Release notes (versionCode 8)
+### Release notes (versionCode 9)
 
 ```
-Hole Shield 2.3.1
-• Refreshed the whole web dashboard: branded header, hero summary, icon cards,
-  desktop section sidebar, phone bottom navigation,
-  cleaner panels, tables, forms, login screen and mobile layout.
+Hole Shield 2.3.2
+• Web dashboard redesign: desktop section sidebar with scroll spy and a fixed
+  icon bottom bar on phones.
+• Phone app redesign with a persistent icon bottom navigation bar.
+• Native System/Dark/Light appearance modes.
+• Stable/Beta update channels with an in-app update check.
+• TV navigation rail, dropdown settings and popup polish.
 • Settings keeps its scroll position, and SafeSearch is available in Settings.
 • Clearer blocklist health, query-log categories, server details and top clients.
 • Optional TV safe area for displays that crop the outer edges.

@@ -472,7 +472,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       <a href="#rule-panel">Rules</a>
       <a href="#server">Server</a>
     </nav>
-    <div class="sideFoot">Hole Shield · <span id="sideVersion">2.3.1</span></div>
+    <div class="sideFoot">Hole Shield · <span id="sideVersion">2.3.2</span></div>
   </aside>
 
   <main class="content">
@@ -670,7 +670,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
   </section>
 
-  <footer>Hole Shield · embedded DNS filter · <span id="footVersion">2.3.1</span></footer>
+  <footer>Hole Shield · embedded DNS filter · <span id="footVersion">2.3.2</span></footer>
   </main>
 </div>
 
@@ -1179,9 +1179,9 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       '<div class="box"><span>Blocking hours</span><b>' + (h.schedule_enabled ? esc(h.schedule_label || "") : "Off") + '</b></div>' +
       '<div class="box"><span>Blocked response</span><b>' + esc(h.blocked_response || "0.0.0.0") + '</b></div>' +
       '<div class="box"><span>SafeSearch</span><b>' + (h.safe_search ? "On" : "Off") + '</b></div>' +
-      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.3.1") + '</b></div>';
-    $("#footVersion").textContent = h.version || "2.3.1";
-    if($("#sideVersion")) $("#sideVersion").textContent = h.version || "2.3.1";
+      '<div class="box"><span>Version</span><b>' + esc(h.version || "2.3.2") + '</b></div>';
+    $("#footVersion").textContent = h.version || "2.3.2";
+    if($("#sideVersion")) $("#sideVersion").textContent = h.version || "2.3.2";
     if($("#heroUpstream")) $("#heroUpstream").textContent = h.upstream || "Encrypted DNS";
     if($("#heroSchedule")) $("#heroSchedule").textContent = h.schedule_enabled
       ? (h.schedule_label || "Scheduled") : "Always on";

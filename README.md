@@ -14,12 +14,12 @@ SDK command-line tools.
 
 The latest published prebuilt APK and Play AAB are attached to the
 [GitHub release](https://github.com/dinosnore1/pihole-tv/releases/latest).
-The current source build is **2.3.1** and is not published yet. This is the
+The current source build is **2.3.2** and is published to the beta channel. This is the
 new `com.dino.holeshield` package; uninstall the old `com.dino.pihole` app
 before installing it.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.3.1 (`versionCode 8`)
+- **Version:** 2.3.2 (`versionCode 9`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
