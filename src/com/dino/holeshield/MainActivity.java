@@ -452,11 +452,7 @@ public class MainActivity extends Activity {
         rail.addView(brand);
 
         railChip = Ui.chip(this);
-        LinearLayout statusRow = Ui.row(this);
-        statusRow.addView(railChip);
-        statusRow.addView(new View(this), Ui.lp(0, 1, 1f));
-        statusRow.addView(themeIcon());
-        rail.addView(statusRow, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        rail.addView(railChip, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 16), 0, 0));
 
         rail.addView(section("NAVIGATION"));
@@ -780,14 +776,8 @@ public class MainActivity extends Activity {
             top.addView(brand, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
             top.addView(new View(this), Ui.lp(0, 1, 1f));
-            top.addView(themeIcon());
-            View settingsIcon = Ui.iconButton(this, R.drawable.ic_settings,
-                    "Settings", () -> show(Screen.SETTINGS));
-            top.addView(settingsIcon, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 4), 0, 0, 0));
+            top.addView(chip);
             add(col, top, 0);
-            col.addView(chip, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
         }
 
         // Hero
@@ -992,24 +982,6 @@ public class MainActivity extends Activity {
     private void pausedChip(String label) {
         Ui.setChip(chip, label, Ui.ON_TERTIARY_CONTAINER,
                 Ui.TERTIARY_CONTAINER, Ui.withAlpha(Ui.TERTIARY, 0x66));
-    }
-
-    private View themeIcon() {
-        return Ui.iconButton(this,
-                Ui.dark ? R.drawable.ic_theme_light : R.drawable.ic_theme_dark,
-                Ui.dark ? "Switch to light mode" : "Switch to dark mode",
-                this::toggleThemeQuick);
-    }
-
-    private void toggleThemeQuick() {
-        prefs = Prefs.load(this);
-        prefs.theme = Ui.dark ? "light" : "dark";
-        prefs.save(this);
-        Ui.init(this, prefs.darkTheme(this));
-        getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
-        setContentView(createShell());
-        show(screen);
-        immersive();
     }
 
     private void updateStatusChip() {

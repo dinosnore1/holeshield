@@ -16,7 +16,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -469,30 +468,6 @@ final class Ui {
         b.setBackground(s);
         focusScale(b);
         return b;
-    }
-
-    static ImageView iconButton(Context c, int drawable, String description,
-                                Runnable action) {
-        ImageView v = new ImageView(c);
-        v.setImageResource(drawable);
-        v.setContentDescription(description);
-        v.setScaleType(ImageView.ScaleType.CENTER);
-        v.setImageTintList(ColorStateList.valueOf(PRIMARY));
-        v.setPadding(dp(c, 9), dp(c, 9), dp(c, 9), dp(c, 9));
-        v.setMinimumWidth(dp(c, 40));
-        v.setMinimumHeight(dp(c, 40));
-        v.setFocusable(true);
-        v.setClickable(true);
-        StateListDrawable s = new StateListDrawable();
-        s.addState(new int[]{android.R.attr.state_focused},
-                rounded(c, PRIMARY_CONTAINER, 999, 2, PRIMARY));
-        s.addState(new int[]{android.R.attr.state_pressed},
-                rounded(c, SECONDARY_CONTAINER, 999, 2, SECONDARY));
-        s.addState(new int[]{}, rounded(c, Color.TRANSPARENT, 999, 1, OUTLINE_VARIANT));
-        v.setBackground(s);
-        v.setOnClickListener(view -> action.run());
-        focusScale(v);
-        return v;
     }
 
     static TextView chip(Context c) {
