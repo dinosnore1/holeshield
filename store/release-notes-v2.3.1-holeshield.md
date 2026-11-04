@@ -22,6 +22,15 @@ rules, blocklists and statistics are kept.
   support and themed scrollbars.
 - Settings keeps its scroll position and focused row when an in-place option
   such as Fallback DNS is changed.
+- Settings now exposes SafeSearch directly, with an accurate active/inactive
+  description.
+- Network details open at the header; only address rows have Copy buttons.
+- Blocklist health uses readable filenames, shows an OK summary and switches the
+  action to "Update lists" when nothing failed.
+- Server details no longer repeat the dashboard/LAN URLs, top clients no longer
+  duplicate bare IPs, and query rows show their category.
+- Stat cards are tinted and use accent values; section headings have accent
+  bars; the query log has a TV focus target.
 
 ## Also included from 2.3.0
 
@@ -45,6 +54,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-b304378623ed5ff387e49f516882002b70ae9823cb506e3c56cbfff62be69ded  holeshield.aab
-d228c3ef7326968ebb0320dea0d260c59b3dfa4c665209945560d50335e3e5f2  holeshield.apk
+2bbc954c936539c32d0e09ddd3d93d9a8ae29645e50a8df93718f2668f2c551e  holeshield.aab
+3e4ba72c5135b61245ae9c1169bd26acf7151ae380b29c3089590d8d4cde4124  holeshield.apk
 ```

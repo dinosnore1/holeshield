@@ -657,9 +657,9 @@ public class MainActivity extends Activity {
         // Stats row
         LinearLayout stats = Ui.row(this);
         statQueries = statCard(stats, isTv ? "DNS QUERIES" : "QUERIES",
-                "today, all clients");
-        statBlocked = statCard(stats, "BLOCKED", "by gravity & rules");
-        statRate = statCard(stats, "BLOCK RATE", "of all lookups");
+                "today, all clients", Ui.GREEN);
+        statBlocked = statCard(stats, "BLOCKED", "by gravity & rules", Ui.RED);
+        statRate = statCard(stats, "BLOCK RATE", "of all lookups", Ui.BLUE);
         add(col, stats, isTv ? 18 : 14);
 
         // Pi-hole card
@@ -744,14 +744,19 @@ public class MainActivity extends Activity {
     }
 
     private TextView statCard(LinearLayout parent, String label, String sub) {
+        return statCard(parent, label, sub, Ui.TEXT);
+    }
+
+    private TextView statCard(LinearLayout parent, String label, String sub, int accent) {
         LinearLayout c = Ui.column(this);
-        c.setBackground(Ui.rounded(this, Ui.CARD, isTv ? 24 : 20, 1, Ui.STROKE));
+        c.setBackground(Ui.rounded(this, Ui.mix(Ui.CARD, accent, 0.07f),
+                isTv ? 24 : 20, 1, Ui.STROKE));
         c.setPadding(Ui.dp(this, isTv ? 24 : 16), Ui.dp(this, isTv ? 20 : 14),
                 Ui.dp(this, isTv ? 24 : 16), Ui.dp(this, isTv ? 18 : 12));
 
         TextView cap = Ui.caption(this, label);
         c.addView(cap);
-        TextView value = Ui.text(this, "0", isTv ? 34 : 26, Ui.TEXT, true);
+        TextView value = Ui.text(this, "0", isTv ? 34 : 26, accent, true);
         c.addView(value, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, isTv ? 10 : 7), 0, 0));
         c.addView(Ui.text(this, sub, isTv ? 12 : 11, Ui.FAINT, false));
@@ -957,19 +962,19 @@ public class MainActivity extends Activity {
 
         if (isTv) {
             LinearLayout stats = Ui.row(this);
-            piholeQ = statCard(stats, "QUERIES", "today, all clients");
-            piholeB = statCard(stats, "BLOCKED", "gravity & rules");
-            piholePct = statCard(stats, "PERCENT", "of all queries");
-            piholeGravity = statCard(stats, "ON LISTS", "domains");
+            piholeQ = statCard(stats, "QUERIES", "today, all clients", Ui.GREEN);
+            piholeB = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
+            piholePct = statCard(stats, "PERCENT", "of all queries", Ui.AMBER);
+            piholeGravity = statCard(stats, "ON LISTS", "domains", Ui.BLUE);
             add(col, stats, 18);
         } else {
             LinearLayout stats1 = Ui.row(this);
-            piholeQ = statCard(stats1, "QUERIES", "today, all clients");
-            piholeB = statCard(stats1, "BLOCKED", "gravity & rules");
+            piholeQ = statCard(stats1, "QUERIES", "today, all clients", Ui.GREEN);
+            piholeB = statCard(stats1, "BLOCKED", "gravity & rules", Ui.RED);
             add(col, stats1, 14);
             LinearLayout stats2 = Ui.row(this);
-            piholePct = statCard(stats2, "PERCENT", "of all queries");
-            piholeGravity = statCard(stats2, "ON LISTS", "domains");
+            piholePct = statCard(stats2, "PERCENT", "of all queries", Ui.AMBER);
+            piholeGravity = statCard(stats2, "ON LISTS", "domains", Ui.BLUE);
             add(col, stats2, 8);
         }
 
@@ -1119,9 +1124,7 @@ public class MainActivity extends Activity {
                     ? "not set"
                     : (prefs.webUsername == null || prefs.webUsername.isEmpty()
                             ? "password only" : "user + password");
-            piholeServer.setText("Dashboard: " + (url.isEmpty() ? "off" : url)
-                    + "\nLAN DNS: " + (dns.isEmpty() ? "off" : dns)
-                    + "\nWeb login: " + login
+            piholeServer.setText("Web login: " + login
                     + "\nWeb server: " + (DnsVpnService.webRunning ? "listening" : "off")
                     + "   ·   LAN DNS: " + (DnsVpnService.lanDnsRunning ? "listening" : "off")
                     + "\nPort 53 on the LAN needs root; use " + prefs.lanDnsPort + " instead.");
@@ -1177,9 +1180,9 @@ public class MainActivity extends Activity {
                 } else {
                     for (Stats.Top t : tops) {
                         LinearLayout row = Ui.row(this);
-                        TextView name = Ui.text(this,
-                                DnsEngine.clientName(t.key) + "  ·  " + t.key,
-                                13, Ui.TEXT, false);
+                        String clientName = DnsEngine.clientName(t.key);
+                        if (!clientName.equals(t.key)) clientName += "  ·  " + t.key;
+                        TextView name = Ui.text(this, clientName, 13, Ui.TEXT, false);
                         name.setSingleLine(true);
                         row.addView(name, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                         row.addView(Ui.text(this, Ui.count(t.count), 12, Ui.FAINT, false));
@@ -1333,17 +1336,8 @@ public class MainActivity extends Activity {
                     show(Screen.LISTS);
                 }), rowLp(2));
         cats.addView(settingRow("SafeSearch / parental filter",
-                "Adds an adult-content list; update gravity to apply",
-                prefs.safeSearch ? "On" : "Off", () -> {
-                    prefs.safeSearch = !prefs.safeSearch;
-                    prefs.blocklistUrls = prefs.safeSearch
-                            ? Blocklists.mergeMissing(prefs.blocklistUrls, Blocklists.ADULT)
-                            : Blocklists.removeAll(prefs.blocklistUrls, Blocklists.ADULT);
-                    prefs.save(this);
-                    Blocklist.setCategoryMask(prefs.categoryMask());
-                    show(Screen.LISTS);
-                    if (prefs.safeSearch) updateBlocklist();
-                }), rowLp(3));
+                safeSearchSubtitle(), prefs.safeSearch ? "On" : "Off",
+                () -> toggleSafeSearch(Screen.LISTS)), rowLp(3));
         add(col, cats, 8);
 
         addHealthPanel(col);
@@ -1383,29 +1377,59 @@ public class MainActivity extends Activity {
         return settingRow(title, subtitle, on ? "On" : "Off", action);
     }
 
+    private String safeSearchSubtitle() {
+        return prefs.safeSearch
+                ? "Adult-content list is active; update gravity after changing"
+                : "Adds an adult-content list; update gravity to apply";
+    }
+
+    private void toggleSafeSearch(Screen returnTo) {
+        prefs = Prefs.load(this);
+        prefs.safeSearch = !prefs.safeSearch;
+        prefs.blocklistUrls = prefs.safeSearch
+                ? Blocklists.mergeMissing(prefs.blocklistUrls, Blocklists.ADULT)
+                : Blocklists.removeAll(prefs.blocklistUrls, Blocklists.ADULT);
+        prefs.save(this);
+        Blocklist.setCategoryMask(prefs.categoryMask());
+        show(returnTo);
+        if (prefs.safeSearch) updateBlocklist();
+        else Ui.toast(this, "Adult-content list removed");
+    }
+
     private void addHealthPanel(LinearLayout col) {
         LinearLayout health = card(22);
+        List<Blocklist.Health> lists = Blocklist.parseHealth(prefs.listHealth);
+        int failures = 0;
+        for (Blocklist.Health h : lists) if (!h.ok) failures++;
+
         LinearLayout head = Ui.row(this);
         head.addView(Ui.caption(this, "BLOCKLIST HEALTH"));
         head.addView(new View(this), Ui.lp(0, 1, 1f));
-        TextView retry = Ui.button(this, "Retry failed", false);
+        TextView retry = Ui.button(this, failures > 0 ? "Retry failed" : "Update lists",
+                failures > 0);
         retry.setOnClickListener(v -> updateBlocklist());
         head.addView(retry);
         health.addView(head);
 
-        List<Blocklist.Health> lists = Blocklist.parseHealth(prefs.listHealth);
         if (lists.isEmpty()) {
             health.addView(Ui.text(this, "No download results yet. Update gravity to "
                     + "check every list.", 12.5f, Ui.FAINT, false),
                     Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
         } else {
+            int ok = lists.size() - failures;
+            health.addView(Ui.text(this, ok + " of " + lists.size()
+                            + (failures == 0 ? " lists healthy" : " lists healthy · "
+                                    + failures + " failed"),
+                            11.5f, failures == 0 ? Ui.FAINT : Ui.RED, false),
+                    Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
             for (int i = 0; i < lists.size(); i++) {
                 Blocklist.Health h = lists.get(i);
                 LinearLayout row = Ui.row(this);
                 row.addView(Ui.text(this, h.ok ? "●" : "×", 10,
                         h.ok ? Ui.GREEN : Ui.RED, false));
-                TextView url = Ui.text(this, Prefs.hostOf(h.url), 12.5f, Ui.TEXT, false);
+                TextView url = Ui.text(this, healthLabel(h.url), 12.5f, Ui.TEXT, false);
                 url.setSingleLine(true);
                 row.addView(url, Ui.margins(Ui.lp(0,
                         ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
@@ -1416,10 +1440,24 @@ public class MainActivity extends Activity {
                         h.ok ? Ui.FAINT : Ui.RED, false));
                 health.addView(row, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT), 0,
-                        i == 0 ? Ui.dp(this, 8) : Ui.dp(this, 6), 0, 0));
+                        i == 0 ? Ui.dp(this, 7) : Ui.dp(this, 6), 0, 0));
             }
         }
         add(col, health, isTv ? 18 : 14);
+    }
+
+    /** A short, distinguishable label for a blocklist URL. */
+    private static String healthLabel(String url) {
+        try {
+            URL parsed = new URL(url);
+            String path = parsed.getPath();
+            int slash = path == null ? -1 : path.lastIndexOf('/');
+            String tail = slash >= 0 ? path.substring(slash + 1) : path;
+            if (tail == null || tail.isEmpty()) return parsed.getHost();
+            return tail;
+        } catch (Exception e) {
+            return Prefs.hostOf(url);
+        }
     }
 
     private void editClientRules() {
@@ -1584,6 +1622,7 @@ public class MainActivity extends Activity {
         actions.addView(export, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
         add(col, actions, isTv ? 8 : 6);
+        initialFocus = clear;
 
         List<Stats.Entry> entries = Stats.log(200);
         LinearLayout list = card(22);
@@ -1611,6 +1650,13 @@ public class MainActivity extends Activity {
                     row.addView(name, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
                             Ui.dp(this, 10), 0, 0, 0));
                     row.addView(Ui.text(this, e.typeName(), 10, Ui.FAINT, false));
+                    TextView category = Ui.text(this,
+                            e.category.isEmpty() ? "—" : e.category, 9.5f, Ui.FAINT, false);
+                    category.setSingleLine(true);
+                    category.setMinWidth(Ui.dp(this, 72));
+                    category.setGravity(Gravity.END);
+                    row.addView(category, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 10), 0, 0, 0));
                     TextView client = Ui.text(this, DnsEngine.clientName(e.client),
                             10, Ui.FAINT, false);
                     client.setMinWidth(Ui.dp(this, 90));
@@ -1631,6 +1677,10 @@ public class MainActivity extends Activity {
                     meta.addView(status, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
                     meta.addView(Ui.text(this, e.typeName(), 9.5f, Ui.FAINT, false),
+                            Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+                    meta.addView(Ui.text(this,
+                                    e.category.isEmpty() ? "—" : e.category, 9.5f, Ui.FAINT, false),
                             Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                                     ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
                     meta.addView(new View(this), Ui.lp(0, 1, 1f));
@@ -1990,8 +2040,11 @@ public class MainActivity extends Activity {
                 this::updateBlocklist), rowLp(0));
         bl.addView(settingRow("Blocklist sources", "One hosts/adblock URL per line",
                 listUrlCount(prefs.blocklistUrls) + " lists", this::editListUrls), rowLp(1));
+        bl.addView(settingRow("SafeSearch / parental filter", safeSearchSubtitle(),
+                prefs.safeSearch ? "On" : "Off",
+                () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(2));
         bl.addView(settingRow("Test protection", "Resolve a known ad domain through the VPN",
-                "Run", this::testProtection), rowLp(2));
+                "Run", this::testProtection), rowLp(3));
         add(col, bl, 8);
 
         col.addView(section("SYSTEM"));
@@ -2020,11 +2073,18 @@ public class MainActivity extends Activity {
         return col;
     }
 
-    private TextView section(String title) {
+    private LinearLayout section(String title) {
+        LinearLayout row = Ui.row(this);
+        row.setPadding(0, Ui.dp(this, isTv ? 20 : 14), 0, Ui.dp(this, isTv ? 8 : 6));
+        View bar = new View(this);
+        bar.setBackground(Ui.rounded(this, Ui.PRIMARY, 99));
+        bar.setLayoutParams(Ui.lp(Ui.dp(this, 3), Ui.dp(this, 12)));
+        row.addView(bar);
         TextView t = Ui.caption(this, title);
         t.setTextSize(11);
-        t.setPadding(0, Ui.dp(this, isTv ? 20 : 14), 0, Ui.dp(this, isTv ? 8 : 6));
-        return t;
+        row.addView(t, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+        return row;
     }
 
     private LinearLayout settingRow(String title, String subtitle, String value, Runnable action) {
@@ -2283,16 +2343,17 @@ public class MainActivity extends Activity {
         String dns = NetInfo.lanDnsUrl(this, prefs);
         LinearLayout card = card(24);
         card.addView(addressRow("Web dashboard", web.isEmpty() ? "Off" : web,
-                "Open the dashboard in a browser"));
+                "Open the dashboard in a browser", true));
         card.addView(addressRow("LAN DNS (UDP/TCP)", dns.isEmpty() ? "Off" : dns,
-                "Use this address on other devices; port 53 needs root"));
+                "Use this address on other devices; port 53 needs root", true));
         card.addView(addressRow("Web login", prefs.hasWebPassword()
                         ? (prefs.webUsername == null || prefs.webUsername.isEmpty()
                                 ? "Password only" : "User + password")
                         : "Not set",
-                prefs.hasWebPassword() ? "Login required" : "Dashboard is open on the LAN"));
+                prefs.hasWebPassword() ? "Login required" : "Dashboard is open on the LAN",
+                false));
         card.addView(addressRow("Upstream", prefs.upstreamLabel(),
-                "Used for allowed and cache-miss lookups"));
+                "Used for allowed and cache-miss lookups", false));
         add(col, card, isTv ? 18 : 14);
 
         LinearLayout tips = card(22);
@@ -2325,11 +2386,12 @@ public class MainActivity extends Activity {
                     ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
         }
         add(col, actions, isTv ? 16 : 12);
-        initialFocus = settings;
+        initialFocus = null;
         return col;
     }
 
-    private LinearLayout addressRow(String label, String value, String note) {
+    private LinearLayout addressRow(String label, String value, String note,
+                                    boolean copyable) {
         LinearLayout row = Ui.row(this);
         row.setPadding(0, Ui.dp(this, 9), 0, Ui.dp(this, 9));
         LinearLayout text = Ui.column(this);
@@ -2340,9 +2402,11 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 4), 0, 0));
         text.addView(Ui.text(this, note, 11, Ui.FAINT, false));
         row.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView copy = Ui.button(this, "Copy", false);
-        copy.setOnClickListener(v -> copyText(label, value));
-        row.addView(copy);
+        if (copyable) {
+            TextView copy = Ui.button(this, "Copy", false);
+            copy.setOnClickListener(v -> copyText(label, value));
+            row.addView(copy);
+        }
         return row;
     }
 

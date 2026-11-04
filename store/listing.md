@@ -118,6 +118,8 @@ Privacy policy: https://dinosnore1.github.io/holeshield-privacy/privacy.html
 Hole Shield 2.3.1
 • Refreshed the whole web dashboard: branded header, hero summary, icon cards,
   cleaner panels, tables, forms, login screen and mobile layout.
+• Settings keeps its scroll position, and SafeSearch is available in Settings.
+• Clearer blocklist health, query-log categories, server details and top clients.
 • Dashboard and LAN DNS are now opt-in, with a first-run setup screen.
 • Notification actions, a Quick Settings tile and a home-screen widget.
 • Query log quick allow/block, category column and CSV/JSON export.
