@@ -11,16 +11,16 @@ Built:         2026-11-04
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.aab
-  SHA-256 4a2e4008c588abdc80b657d74ffe39fd499cb27872ae7d9a8fc1523c016e6665
+  SHA-256 b546b86917cccf9f36b2eb5c7572d3e4ceeb757cce8e28190eff9258499f9366
   Size    163 KB
 
 build/holeshield.apk
-  SHA-256 4726ee0a4df2a54eb421cf3a0f52c372f2bcd28c374cd4fbfeedd12f581ed52f
+  SHA-256 328a41ee7a8f491a3adb42283086b4a161695f5970e897e76ab58127b5b1f79d
   Size    169 KB
   Signed with the direct-install key (~/.android/pihole-tv.keystore).
 
 build/universal/universal.apk
-  SHA-256 f1e67c5eb0fd1a69214433a9ac62a6b89cbec497a493684f8615ef42f495d065
+  SHA-256 5389bbb48ac89db479e67cf769447510823575ba1273f5fb0a1da1334eeab417
   Size    169 KB
   Signed with the upload key; test-only build of the exact Play bundle.
 
@@ -127,6 +127,12 @@ Verified
   the rail; TV subheaders no longer repeat a Back button; long query domains
   ellipsize instead of colliding with the type column. Phone keeps its top
   header.
+- Multi-option settings now open single-choice dropdown dialogs: Fallback DNS,
+  DoH/DoT provider presets, Blocked response and TV safe area.
+- Dropdown popups use a custom padded layout: title, option rows and Cancel stay
+  clear of the rounded dialog corners. Inner padding was increased to 34dp on
+  TV and 26dp on phone. Popups now have a shield header, subtitle, close button,
+  divider and clearer selected-row styling.
 - Reduced the vertical gap between setting rows (4dp on TV, 3dp on phone).
 - 2.3.0 adds opt-in dashboard/LAN DNS, notification actions, a Quick Settings
   tile and a home-screen widget. The notification exposes Pause 30 min and

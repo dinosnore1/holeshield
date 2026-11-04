@@ -80,6 +80,7 @@ public class MainActivity extends Activity {
     private static final int REQ_NOTIFICATION = 42;
     private static final int REQ_BACKUP_SAVE = 43;
     private static final int REQ_BACKUP_OPEN = 44;
+    private static final int[] TV_SAFE_VALUES = {0, 5, 10, 12, 15};
 
     private Prefs prefs;
     private boolean isTv;
@@ -2124,48 +2125,20 @@ public class MainActivity extends Activity {
         col.addView(section("UPSTREAM"));
         LinearLayout up = Ui.column(this);
         up.addView(settingRow("Fallback DNS", "Used for allowed and cache-miss lookups",
-                fallbackLabel(), () -> {
-                    if ("doh".equals(prefs.fallback)) prefs.fallback = "dot";
-                    else if ("dot".equals(prefs.fallback)) prefs.fallback = "plain";
-                    else if ("plain".equals(prefs.fallback)) prefs.fallback = "none";
-                    else prefs.fallback = "doh";
-                    prefs.save(this);
-                    restartIfRunning();
-                    show(Screen.SETTINGS);
-                }), rowLp(0));
+                fallbackLabel(), () -> chooseOption("Fallback DNS",
+                        "Used for allowed and cache-miss lookups",
+                        new String[]{"Encrypted (DoH)", "DNS-over-TLS (DoT)",
+                                "Plain DNS", "Off"},
+                        fallbackIndex(), this::setFallback)), rowLp(0));
         up.addView(settingRow("Encrypted DNS server", "DoH endpoint for the fallback",
-                Prefs.hostOf(prefs.dohUrl), () -> edit("Encrypted DNS URL",
-                        prefs.dohUrl, false, value -> {
-                            if (!validUrl(value, false)) {
-                                Ui.toast(this, "Use an https:// DoH URL");
-                                return;
-                            }
-                            prefs.dohUrl = value;
-                            prefs.save(this);
-                            restartIfRunning();
-                            show(Screen.SETTINGS);
-                        })), rowLp(1));
+                Prefs.hostOf(prefs.dohUrl), this::chooseDoh), rowLp(1));
         up.addView(settingRow("DNS-over-TLS server", "Hostname used when DoT is selected",
-                prefs.dotHost, () -> edit("DNS-over-TLS host", prefs.dotHost, false,
-                        "one.one.one.one", value -> {
-                            if (value.isEmpty() || value.contains(" ") || value.contains("/")) {
-                                Ui.toast(this, "Use a DNS hostname such as one.one.one.one");
-                                return;
-                            }
-                            prefs.dotHost = value;
-                            prefs.save(this);
-                            restartIfRunning();
-                            show(Screen.SETTINGS);
-                        })), rowLp(2));
+                prefs.dotHost, this::chooseDot), rowLp(2));
         up.addView(settingRow("Blocked response", "What clients receive for a blocked name",
-                blockedResponseLabel(), () -> {
-                    if ("zero".equals(prefs.blockedResponse)) prefs.blockedResponse = "nxdomain";
-                    else if ("nxdomain".equals(prefs.blockedResponse)) prefs.blockedResponse = "nodata";
-                    else prefs.blockedResponse = "zero";
-                    prefs.save(this);
-                    reloadService();
-                    show(Screen.SETTINGS);
-                }), rowLp(3));
+                blockedResponseLabel(), () -> chooseOption("Blocked response",
+                        "What clients receive for a blocked name",
+                        new String[]{"0.0.0.0", "NXDOMAIN", "NODATA"},
+                        blockedResponseIndex(), this::setBlockedResponse)), rowLp(3));
         add(col, up, 8);
 
         col.addView(section("GRAVITY"));
@@ -2193,7 +2166,10 @@ public class MainActivity extends Activity {
             sys.addView(settingRow("TV safe area",
                     "Increase this if your TV crops the outer edges",
                     prefs.tvSafeArea <= 0 ? "Off" : prefs.tvSafeArea + "%",
-                    this::cycleTvSafeArea), rowLp(sysRow++));
+                    () -> chooseOption("TV safe area",
+                            "Inset content if your TV crops the edges",
+                            new String[]{"Off", "5%", "10%", "12%", "15%"},
+                            safeAreaIndex(), this::setSafeArea)), rowLp(sysRow++));
         }
         sys.addView(settingRow(isTv ? "About Hole Shield TV" : "About Hole Shield",
                 "Version " + Device.versionName(this) + " · Material You · no analytics",
@@ -2214,20 +2190,200 @@ public class MainActivity extends Activity {
         return col;
     }
 
-    private void cycleTvSafeArea() {
-        int[] values = {0, 5, 10, 12, 15};
-        int next = values[0];
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == prefs.tvSafeArea) {
-                next = values[(i + 1) % values.length];
-                break;
-            }
+    private void chooseOption(String title, String subtitle, String[] labels,
+                              int selected, Consumer<Integer> done) {
+        LinearLayout box = Ui.column(this);
+        int pad = Ui.dp(this, isTv ? 34 : 26);
+        box.setPadding(pad, Ui.dp(this, isTv ? 24 : 20),
+                pad, Ui.dp(this, isTv ? 22 : 16));
+        box.setMinimumWidth(Ui.dp(this, isTv ? 540 : 340));
+
+        AlertDialog dialog = Ui.builder(this).setView(box).create();
+
+        LinearLayout header = Ui.row(this);
+        ShieldView icon = new ShieldView(this);
+        icon.setOn(true);
+        icon.setLayoutParams(Ui.lp(Ui.dp(this, 32), Ui.dp(this, 32)));
+        header.addView(icon);
+        LinearLayout titles = Ui.column(this);
+        titles.addView(Ui.text(this, title, isTv ? 20 : 18, Ui.TEXT, true));
+        if (subtitle != null && !subtitle.isEmpty()) {
+            TextView sub = Ui.text(this, subtitle, isTv ? 12 : 11.5f, Ui.DIM, false);
+            sub.setLineSpacing(Ui.dp(this, 2), 1f);
+            titles.addView(sub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
         }
-        prefs.tvSafeArea = next;
+        header.addView(titles, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                Ui.dp(this, 12), 0, 0, 0));
+        TextView close = Ui.text(this, "×", isTv ? 22 : 20, Ui.DIM, false);
+        close.setGravity(Gravity.CENTER);
+        close.setFocusable(true);
+        close.setClickable(true);
+        close.setPadding(Ui.dp(this, 10), Ui.dp(this, 2), Ui.dp(this, 4), Ui.dp(this, 4));
+        close.setOnClickListener(v -> dialog.dismiss());
+        header.addView(close);
+        box.addView(header);
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Ui.withAlpha(Ui.OUTLINE_VARIANT, 0x99));
+        box.addView(divider, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                Ui.dp(this, 1)), 0, Ui.dp(this, 14), 0, Ui.dp(this, 8)));
+
+        LinearLayout first = null;
+        for (int i = 0; i < labels.length; i++) {
+            final int which = i;
+            boolean isSelected = i == selected;
+            LinearLayout row = Ui.focusableCard(this, 14);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setSelected(isSelected);
+            row.setBackground(optionBg(isSelected));
+            TextView mark = Ui.text(this, isSelected ? "●" : "○",
+                    isTv ? 16 : 15, isSelected ? Ui.ON_PRIMARY_CONTAINER : Ui.DIM, false);
+            row.addView(mark);
+            TextView label = Ui.text(this, labels[i], isTv ? 15 : 14,
+                    isSelected ? Ui.ON_PRIMARY_CONTAINER : Ui.TEXT, false);
+            row.addView(label, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                    Ui.dp(this, 10), 0, 0, 0));
+            row.setContentDescription(labels[i] + (isSelected ? " selected" : ""));
+            row.setOnClickListener(v -> {
+                dialog.dismiss();
+                done.accept(which);
+            });
+            box.addView(row, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), 0,
+                    i == 0 ? 0 : Ui.dp(this, 5), 0, 0));
+            if (i == 0) first = row;
+        }
+
+        LinearLayout actions = Ui.row(this);
+        actions.setGravity(Gravity.END);
+        TextView cancel = Ui.button(this, "Cancel", false);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        actions.addView(cancel);
+        box.addView(actions, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 14), 0, 0));
+
+        final LinearLayout focusFirst = first;
+        dialog.setOnShowListener(d -> {
+            if (focusFirst != null) focusFirst.requestFocus();
+        });
+        dialog.show();
+        Ui.tintDialog(dialog);
+    }
+
+    private StateListDrawable optionBg(boolean selected) {
+        StateListDrawable s = new StateListDrawable();
+        s.addState(new int[]{android.R.attr.state_focused},
+                Ui.rounded(this, Ui.SURFACE_CONTAINER_HIGH, 14, 2,
+                        Ui.withAlpha(Ui.PRIMARY, 0xCC)));
+        if (selected) {
+            s.addState(new int[]{android.R.attr.state_selected},
+                    Ui.rounded(this, Ui.PRIMARY_CONTAINER, 14, 1,
+                            Ui.withAlpha(Ui.PRIMARY, 0x66)));
+        }
+        s.addState(new int[]{}, Ui.rounded(this, Ui.SURFACE_CONTAINER, 14, 1, Ui.STROKE));
+        return s;
+    }
+
+    private int fallbackIndex() {
+        if ("doh".equals(prefs.fallback)) return 0;
+        if ("dot".equals(prefs.fallback)) return 1;
+        if ("plain".equals(prefs.fallback)) return 2;
+        return 3;
+    }
+
+    private void setFallback(int which) {
+        if (which == 0) prefs.fallback = "doh";
+        else if (which == 1) prefs.fallback = "dot";
+        else if (which == 2) prefs.fallback = "plain";
+        else prefs.fallback = "none";
+        prefs.save(this);
+        restartIfRunning();
+        show(Screen.SETTINGS);
+    }
+
+    private int blockedResponseIndex() {
+        if ("nxdomain".equals(prefs.blockedResponse)) return 1;
+        if ("nodata".equals(prefs.blockedResponse)) return 2;
+        return 0;
+    }
+
+    private void setBlockedResponse(int which) {
+        prefs.blockedResponse = which == 1 ? "nxdomain" : which == 2 ? "nodata" : "zero";
+        prefs.save(this);
+        reloadService();
+        show(Screen.SETTINGS);
+    }
+
+    private int safeAreaIndex() {
+        for (int i = 0; i < TV_SAFE_VALUES.length; i++) {
+            if (TV_SAFE_VALUES[i] == prefs.tvSafeArea) return i;
+        }
+        return 0;
+    }
+
+    private void setSafeArea(int which) {
+        int value = TV_SAFE_VALUES[Math.max(0, Math.min(TV_SAFE_VALUES.length - 1, which))];
+        prefs.tvSafeArea = value;
         prefs.save(this);
         setContentView(createShell());
         show(Screen.SETTINGS);
-        Ui.toast(this, "TV safe area " + next + "%");
+        Ui.toast(this, value <= 0 ? "TV safe area off" : "TV safe area " + value + "%");
+    }
+
+    private void chooseDoh() {
+        String[] labels = {"Cloudflare", "Google", "Quad9", "Custom…"};
+        String[] urls = {
+                "https://cloudflare-dns.com/dns-query",
+                "https://dns.google/dns-query",
+                "https://dns.quad9.net/dns-query"
+        };
+        int selected = 3;
+        for (int i = 0; i < urls.length; i++) {
+            if (urls[i].equals(prefs.dohUrl)) selected = i;
+        }
+        chooseOption("Encrypted DNS server", "DoH endpoint used by the fallback",
+                labels, selected, which -> {
+            if (which == 3) edit("Encrypted DNS URL", prefs.dohUrl, false, this::applyDoh);
+            else applyDoh(urls[which]);
+        });
+    }
+
+    private void applyDoh(String value) {
+        if (!validUrl(value, false)) {
+            Ui.toast(this, "Use an https:// DoH URL");
+            return;
+        }
+        prefs.dohUrl = value;
+        prefs.save(this);
+        restartIfRunning();
+        show(Screen.SETTINGS);
+    }
+
+    private void chooseDot() {
+        String[] labels = {"Cloudflare", "Google", "Quad9", "Custom…"};
+        String[] hosts = {"one.one.one.one", "dns.google", "dns.quad9.net"};
+        int selected = 3;
+        for (int i = 0; i < hosts.length; i++) {
+            if (hosts[i].equals(prefs.dotHost)) selected = i;
+        }
+        chooseOption("DNS-over-TLS server", "Hostname used when DoT is selected",
+                labels, selected, which -> {
+            if (which == 3) edit("DNS-over-TLS host", prefs.dotHost, false,
+                    "one.one.one.one", this::applyDot);
+            else applyDot(hosts[which]);
+        });
+    }
+
+    private void applyDot(String value) {
+        if (value.isEmpty() || value.contains(" ") || value.contains("/")) {
+            Ui.toast(this, "Use a DNS hostname such as one.one.one.one");
+            return;
+        }
+        prefs.dotHost = value;
+        prefs.save(this);
+        restartIfRunning();
+        show(Screen.SETTINGS);
     }
 
     private LinearLayout section(String title) {

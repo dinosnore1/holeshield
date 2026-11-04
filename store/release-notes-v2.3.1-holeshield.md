@@ -41,6 +41,11 @@ rules, blocklists and statistics are kept.
 - TV now uses a persistent left navigation rail for Home, Server, Gravity & rules,
   Query log and Settings. Brand/status live in the rail, TV subheaders drop the
   redundant Back button, and long query domains ellipsize cleanly.
+- Multi-option settings use single-choice dropdown dialogs: Fallback DNS,
+  DoH/DoT provider presets, Blocked response and TV safe area.
+- Dropdown popups use a custom padded layout so options and buttons stay clear
+  of the rounded corners, with 34dp TV / 26dp phone inner padding. They now have
+  a shield header, subtitle, close button, divider and clearer selected rows.
 
 ## Also included from 2.3.0
 
@@ -64,6 +69,6 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-4a2e4008c588abdc80b657d74ffe39fd499cb27872ae7d9a8fc1523c016e6665  holeshield.aab
-4726ee0a4df2a54eb421cf3a0f52c372f2bcd28c374cd4fbfeedd12f581ed52f  holeshield.apk
+b546b86917cccf9f36b2eb5c7572d3e4ceeb757cce8e28190eff9258499f9366  holeshield.aab
+328a41ee7a8f491a3adb42283086b4a161695f5970e897e76ab58127b5b1f79d  holeshield.apk
 ```
