@@ -15,7 +15,7 @@ the same allow/deny rules and the same web dashboard.
 - Embedded web dashboard with optional username/password login.
 - Native Swing control panel with System, Dark and Light themes.
 - Tray / menu-bar controls, pause timers and launch-at-login.
-- Portable JAR plus native installers that bundle a Java runtime.
+- Native installers that bundle a Java runtime.
 
 ## Run from source
 
