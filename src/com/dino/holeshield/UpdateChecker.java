@@ -46,7 +46,7 @@ final class UpdateChecker {
         c.setReadTimeout(8000);
         c.setInstanceFollowRedirects(true);
         c.setRequestProperty("Accept", "application/json");
-        c.setRequestProperty("User-Agent", "Hole-Shield/" + "2.3.2");
+        c.setRequestProperty("User-Agent", "Hole-Shield/" + "2.3.3");
         try {
             int code = c.getResponseCode();
             if (code != 200) throw new Exception("Update server returned HTTP " + code);

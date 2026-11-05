@@ -14,10 +14,10 @@ SDK command-line tools.
 
 The latest prebuilt APK is attached to the
 [GitHub release](https://github.com/dinosnore1/holeshield/releases/latest).
-The current source build is **2.3.2** and is published to the beta channel.
+The current source build is **2.3.3** and is published as a stable release.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.3.2 (`versionCode 9`)
+- **Version:** 2.3.3 (`versionCode 10`)
 - **Desktop:** Java 17 Swing app with a bundled-runtime installer for Windows,
   Linux and macOS (see `desktop/README.md`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions

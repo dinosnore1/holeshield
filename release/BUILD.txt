@@ -1,17 +1,17 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.3.2
-versionCode:   9
+Version:       2.3.3
+versionCode:   10
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-11-05
+Built:         2026-11-06
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.apk
-  SHA-256 f062f6131713bb121443287ecf6a58021195508301bef86bf7dcea48b00e627d
+  SHA-256 95f77c17cb5259f868f7c769817a89de85213cb5692d231c72f900b203a3c072
   Size    184 KB
   Signed with the direct-install key (~/.android/holeshield-sideload.keystore).
 
