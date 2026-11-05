@@ -58,6 +58,14 @@ if (Test-Path $AppDir) {
   Compress-Archive -Path $AppDir -DestinationPath "$Dest\holeshield-windows-portable-$Version.zip" -Force
 }
 $Wix = Get-Command candle.exe -ErrorAction SilentlyContinue
+if (-not $Wix) {
+  $Candidate = Get-ChildItem "C:\Program Files (x86)" -Directory -Filter "WiX Toolset*" `
+    -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+  if ($Candidate) {
+    $env:PATH = "$($Candidate.FullName)\bin;$env:PATH"
+    $Wix = Get-Command candle.exe -ErrorAction SilentlyContinue
+  }
+}
 if ($Wix) {
   & "$Jdk\bin\jpackage.exe" --type msi @Base --win-menu --win-shortcut --win-dir-chooser
   & "$Jdk\bin\jpackage.exe" --type exe @Base --win-menu --win-shortcut --win-dir-chooser
