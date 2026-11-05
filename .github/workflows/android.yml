@@ -20,10 +20,18 @@ jobs:
       - name: Desktop checks
         run: ./tools/test.sh
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Install SDK platform
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Install Android SDK platform
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          if [ ! -d "$SDK" ]; then SDK="$ANDROID_HOME"; fi
+          MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$MANAGER" ]; then
+            echo "sdkmanager not found under $SDK" >&2
+            exit 1
+          fi
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          yes | "$MANAGER" --licenses >/dev/null 2>&1 || true
+          "$MANAGER" --sdk_root="$SDK" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Build APK
         run: ./build.sh
