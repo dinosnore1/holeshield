@@ -103,7 +103,10 @@ Artifacts are written to `desktop/build/dist/`:
 - Every platform: `holeshield-desktop-2.3.2.jar`
 
 The GitHub Actions workflow in `.github/workflows/desktop.yml` builds and
-uploads all three platforms. The installers are unsigned by default; see
+uploads all three platforms. It also installs the PKG/DMG, DEB, MSI and portable
+ZIP on macOS, Ubuntu and Windows VMs, starts the installed app headless, resolves
+a blocked and an allowed domain, verifies the DoH upstream and checks the
+dashboard API. The installers are unsigned by default; see
 `desktop/packaging/README.md` for signing notes.
 
 ## Data directory

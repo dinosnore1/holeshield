@@ -83,7 +83,8 @@ jobs:
       - name: Smoke test Linux DEB
         if: runner.os == 'Linux'
         run: |
-          sudo mkdir -p /usr/share/applications /root/.local/share/applications
+          sudo mkdir -p /usr/share/applications /usr/share/desktop-directories \
+            /etc/xdg/menus /root/.local/share/applications
           sudo env \
             XDG_DATA_HOME=/root/.local/share \
             XDG_DATA_DIRS=/usr/local/share:/usr/share \

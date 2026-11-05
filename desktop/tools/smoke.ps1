@@ -4,78 +4,6 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-function Read-U16([byte[]]$Bytes, [int]$Offset) {
-  return ([int]$Bytes[$Offset] -shl 8) -bor [int]$Bytes[$Offset + 1]
-}
-
-function Invoke-DnsA([string]$Name, [int]$Port) {
-  $Id = Get-Random -Minimum 1 -Maximum 65535
-  $Stream = New-Object System.IO.MemoryStream
-  $Writer = New-Object System.IO.BinaryWriter($Stream)
-  $Writer.Write([UInt16]$Id)
-  $Writer.Write([UInt16]0x0100)
-  $Writer.Write([UInt16]1)
-  $Writer.Write([UInt16]0)
-  $Writer.Write([UInt16]0)
-  $Writer.Write([UInt16]0)
-  foreach ($Label in $Name.Split(".")) {
-    $Bytes = [Text.Encoding]::ASCII.GetBytes($Label)
-    $Writer.Write([byte]$Bytes.Length)
-    $Writer.Write($Bytes)
-  }
-  $Writer.Write([byte]0)
-  $Writer.Write([UInt16]1)
-  $Writer.Write([UInt16]1)
-  $Writer.Flush()
-  $Payload = $Stream.ToArray()
-  $Writer.Dispose()
-  $Stream.Dispose()
-
-  $Udp = New-Object System.Net.Sockets.UdpClient
-  $Udp.Client.ReceiveTimeout = 5000
-  $Udp.Connect("127.0.0.1", $Port)
-  [void]$Udp.Send($Payload, $Payload.Length)
-  $Remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
-  $Response = $Udp.Receive([ref]$Remote)
-  $Udp.Close()
-
-  if ($Response.Length -lt 12) { throw "short DNS response" }
-  $Qd = Read-U16 $Response 4
-  $An = Read-U16 $Response 6
-  $Offset = 12
-  for ($Q = 0; $Q -lt $Qd; $Q++) {
-    while ($true) {
-      $Length = [int]$Response[$Offset]
-      if (($Length -band 0xC0) -eq 0xC0) { $Offset += 2; break }
-      if ($Length -eq 0) { $Offset++; break }
-      $Offset += 1 + $Length
-    }
-    $Offset += 4
-  }
-  $Addresses = @()
-  for ($I = 0; $I -lt $An; $I++) {
-    $Length = [int]$Response[$Offset]
-    if (($Length -band 0xC0) -eq 0xC0) {
-      $Offset += 2
-    } else {
-      while ($true) {
-        $Length = [int]$Response[$Offset]
-        if ($Length -eq 0) { $Offset++; break }
-        $Offset += 1 + $Length
-      }
-    }
-    $Type = Read-U16 $Response $Offset
-    $RdLength = Read-U16 $Response ($Offset + 8)
-    $RData = $Offset + 10
-    if ($Type -eq 1 -and $RdLength -eq 4) {
-      $Addresses += ("{0}.{1}.{2}.{3}" -f $Response[$RData],
-        $Response[$RData + 1], $Response[$RData + 2], $Response[$RData + 3])
-    }
-    $Offset = $RData + $RdLength
-  }
-  return $Addresses
-}
-
 $Data = Join-Path $env:TEMP ("holeshield-smoke-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force $Data | Out-Null
 $Log = Join-Path $Data "app.log"
@@ -123,13 +51,19 @@ try {
   $Page = Invoke-WebRequest "$Base/admin/" -UseBasicParsing -TimeoutSec 8
   if ($Page.Content -notmatch "Hole Shield") { throw "dashboard body missing" }
 
-  $Blocked = @(Invoke-DnsA "doubleclick.net" ([int]$DnsPort))
+  $Java = "java.exe"
+  if ($env:JAVA_HOME) { $Java = Join-Path $env:JAVA_HOME "bin\java.exe" }
+  $Classes = (Resolve-Path (Join-Path $PSScriptRoot "..\build\classes")).Path
+  $Blocked = @(& $Java -cp $Classes com.dino.holeshield.DnsProbe $DnsPort doubleclick.net 2>&1)
   if ($Blocked -notcontains "0.0.0.0") {
-    throw "blocked query did not return 0.0.0.0: $($Blocked -join ', ')"
+    throw "blocked query did not return 0.0.0.0: $($Blocked -join ' | ')"
   }
-  $Allowed = @(Invoke-DnsA "example.com" ([int]$DnsPort))
-  if ($Allowed.Count -eq 0 -or $Allowed -contains "0.0.0.0") {
-    throw "allowed query did not resolve: $($Allowed -join ', ')"
+  $Allowed = @(& $Java -cp $Classes com.dino.holeshield.DnsProbe $DnsPort example.com 2>&1)
+  $AllowedIps = @($Allowed | Where-Object {
+    $_ -match '^\d+\.\d+\.\d+\.\d+$' -and $_ -ne "0.0.0.0"
+  })
+  if ($AllowedIps.Count -eq 0) {
+    throw "allowed query did not resolve: $($Allowed -join ' | ')"
   }
 
   $Summary = Invoke-RestMethod "$Base/api/stats/summary" -TimeoutSec 8
