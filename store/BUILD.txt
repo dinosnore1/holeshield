@@ -41,6 +41,10 @@ desktop/build/dist/Hole Shield-2.3.2.pkg
 Linux and Windows installers are produced by the same scripts on their
 platforms: DEB/RPM/portable tar.gz and MSI/EXE/portable zip.
 117 headless desktop checks pass.
+VM smoke tests pass on GitHub-hosted macOS, Ubuntu and Windows VMs:
+macOS PKG + DMG + JAR, Ubuntu DEB + portable tar.gz + JAR, and Windows MSI +
+portable ZIP + JAR. Each installed app is started headless and checked for a
+blocked lookup, an allowed lookup, the DoH upstream and the dashboard API.
 
 Signing
 -------
