@@ -17,9 +17,9 @@ the same allow/deny rules and the same web dashboard.
 - Tray / menu-bar controls, pause timers and launch-at-login.
 - Portable JAR plus native installers that bundle a Java runtime.
 
-## Run the portable JAR
+## Run from source
 
-Requires Java 17.
+For development only; the release ships native installers. Requires Java 17.
 
 ```bash
 ./desktop/tools/build.sh
@@ -96,15 +96,13 @@ Windows:
 
 Artifacts are written to `desktop/build/dist/`:
 
-- macOS: `Hole Shield.app`, `.dmg`, `.pkg`
-- Linux: app image, `.deb`, `.rpm` (when `rpmbuild` is available), portable
-  `.tar.gz`
-- Windows: app image, `.zip`, `.msi` and `.exe` when WiX is installed
-- Every platform: `holeshield-desktop-2.3.3.jar`
+- macOS: `.dmg`, `.pkg`
+- Linux: `.deb`, `.rpm` (when `rpmbuild` is available)
+- Windows: `.msi` and `.exe` when WiX is installed
 
 The GitHub Actions workflow in `.github/workflows/desktop.yml` builds and
-uploads all three platforms. It also installs the PKG/DMG, DEB, MSI and portable
-ZIP on macOS, Ubuntu and Windows VMs, starts the installed app headless, resolves
+uploads all three platforms. It also installs the PKG/DMG, DEB and MSI on macOS,
+Ubuntu and Windows VMs, starts the installed app headless, resolves
 a blocked and an allowed domain, verifies the DoH upstream and checks the
 dashboard API. The installers are unsigned by default; see
 `desktop/packaging/README.md` for signing notes.

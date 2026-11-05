@@ -5,7 +5,7 @@ installer includes a trimmed Java runtime, so the user does not need Java.
 
 ## macOS
 
-- `Hole Shield.app` — portable application bundle.
+- `Hole Shield.app` — application bundle used by the installers.
 - `Hole Shield-2.3.3.dmg` — drag-to-Applications disk image.
 - `Hole Shield-2.3.3.pkg` — installer package.
 
@@ -21,10 +21,8 @@ LaunchAgent in `SystemIntegration` for per-user tray startup only.
 
 ## Linux
 
-- `Hole Shield/` app image — portable directory.
 - `holeshield_2.3.3_amd64.deb` — Debian/Ubuntu package.
 - `holeshield-2.3.3-1.x86_64.rpm` — Fedora/RHEL package when `rpmbuild` exists.
-- `holeshield-linux-portable-2.3.3.tar.gz` — portable archive.
 
 For system-wide filtering on port 53 without running as root:
 
@@ -52,8 +50,6 @@ WantedBy=multi-user.target
 
 ## Windows
 
-- `Hole Shield/` app image.
-- `holeshield-windows-portable-2.3.3.zip`.
 - `Hole Shield-2.3.3.msi` and `.exe` when WiX 3 is installed and `candle.exe`
   is on `PATH`.
 

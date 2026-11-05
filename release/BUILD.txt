@@ -21,10 +21,8 @@ Desktop (2.3.3)
 ---------------
 Built with JDK 17 + jpackage and published in the 2.3.3 release.
 
-desktop/build/dist/holeshield-desktop-2.3.3.jar
-  Portable JAR; requires Java 17.
 desktop/build/dist/Hole Shield.app
-  macOS app image with a bundled runtime.
+  macOS application bundle with a bundled runtime.
 desktop/build/dist/Hole-Shield-2.3.3.dmg
 desktop/build/dist/Hole-Shield-2.3.3.pkg
   macOS installers (unsigned).
@@ -33,13 +31,11 @@ Also published:
   Hole-Shield-2.3.3.msi / .exe (Windows)
   holeshield_2.3.3-1_amd64.deb
   holeshield-2.3.3-1.x86_64.rpm
-  holeshield-linux-portable-2.3.3.tar.gz
-  holeshield-windows-portable-2.3.3.zip
   holeshield-desktop-2.3.3-SHA256SUMS.txt
 117 headless desktop checks pass.
 VM smoke tests pass on GitHub-hosted macOS, Ubuntu and Windows VMs:
-macOS PKG + DMG + JAR, Ubuntu DEB + portable tar.gz + JAR, and Windows MSI +
-portable ZIP + JAR. Each installed app is started headless and checked for a
+macOS PKG + DMG, Ubuntu DEB, and Windows MSI. Each installed app is started
+headless and checked for a
 blocked lookup, an allowed lookup, the DoH upstream and the dashboard API.
 
 Signing

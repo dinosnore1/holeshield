@@ -9,7 +9,6 @@ $Icons = Join-Path $Out "icons"
 Remove-Item -Recurse -Force $Dest, $Icons -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $Dest, $Icons | Out-Null
 & "$Jdk\bin\java.exe" -cp "$Out\classes" com.dino.holeshield.IconGenerator "$Icons\icon.png" | Out-Null
-Copy-Item "$Out\holeshield-desktop.jar" "$Dest\holeshield-desktop-2.3.3.jar" -Force
 
 # Write a 256x256 PNG-backed ICO for the Windows installers.
 Add-Type -AssemblyName System.Drawing
@@ -53,10 +52,6 @@ $Base = @(
   "--icon", "$Icons\icon.ico"
 )
 & "$Jdk\bin\jpackage.exe" --type app-image @Base
-$AppDir = Join-Path $Dest $Name
-if (Test-Path $AppDir) {
-  Compress-Archive -Path $AppDir -DestinationPath "$Dest\holeshield-windows-portable-$Version.zip" -Force
-}
 $Wix = Get-Command candle.exe -ErrorAction SilentlyContinue
 if (-not $Wix) {
   $Candidate = Get-ChildItem "C:\Program Files (x86)" -Directory -Filter "WiX Toolset*" `
@@ -70,6 +65,6 @@ if ($Wix) {
   & "$Jdk\bin\jpackage.exe" --type msi @Base --win-menu --win-shortcut --win-dir-chooser
   & "$Jdk\bin\jpackage.exe" --type exe @Base --win-menu --win-shortcut --win-dir-chooser
 } else {
-  Write-Host "WiX not found; built the portable app image only."
+  Write-Host "WiX not found; built the app image only."
 }
 Get-ChildItem $Dest | Select-Object Name

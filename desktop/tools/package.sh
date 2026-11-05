@@ -68,8 +68,6 @@ BASE=(
 )
 if [ -n "$ICON" ]; then BASE+=(--icon "$ICON"); fi
 
-cp "$BUILD/holeshield-desktop.jar" "$DEST/holeshield-desktop-$VERSION.jar"
-
 echo "Building app image…"
 "$JDK/bin/jpackage" --type app-image "${BASE[@]}"
 
@@ -94,8 +92,6 @@ elif [ "$OS" = "Linux" ]; then
   else
     echo "rpmbuild not found; skipping RPM."
   fi
-  tar -czf "$DEST/holeshield-linux-portable-$VERSION.tar.gz" \
-    -C "$DEST" "$NAME"
 else
   echo "Windows installers are built by package.ps1."
 fi

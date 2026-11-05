@@ -29,15 +29,15 @@ The current source build is **2.3.3** and is published as a stable release.
 The `desktop/` directory contains a native Windows/Linux/macOS build with the
 same gravity format, rules, query log and web dashboard as the Android app. It
 runs local UDP/TCP DNS, supports DoH or plain upstreams, has a Swing control
-panel and tray controls, and ships as a portable JAR plus native installers.
+panel and tray controls, and ships as native installers for Windows, Linux and macOS.
 
 ```bash
 ./desktop/tools/test.sh       # 117 headless core checks
 ./desktop/tools/package.sh    # app image + DMG/PKG, DEB/RPM or MSI/EXE
 ```
 
-The **2.3.3 release** includes macOS DMG/PKG, Windows MSI/EXE, Linux DEB/RPM,
-portable archives and a portable JAR. See
+The **2.3.3 release** includes macOS DMG/PKG, Windows MSI/EXE and Linux
+DEB/RPM. See
 [`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
 platform packaging notes. The GitHub Actions workflow
 `.github/workflows/desktop.yml` builds all three platforms.
