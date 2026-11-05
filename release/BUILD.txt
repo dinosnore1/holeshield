@@ -6,13 +6,13 @@ versionCode:   9
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-11-04
+Built:         2026-11-05
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.apk
-  SHA-256 65171fc809cdab6a2c4b3f5efa4b91c2e4bbfc3873798f0a83cee2c2917e18ca
-  Size    186 KB
+  SHA-256 f062f6131713bb121443287ecf6a58021195508301bef86bf7dcea48b00e627d
+  Size    184 KB
   Signed with the direct-install key (~/.android/holeshield-sideload.keystore).
 
 Use build/holeshield.apk for direct GitHub installs.
