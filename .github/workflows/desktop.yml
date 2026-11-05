@@ -83,8 +83,13 @@ jobs:
       - name: Smoke test Linux DEB
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y ./desktop/build/dist/*.deb
-          EXE="$(find /opt -type f -name 'Hole Shield' | head -1)"
+          sudo mkdir -p /usr/share/applications /root/.local/share/applications
+          sudo env \
+            XDG_DATA_HOME=/root/.local/share \
+            XDG_DATA_DIRS=/usr/local/share:/usr/share \
+            DEBIAN_FRONTEND=noninteractive \
+            apt-get install -y ./desktop/build/dist/*.deb
+          EXE="$(find /opt -type f \( -name 'Hole Shield' -o -name 'holeshield' \) | head -1)"
           test -n "$EXE"
           ./desktop/tools/smoke.sh "$EXE"
 
