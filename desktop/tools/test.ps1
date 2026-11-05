@@ -1,5 +1,10 @@
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path "$PSScriptRoot\..\.."
 & "$PSScriptRoot\build.ps1"
-& "$env:JAVA_HOME\bin\java.exe" -Djava.awt.headless=true `
-  -cp (Join-Path $Root "desktop\build\classes") com.dino.holeshield.DesktopTest
+$ClassPath = Join-Path $Root "desktop\build\classes"
+$JavaArgs = @(
+  "-Djava.awt.headless=true",
+  "-cp", $ClassPath,
+  "com.dino.holeshield.DesktopTest"
+)
+& "$env:JAVA_HOME\bin\java.exe" @JavaArgs
