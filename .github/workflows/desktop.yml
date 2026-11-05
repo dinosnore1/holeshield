@@ -94,15 +94,6 @@ jobs:
           test -n "$EXE"
           ./desktop/tools/smoke.sh "$EXE"
 
-      - name: Smoke test Linux portable archive
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p /tmp/holeshield-portable
-          tar -xzf desktop/build/dist/holeshield-linux-portable-*.tar.gz -C /tmp/holeshield-portable
-          EXE="$(find /tmp/holeshield-portable -type f -name 'Hole Shield' | head -1)"
-          test -n "$EXE"
-          ./desktop/tools/smoke.sh "$EXE"
-
       - name: Smoke test Windows MSI
         if: runner.os == 'Windows'
         shell: pwsh
@@ -121,32 +112,14 @@ jobs:
           if (-not $exe) { throw "installed executable not found" }
           ./desktop/tools/smoke.ps1 -Exe $exe.FullName
 
-      - name: Smoke test Windows portable ZIP
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $zip = Get-ChildItem desktop/build/dist/*.zip | Select-Object -First 1
-          $dir = Join-Path $env:TEMP "holeshield-portable"
-          Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
-          Expand-Archive $zip.FullName -DestinationPath $dir
-          $exe = Get-ChildItem $dir -Recurse -Filter "Hole Shield.exe" | Select-Object -First 1
-          ./desktop/tools/smoke.ps1 -Exe $exe.FullName
-
-      - name: Smoke test portable JAR
-        if: runner.os != 'Windows'
-        run: |
-          JAR="$(ls desktop/build/dist/holeshield-desktop-*.jar | head -1)"
-          ./desktop/tools/smoke.sh "$JAVA_HOME/bin/java" -jar "$PWD/$JAR"
-
-      - name: Smoke test portable JAR (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $jar = Get-ChildItem desktop/build/dist/*.jar | Select-Object -First 1
-          ./desktop/tools/smoke.ps1 -Exe "$env:JAVA_HOME\bin\java.exe" -Arguments @("-jar", $jar.FullName)
-
       - uses: actions/upload-artifact@v4
         with:
           name: holeshield-desktop-${{ matrix.os }}
-          path: desktop/build/dist/*
+          path: |
+            desktop/build/dist/*.dmg
+            desktop/build/dist/*.pkg
+            desktop/build/dist/*.deb
+            desktop/build/dist/*.rpm
+            desktop/build/dist/*.msi
+            desktop/build/dist/*.exe
           if-no-files-found: warn
