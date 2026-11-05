@@ -372,7 +372,7 @@ public final class TestDns {
     }
 
     private static void blocklistPreset() {
-        check(Blocklists.MAXIMUM.length >= 25, "maximum preset has a broad list set");
+        check(Blocklists.MAXIMUM.length >= 23, "maximum preset has a broad list set");
         check(Blocklists.TRACKERS.length >= 10, "tracker preset has telemetry lists");
         check(Blocklists.MALWARE.length >= 2, "malware preset has security lists");
         check(Blocklists.hasAll(Blocklists.presetText()), "preset text contains every list");

@@ -27,13 +27,6 @@ final class Prefs {
     String updateChannel = "stable";
     long lastUpdateCheck = 0L;
 
-    /** Legacy external-Pi-hole fields; the built-in server is the default now. */
-    boolean usePihole = false;
-    String piholeHost = "";
-    int piholePort = 80;
-    String piholePassword = "";
-    int apiVersion = 0;
-
     /** "doh", "dot", "plain" or "none" — upstream used for non-blocked lookups. */
     String fallback = "doh";
     String dohUrl = "https://cloudflare-dns.com/dns-query";
@@ -70,7 +63,7 @@ final class Prefs {
     /** Per-client rules: "ip domain" blocks, "ip !domain" allows. */
     String clientRules = "";
 
-    /** Global Pi-hole blocking switch, with optional auto-resume. */
+    /** Global blocking switch, with optional auto-resume. */
     boolean blockingEnabled = true;
     long blockingUntil = 0L;
 
@@ -117,13 +110,6 @@ final class Prefs {
         s.theme = p.getString("theme", s.theme);
         s.updateChannel = p.getString("updateChannel", s.updateChannel);
         s.lastUpdateCheck = p.getLong("lastUpdateCheck", s.lastUpdateCheck);
-        // The embedded resolver replaced the legacy external-Pi-hole mode.
-        // Ignore an old true value so upgrades cannot route around the
-        // on-device gravity engine.
-        s.usePihole = false;
-        s.piholeHost = p.getString("piholeHost", s.piholeHost);
-        s.piholePort = p.getInt("piholePort", s.piholePort);
-        s.piholePassword = p.getString("piholePassword", s.piholePassword);
         s.fallback = p.getString("fallback", s.fallback);
         s.dohUrl = p.getString("dohUrl", s.dohUrl);
         s.dotHost = p.getString("dotHost", s.dotHost);
@@ -196,10 +182,6 @@ final class Prefs {
                 .putString("theme", theme)
                 .putString("updateChannel", updateChannel)
                 .putLong("lastUpdateCheck", lastUpdateCheck)
-                .putBoolean("usePihole", usePihole)
-                .putString("piholeHost", piholeHost)
-                .putInt("piholePort", piholePort)
-                .putString("piholePassword", piholePassword)
                 .putString("fallback", fallback)
                 .putString("dohUrl", dohUrl)
                 .putString("dotHost", dotHost)
@@ -247,10 +229,6 @@ final class Prefs {
         int mode = c.getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         return mode == Configuration.UI_MODE_NIGHT_YES;
-    }
-
-    boolean hasPihole() {
-        return usePihole && piholeHost != null && !piholeHost.trim().isEmpty();
     }
 
     // ------------------------------------------------------------------- login
@@ -413,9 +391,6 @@ final class Prefs {
 
     /** Human readable upstream, for the dashboard subtitle. */
     String upstreamLabel() {
-        if (hasPihole()) {
-            return "Pi-hole at " + piholeHost.trim();
-        }
         if ("doh".equals(fallback)) {
             return "encrypted DNS (" + hostOf(dohUrl) + ")";
         }
@@ -438,64 +413,4 @@ final class Prefs {
         }
     }
 
-    /** Base URL of the Pi-hole web/API server, without a trailing slash. */
-    String piholeBase() {
-        String host = piholeHost == null ? "" : piholeHost.trim();
-        if (host.isEmpty()) return "";
-        if (host.startsWith("http://") || host.startsWith("https://")) {
-            while (host.endsWith("/")) host = host.substring(0, host.length() - 1);
-            if (host.endsWith("/admin")) host = host.substring(0, host.length() - 6);
-            return host;
-        }
-
-        int port = piholePort <= 0 ? 80 : piholePort;
-        if (host.startsWith("[")) {                       // [v6] or [v6]:port
-            int close = host.indexOf(']');
-            if (close > 0) {
-                String rest = host.substring(close + 1);
-                if (rest.startsWith(":")) {
-                    int given = parsePort(rest.substring(1));
-                    if (given > 0) port = given;
-                }
-                return "http://" + host.substring(0, close + 1)
-                        + (port == 80 ? "" : ":" + port);
-            }
-            return "http://" + host;
-        }
-
-        int first = host.indexOf(':');
-        if (first > 0 && host.indexOf(':', first + 1) < 0) {   // host:port
-            int given = parsePort(host.substring(first + 1));
-            if (given > 0) port = given;
-            host = host.substring(0, first);
-        } else if (first >= 0) {                             // bare IPv6
-            host = "[" + host + "]";
-        }
-        return "http://" + host + (port == 80 ? "" : ":" + port);
-    }
-
-    private static int parsePort(String text) {
-        try {
-            int port = Integer.parseInt(text.trim());
-            return port >= 1 && port <= 65535 ? port : -1;
-        } catch (Exception e) {
-            return -1;
-        }
-    }
-
-    String piholeDnsHost() {
-        String host = piholeHost == null ? "" : piholeHost.trim();
-        if (host.startsWith("http://") || host.startsWith("https://")) {
-            host = hostOf(host);
-        }
-        if (host.startsWith("[")) {
-            int close = host.indexOf(']');
-            if (close > 0) return host.substring(1, close);
-        }
-        int colon = host.indexOf(':');
-        if (colon > 0 && host.indexOf(':', colon + 1) < 0) {
-            return host.substring(0, colon);
-        }
-        return host;
-    }
 }

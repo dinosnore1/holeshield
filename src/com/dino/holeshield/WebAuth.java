@@ -84,7 +84,7 @@ final class WebAuth {
     }
 
     /**
-     * Validates the Pi-hole-style {@code auth=...} query parameter.
+     * Validates the legacy {@code auth=...} query parameter.
      * With a username configured, the value is {@code username:password};
      * otherwise it is the password alone.
      */

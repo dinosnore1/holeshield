@@ -33,9 +33,9 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 /**
- * Answers DNS queries from the tun: local cache, Pi-hole over UDP, then an
- * encrypted (DoH) or plain fallback. All sockets are protected so the VPN
- * cannot capture its own upstream traffic.
+ * Answers DNS queries from the tun: local cache, then an encrypted (DoH or
+ * DoT) or plain fallback. All sockets are protected so the VPN cannot capture
+ * its own upstream traffic.
  *
  * Host names are re-resolved in the background. That matters most when the
  * service starts at boot: Wi-Fi is often not ready yet, so the first lookup
@@ -44,7 +44,7 @@ import javax.net.ssl.SSLSocketFactory;
  */
 final class DnsUpstream {
 
-    private static final String TAG = "PiholeTv";
+    private static final String TAG = "HoleShield";
     private static final int DNS_PORT = 53;
     private static final int CACHE_MAX = 1024;
     private static final long RESOLVE_RETRY_MS = 30000L;
@@ -71,11 +71,8 @@ final class DnsUpstream {
 
     private final Context context;
     private final Protector protector;
-    private final boolean usePihole;
     private final boolean useDoh;
     private final boolean useDot;
-    private final String piholeHost;
-    private volatile List<InetAddress> piholeIps = Collections.emptyList();
     private final String dohHost;
     private final String dohPath;
     private final int dohPort;
@@ -86,10 +83,8 @@ final class DnsUpstream {
     private final InetAddress[] plainIps;
 
     private final Object resolveLock = new Object();
-    private boolean resolvingPihole;
     private boolean resolvingDoh;
     private boolean resolvingDot;
-    private volatile long piholeResolveAt;
     private volatile long dohResolveAt;
     private volatile long dotResolveAt;
 
@@ -99,8 +94,6 @@ final class DnsUpstream {
         }
     };
 
-    private int piholeFailures;
-    private volatile long piholeSkipUntil;
     private int dohFailures;
     private volatile long dohSkipUntil;
     private int dotFailures;
@@ -119,12 +112,6 @@ final class DnsUpstream {
     DnsUpstream(Context context, Protector protector, Prefs p) {
         this.context = context;
         this.protector = protector;
-        this.usePihole = p.usePihole;
-        this.piholeHost = p.piholeDnsHost();
-
-        if (usePihole && !isBlank(piholeHost)) {
-            resolvePihole(false);                 // synchronous: VPN is not up yet
-        }
 
         String url = p.dohUrl == null ? "" : p.dohUrl.trim();
         this.useDoh = "doh".equals(p.fallback);
@@ -231,7 +218,6 @@ final class DnsUpstream {
     }
 
     String statusLine() {
-        if (!piholeIps.isEmpty()) return "Pi-hole " + piholeHost;
         if (useDoh && !dohIps.isEmpty()) return "Encrypted fallback";
         if (useDot && !dotIps.isEmpty()) return "DNS-over-TLS fallback";
         if (!lastError.isEmpty()) return lastError;
@@ -261,32 +247,11 @@ final class DnsUpstream {
             }
         }
 
-        maybeResolvePihole();
         maybeResolveDoh();
         maybeResolveDot();
 
         byte[] answer = null;
         String via = "none";
-        if (usePihole && System.currentTimeMillis() >= piholeSkipUntil) {
-            for (InetAddress ip : piholeIps) {
-                answer = udpQuery(ip, query, q.id, 900);
-                if (answer != null) break;
-            }
-            if (answer != null) {
-                via = "pihole";
-                piholeFailures = 0;
-            } else if (!piholeIps.isEmpty()) {
-                if (++piholeFailures >= 2) {
-                    piholeSkipUntil = System.currentTimeMillis() + 45000L;
-                }
-                if (piholeFailures >= 3) {
-                    // The address may have moved (DHCP) or DNS was not ready.
-                    piholeResolveAt = 0L;
-                    maybeResolvePihole();
-                }
-            }
-        }
-
         if (answer == null && useDoh && System.currentTimeMillis() >= dohSkipUntil) {
             answer = dohQuery(query, q.id);
             if (answer != null) {
@@ -334,12 +299,6 @@ final class DnsUpstream {
 
     // ---------------------------------------------------------- host resolution
 
-    private void maybeResolvePihole() {
-        if (!usePihole || isBlank(piholeHost)) return;
-        if (System.currentTimeMillis() < piholeResolveAt) return;
-        resolvePihole(true);
-    }
-
     private void maybeResolveDoh() {
         if (!useDoh || isBlank(dohHost)) return;
         if (System.currentTimeMillis() < dohResolveAt) return;
@@ -350,37 +309,6 @@ final class DnsUpstream {
         if (!useDot || isBlank(dotHost)) return;
         if (System.currentTimeMillis() < dotResolveAt) return;
         resolveDot(true);
-    }
-
-    private void resolvePihole(boolean async) {
-        synchronized (resolveLock) {
-            if (resolvingPihole) return;
-            resolvingPihole = true;
-        }
-        Runnable work = () -> {
-            try {
-                List<InetAddress> found = async ? retryLookup(piholeHost) : lookup(piholeHost);
-                if (!found.isEmpty()) {
-                    piholeIps = found;
-                    lastError = "";
-                    piholeResolveAt = System.currentTimeMillis() + RESOLVE_OK_MS;
-                } else {
-                    piholeResolveAt = System.currentTimeMillis() + RESOLVE_RETRY_MS;
-                }
-            } catch (Exception e) {
-                lastError = "Cannot resolve Pi-hole host " + piholeHost;
-                piholeResolveAt = System.currentTimeMillis() + RESOLVE_RETRY_MS;
-            } finally {
-                synchronized (resolveLock) { resolvingPihole = false; }
-            }
-        };
-        if (async) {
-            Thread t = new Thread(work, "pihole-resolve");
-            t.setDaemon(true);
-            t.start();
-        } else {
-            work.run();
-        }
     }
 
     private void resolveDoh(boolean async) {
@@ -454,8 +382,8 @@ final class DnsUpstream {
 
     /**
      * A retry runs while the VPN is up, so the system resolver would ask this
-     * very service (circular for names like {@code pi.hole}). Ask the LAN DNS
-     * servers directly through protected sockets first, then fall back.
+     * very service. Ask the LAN DNS servers directly through protected sockets
+     * first, then fall back.
      */
     private List<InetAddress> retryLookup(String host) {
         List<InetAddress> direct = directLookup(host);
@@ -692,7 +620,7 @@ final class DnsUpstream {
             head.append("Accept: application/dns-message\r\n");
             head.append("Content-Type: application/dns-message\r\n");
             head.append("Content-Length: ").append(query.length).append("\r\n");
-            head.append("User-Agent: Pi-hole-TV/1.0\r\n");
+            head.append("User-Agent: Hole-Shield/2.3.2\r\n");
             head.append("Connection: close\r\n\r\n");
             OutputStream out = ssl.getOutputStream();
             out.write(head.toString().getBytes(StandardCharsets.US_ASCII));

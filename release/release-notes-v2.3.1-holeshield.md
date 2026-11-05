@@ -6,8 +6,7 @@ rules, blocklists and statistics are kept.
 ## Download
 
 - **`holeshield.apk`** — install directly on a phone, tablet or Android TV.
-- **`holeshield.aab`** — signed Play bundle for Google Play upload.
-- **`holeshield-2.3.1-release-SHA256SUMS.txt`** — checksums for both files.
+- **`holeshield-2.3.1-release-SHA256SUMS.txt`** — checksums for the APK.
 
 ## Refreshed web dashboard
 
@@ -80,6 +79,5 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-688cd12e9951150cc5a3091c72ebdfba2a57e1dcad00b798b850b9f526506c85  holeshield.aab
 d1a0318c1c9d39f3b0e9ef9d8fa352412312dd74c17ecdc8507965ab4cefd068  holeshield.apk
 ```

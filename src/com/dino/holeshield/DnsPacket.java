@@ -312,7 +312,7 @@ final class DnsPacket {
 
     /**
      * A/AAAA addresses in the answer section of a response. Used to resolve
-     * the Pi-hole/DoH host through the TV's own LAN DNS server rather than
+     * the DoH host through the TV's own LAN DNS server rather than
      * through this VPN (which may be circular).
      */
     static List<InetAddress> addresses(byte[] data, int length) {

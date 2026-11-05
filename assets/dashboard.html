@@ -719,7 +719,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
 (function(){
   "use strict";
   var state = {
-    sid: localStorage.getItem("pihole_tv_sid") || "",
+    sid: localStorage.getItem("holeshield_sid") || "",
     filter: "all",
     search: "",
     timer: null,
@@ -784,7 +784,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     var sid = state.sid;
     function clear(){
       state.sid = "";
-      try { localStorage.removeItem("pihole_tv_sid"); } catch (e) {}
+      try { localStorage.removeItem("holeshield_sid"); } catch (e) {}
       showLogin();
     }
     if(!sid){ clear(); return; }
@@ -798,7 +798,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     var sid = state.sid;
     function clear(){
       state.sid = "";
-      try { localStorage.removeItem("pihole_tv_sid"); } catch (e) {}
+      try { localStorage.removeItem("holeshield_sid"); } catch (e) {}
       showLogin();
     }
     fetch("/api/auth/logout?all=1", {
@@ -1522,7 +1522,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
           throw new Error((data.session && data.session.message) || "Password incorrect");
         }
         state.sid = data.session.sid || "";
-        localStorage.setItem("pihole_tv_sid", state.sid);
+        localStorage.setItem("holeshield_sid", state.sid);
         hideLogin();
         $("#username").value = "";
         $("#password").value = "";

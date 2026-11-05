@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Pi-hole-style gravity engine.
+ * Gravity engine with compact hashed lists.
  *
  * Gravity lists are kept as compact 64-bit hashes with a category bitmask, so
  * a 600k-domain list uses a few megabytes and Ads/Trackers/Malware can be

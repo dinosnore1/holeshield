@@ -3,6 +3,5 @@ build/
 __pycache__/
 *.pyc
 *.apk
-*.aab
 .DS_Store
 javac.*.args

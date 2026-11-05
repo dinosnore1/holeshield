@@ -29,7 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/** Pi-hole-style counters and a bounded, persisted query log. */
+/** Dashboard counters and a bounded, persisted query log. */
 final class Stats {
 
     private static final String FILE = "holeshield_stats";

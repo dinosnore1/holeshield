@@ -10,7 +10,7 @@ final class IpPacket {
 
     private IpPacket() { }
 
-    /** Source address of a tun packet, for the Pi-hole client list. */
+    /** Source address of a tun packet, for the client list. */
     static String sourceAddress(byte[] packet, int length) {
         if (packet == null || length < 1) return "";
         int version = (packet[0] >> 4) & 0x0F;

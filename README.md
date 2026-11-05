@@ -1,7 +1,7 @@
 # Hole Shield for Android TV, phones and desktop
 
-A self-contained, Pi-hole-style DNS filter for Android TV, Google TV, Android
-phones, Windows, Linux and macOS. Hole Shield runs its own gravity engine, query log, statistics, web
+A self-contained DNS filter for Android TV, Google TV, Android phones,
+Windows, Linux and macOS. Hole Shield runs its own gravity engine, query log, statistics, web
 dashboard/API and an optional LAN DNS listener. It also runs a DNS-only VPN on
 the device so every app's lookups are filtered without root.
 
@@ -12,11 +12,9 @@ SDK command-line tools.
 
 ## Download
 
-The latest published prebuilt APK and Play AAB are attached to the
-[GitHub release](https://github.com/dinosnore1/pihole-tv/releases/latest).
-The current source build is **2.3.2** and is published to the beta channel. This is the
-new `com.dino.holeshield` package; uninstall the old `com.dino.pihole` app
-before installing it.
+The latest prebuilt APK is attached to the
+[GitHub release](https://github.com/dinosnore1/holeshield/releases/latest).
+The current source build is **2.3.2** and is published to the beta channel.
 
 - **Package:** `com.dino.holeshield`
 - **Version:** 2.3.2 (`versionCode 9`)
@@ -48,7 +46,7 @@ platform packaging notes. The GitHub Actions workflow
   and IPv6 DNS to the embedded resolver. The VPN does not carry video, downloads
   or general LAN traffic.
 - **Embedded gravity database.** Ships with a conservative seed list and a
-  maximum preset of 25 maintained ad, tracker, malware/phishing and TV-telemetry lists, including
+  maximum preset of 23 maintained ad, tracker, malware/phishing and TV-telemetry lists, including
   Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
   and classic hosts lists. Tracker/telemetry and malware/phishing categories can be
   added or removed independently. The web dashboard shows Ads, Trackers and
@@ -56,7 +54,7 @@ platform packaging notes. The GitHub Actions workflow
   compact pause pill/dropdown with an in-place countdown and dynamic width, a
   shield tab icon, a logout button and a compact centered Material You login page. Multiple list URLs are
   supported.
-- **Pi-hole-style rules.** Exact allow/deny, wildcard allow/deny and regex rules.
+- **Allow/deny rules.** Exact, wildcard and regex rules.
   Allow rules take precedence over gravity. `*.example.com` matches strict
   subdomains, not the apex; `/regex/` supports Java regular expressions.
 - **CNAME inspection.** If an upstream answer points at a blocked CNAME target,
@@ -93,7 +91,7 @@ platform packaging notes. The GitHub Actions workflow
 - **LAN DNS server** on UDP and TCP port **5354** for other devices on the LAN
   (IPv4). The dashboard and LAN DNS listener are **off by default**; a first-run
   setup screen explains the exposure and lets you opt in.
-- **Pi-hole-compatible API subset** for dashboards and scripts (see below).
+- **Dashboard/API subset** for dashboards and scripts (see below).
 - **Launcher shortcuts** for "Pause 30 min" and "Query log", plus a network
   details screen with copyable dashboard/DNS addresses.
 - **D-pad and touch UI.** The same screens work with a TV remote and with a
@@ -136,23 +134,17 @@ shown.
 ## Build
 
 ```bash
-cd ~/pihole-tv
-./tools/test.sh          # 133 desktop checks for DNS, packet, list, hash and web-auth code
+cd ~/holeshield
+./tools/test.sh          # 131 desktop checks for DNS, packet, list, hash and web-auth code
 ./build.sh               # writes build/holeshield.apk (sideload signing key)
-./tools/build-aab.sh     # writes build/holeshield.aab (Play upload key) + test APK
 ```
 
 GitHub Actions runs the desktop checks and builds the APK on pushes and pull
 requests (`.github/workflows/android.yml`).
 
-`build.sh` signs with `~/.android/pihole-tv.keystore` (created on first use) and
-is intended for direct APK distribution. `tools/build-aab.sh` signs the Play
-bundle with `~/.android/holeshield-upload.jks`; keep that keystore and the
-password file backed up. The upload key is only an upload identity — Play App
-Signing re-signs the delivered app.
-
-The bundle script also produces `build/universal/universal.apk`, a universal APK
-built from the signed AAB. Use it to test exactly what Play will deliver.
+`build.sh` signs with `~/.android/holeshield-sideload.keystore` (created on
+first use) and is intended for direct APK distribution. Back up that keystore;
+the same key is required for every direct APK update.
 
 ### Install a sideload build
 
@@ -162,9 +154,8 @@ adb install -r build/holeshield.apk
 adb shell am start -n com.dino.holeshield/.MainActivity
 ```
 
-The package changed from `com.dino.pihole` to `com.dino.holeshield`, so Android
-treats this as a new app. Uninstall the old package before installing Hole
-Shield; settings and statistics do not migrate.
+The package is `com.dino.holeshield`. Uninstall any older app package before
+installing Hole Shield; settings and statistics do not migrate.
 
 ## First run
 
@@ -281,29 +272,24 @@ curl -s 'http://192.168.1.50:8080/admin/api.php?summaryRaw&auth=admin:your-passw
 | `/api/action/flush` | POST | Flush the DNS cache. |
 | `/api/info/host` | GET | LAN IP, ports, version and listener state. |
 | `/api/info/version` | GET | App/API version. |
-| `/admin/api.php` | GET | Pi-hole v5 subset: `summaryRaw`, `status`, `enable`, `disable`, `topItems`, `recentBlocked`, `versions`. |
+| `/admin/api.php` | GET | Legacy v5-compatible subset: `summaryRaw`, `status`, `enable`, `disable`, `topItems`, `recentBlocked`, `versions`. |
 
-`/api/stats/summary` returns `gravity.last_update` as Unix seconds for Pi-hole
-compatibility and `gravity.last_update_ms` for the bundled dashboard.
+`/api/stats/summary` returns `gravity.last_update` as Unix seconds for legacy
+dashboard compatibility and `gravity.last_update_ms` for the bundled dashboard.
 
-### Pi-hole compatibility notes
+### API compatibility notes
 
-Hole Shield is a **Pi-hole-style embedded server**, not a full Pi-hole
-installation. The implemented API covers the dashboard, blocking/pause, query
-log, stats, domain rules, lists, gravity and cache. The following are **not**
-implemented:
+Hole Shield implements the dashboard, blocking/pause, query log, stats, domain
+rules, lists, gravity and cache APIs. The following are **not** implemented:
 
 - local DNS records, conditional forwarding, upstream group management;
 - per-client groups and group assignments;
 - DHCP/DHCPv6;
 - DNSSEC validation;
-- complete Pi-hole v5/v6 API coverage (network tables, teleporter,
-  diagnostics, messages, etc.);
+- full v5/v6 API coverage (network tables, teleporter, diagnostics, messages);
 - binding LAN DNS to port 53 (root-only on Android).
 
 Scripts that only need stats, blocking, rules, lists and query history work.
-If you need full Pi-hole behavior, run Pi-hole on a separate machine and use its
-dashboard/API; Hole Shield deliberately remains self-contained.
 
 ## LAN DNS
 
@@ -386,27 +372,6 @@ upload query data. The full policy is in
 - LAN DNS and the dashboard are off by default. When enabled, other devices on
   the network can query this device.
 
-## Google Play release
-
-Store text, declarations and asset requirements are collected in
-[`store/listing.md`](store/listing.md). The short version:
-
-1. Create the app in Play Console with the **Hole Shield** name and
-   `com.dino.holeshield` package.
-2. Upload `build/holeshield.aab` to **Internal testing**, then promote the same
-   build to **Closed testing**.
-3. Complete the VpnService declaration (device security/firewall, no remote
-   tunnel), the `specialUse` foreground-service declaration, Data safety,
-   content rating, ads declaration and the public privacy policy URL.
-4. Provide the feature graphic, 512×512 icon, phone screenshots, TV
-   screenshots/banner and the two unlisted VPN declaration videos in
-   `store/videos/`.
-5. Keep at least 12 testers opted in for 14 continuous days, then apply for
-   production access.
-
-Play App Signing re-signs the upload; keep the upload keystore safe but do not
-expect its certificate in the Play-delivered APK.
-
 ## Troubleshooting
 
 | Symptom | Check |
@@ -440,22 +405,20 @@ src/com/dino/holeshield/
   Prefs.java                 persisted settings and pause state
   NetInfo.java               LAN IP (Wi-Fi/Ethernet preferred) and dashboard URL
   Device.java                TV/phone detection and labels
-  PiholeClient.java          legacy external-Pi-hole client (inactive)
   Ui.java, Backdrop.java, ShieldView.java
 assets/blocklist.txt         bundled seed list
 assets/dashboard.html        responsive web dashboard
 res/drawable/                launcher icon, TV banner, notification icon
 res/values*/                 phone/TV launcher labels and theme colours
-docs/privacy.html            Play-ready privacy policy
-store/                       listing text, declarations and store artwork
+docs/privacy.html            public privacy policy
+release/                     release notes and build records
 tools/TestDns.java           desktop checks for DNS, packet and list code
-tools/build-aab.sh           signed AAB + universal test APK
 build.sh                     no-Gradle APK build
 ```
 
 ## Tests
 
-`./tools/test.sh` runs **133 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **131 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
 from tun packets, blocked A/AAAA/HTTPS replies in all three blocked-response
 modes, answer-address extraction, TTL selection, IPv4/IPv6 UDP replies and
@@ -470,7 +433,7 @@ The app has been exercised on:
 - a Xiaomi/Redmi `M2012K11AI` phone (Android 17 / API 37, 1080×2400) in portrait
   and landscape (previous build);
 - clean Android 15 / API 35 and Android 16 / API 36 emulators (1080×1920) for
-  the current `2.3.1` build and the Play screenshots.
+  the current `2.3.1` build.
 
 Verified across these devices:
 
@@ -485,7 +448,7 @@ Verified across these devices:
 - v5 compatibility (`summaryRaw`, status, enable/disable);
 - protection restart on relaunch and the D-pad TV UI.
 
-Current `2.3.1` build extras verified on the TV with the signed AAB test APK:
+Current `2.3.1` build extras verified on the TV with the signed test APK:
 
 - in-app VPN disclosure before Android's VPN prompt;
 - `specialUse` foreground service starts and stays in the foreground;
@@ -493,7 +456,7 @@ Current `2.3.1` build extras verified on the TV with the signed AAB test APK:
 - web login with username + password: `/api/auth`, `X-FTL-SID` and v5
   `auth=user:pass` verified on the TV; wrong user/password rejected;
 - clearing the password also clears the username and reopens the dashboard;
-- 25-list maximum preset with tracker/telemetry and malware/phishing categories;
+- Maximum preset with tracker/telemetry and malware/phishing categories;
 - gravity update on the STB produced 592,615 unique domains (ads 526,615,
   trackers 3,896, malware 153,613);
 - URLhaus `02teste.cc` and Phishing Army `0-ilxrc-w285.p9bckp.sbs` →
@@ -522,6 +485,4 @@ Current `2.3.1` phone checks on the Android 15 and Android 16 emulators:
   levels;
 - dashboard, query log, gravity/rules and stats screens.
 
-`PiholeClient` is retained only as legacy source; the active UI and resolver use
-the embedded engine. An old `usePihole` preference is ignored so upgrades cannot
-route DNS around the on-device filter.
+The active UI and resolver use the embedded engine only.

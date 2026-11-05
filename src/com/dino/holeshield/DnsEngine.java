@@ -5,7 +5,7 @@ import android.content.Context;
 import java.util.List;
 
 /**
- * The embedded Pi-hole resolver: gravity/allow rules, pause state, CNAME
+ * The embedded resolver: gravity/allow rules, pause state, CNAME
  * inspection, query logging and the DoH/plain upstream.
  */
 final class DnsEngine {

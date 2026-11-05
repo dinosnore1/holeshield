@@ -10,22 +10,12 @@ Built:         2026-11-04
 
 Artifacts (local, not committed)
 --------------------------------
-build/holeshield.aab
-  SHA-256 77585a231dfd5d87a80dd04b6e2120dc695cc94526fa96bc2d8afd75f520119d
-  Size    179 KB
-
 build/holeshield.apk
   SHA-256 65171fc809cdab6a2c4b3f5efa4b91c2e4bbfc3873798f0a83cee2c2917e18ca
   Size    186 KB
-  Signed with the direct-install key (~/.android/pihole-tv.keystore).
+  Signed with the direct-install key (~/.android/holeshield-sideload.keystore).
 
-build/universal/universal.apk
-  SHA-256 67da591e33fb6ec97a5f9c51b502798a801756f1ea311114c816f8e6fa9cd933
-  Size    186 KB
-  Signed with the upload key; test-only build of the exact Play bundle.
-
-Use build/holeshield.apk for direct GitHub installs. Upload the AAB to Play;
-do not upload the universal APK.
+Use build/holeshield.apk for direct GitHub installs.
 
 Desktop (2.3.2)
 ---------------
@@ -48,25 +38,20 @@ blocked lookup, an allowed lookup, the DoH upstream and the dashboard API.
 
 Signing
 -------
-Upload keystore: ~/.android/holeshield-upload.jks
-Alias:           upload
-Sideload APK key: ~/.android/pihole-tv.keystore
+Sideload APK key: ~/.android/holeshield-sideload.keystore
 Certificate SHA-256:
   5A:5B:F8:8C:A9:98:32:EE:E3:74:A5:EC:B4:D8:12:9D:08:61:64:9A:62:74:7C:F5:1D:E2:5E:E4:B9:04:1B:A4
 
-Back up the keystore and ~/.android/holeshield-upload-password.txt. Losing them
-requires a Play App Signing upload-key reset. Play re-signs the delivered app
-with the app-signing key; this upload certificate will not appear in the
-Play-delivered APK.
+Back up the keystore. The same key must be used for every direct APK update.
 
 Build command
 -------------
 ./tools/test.sh
-./tools/build-aab.sh
+./build.sh
 
 Verified
 --------
-- 133 desktop checks pass, including PBKDF2 login, compact gravity index,
+- 131 desktop checks pass, including PBKDF2 login, compact gravity index,
   blocked-response modes and blocklist category rules.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,

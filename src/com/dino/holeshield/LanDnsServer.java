@@ -23,7 +23,7 @@ final class LanDnsServer {
         byte[] resolve(byte[] query, String client);
     }
 
-    private static final String TAG = "PiholeTv";
+    private static final String TAG = "HoleShield";
 
     private final int port;
     private final Handler handler;

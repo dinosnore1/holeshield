@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Embedded dashboard and Pi-hole-compatible JSON API for the desktop app. */
+/** Embedded dashboard and compatible JSON API for the desktop app. */
 final class WebDashboard {
 
     private static final long SESSION_MS = 12L * 60L * 60L * 1000L;

@@ -6,11 +6,7 @@ blocklists and statistics are kept.
 ## Download
 
 - **`holeshield.apk`** — install directly on a phone, tablet or Android TV.
-- **`holeshield.aab`** — signed Play bundle for Google Play upload.
-- **`holeshield-2.0.1-release-SHA256SUMS.txt`** — checksums for both files.
-
-The APK is signed with the direct-install key; the AAB is signed with the Play upload
-key and Play App Signing re-signs the delivered app. The two are not interchangeable.
+- **`holeshield-2.0.1-release-SHA256SUMS.txt`** — checksums for the APK.
 
 ## Fixed: the filter could burn a whole CPU core
 
@@ -48,9 +44,8 @@ UI, dashboard, rules, blocklists, statistics and the VPN consent flow are untouc
 - Direct install and update in place on the TV: protection returned on its own 12 s after
   the update, with no user action.
 - Reboot: protection resumed on its own, reader idle at 0 % CPU, queries still filtered.
-- APK: 131 921 bytes. AAB: 125 032 bytes. Checksums:
+- APK: 131 921 bytes. Checksums:
 
 ```
 1dbf2ea47626c533da150f479851e19e3641834b09a732669f4e30d549b0f45f  holeshield.apk
-04224e1b85baccd2eb516f6a864e9b5d5092d3d62c3ca93955b5b0c88e575a72  holeshield.aab
 ```

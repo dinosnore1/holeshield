@@ -1475,7 +1475,7 @@ final class ControlPanel extends JFrame {
             Widgets.PillButton releases = new Widgets.PillButton("Releases", "download",
                     Widgets.GHOST);
             releases.addActionListener(e -> AppDirs.browse(
-                    "https://github.com/dinosnore1/pihole-tv/releases"));
+                    "https://github.com/dinosnore1/holeshield/releases"));
             links.add(releases);
             aboutCopy.add(links);
             about.add(aboutCopy, BorderLayout.CENTER);

@@ -129,7 +129,7 @@ The directory contains `settings.properties`, `gravity.bin`,
 | `DnsService.java` | UDP/TCP listener, filtering and logging |
 | `Upstream.java` | DoH and plain DNS with TTL cache |
 | `StatsStore.java` | Query log, counters and chart history |
-| `WebDashboard.java` | Dashboard and Pi-hole-compatible JSON API |
+| `WebDashboard.java` | Dashboard and compatible JSON API |
 | `ControlPanel.java` | Native Swing UI |
 | `TrayController.java` | Tray / menu-bar controls |
 | `Theme.java`, `Widgets.java`, `Icons.java` | UI kit |

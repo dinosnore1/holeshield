@@ -42,12 +42,12 @@ cp "$OUT/unsigned.apk" "$OUT/app.apk"
 (cd "$OUT/dex" && zip -q ../app.apk classes.dex)
 "$BT/zipalign" -f 4 "$OUT/app.apk" "$OUT/aligned.apk"
 
-KEYSTORE="$HOME/.android/pihole-tv.keystore"
+KEYSTORE="$HOME/.android/holeshield-sideload.keystore"
 mkdir -p "$(dirname "$KEYSTORE")"
 if [ ! -f "$KEYSTORE" ]; then
-  "$JAVA_HOME/bin/keytool" -genkeypair -keystore "$KEYSTORE" -alias pihole \
+  "$JAVA_HOME/bin/keytool" -genkeypair -keystore "$KEYSTORE" -alias holeshield \
     -keyalg RSA -keysize 2048 -validity 10000 \
-    -storepass android -keypass android -dname "CN=Pi-hole TV, O=Local"
+    -storepass android -keypass android -dname "CN=Hole Shield, O=Local"
 fi
 
 "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:android --key-pass pass:android \

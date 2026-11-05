@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PiholeTV" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="Theme.HoleShield" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/m3_surface</item>
         <item name="android:colorBackground">@color/m3_surface</item>
         <item name="android:colorForeground">@color/m3_on_surface</item>
@@ -13,7 +13,7 @@
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.PiholeTV.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
+    <style name="Theme.HoleShield.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
         <item name="android:colorAccent">@color/m3_primary</item>
         <item name="android:colorBackground">@color/m3_surface_container_high</item>
         <item name="android:colorForeground">@color/m3_on_surface</item>
@@ -24,7 +24,7 @@
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.PiholeTV.Dialog.Light" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+    <style name="Theme.HoleShield.Dialog.Light" parent="@android:style/Theme.Material.Light.Dialog.Alert">
         <item name="android:colorAccent">@color/m3_light_primary</item>
         <item name="android:colorBackground">@color/m3_light_surface_container_high</item>
         <item name="android:colorForeground">@color/m3_light_on_surface</item>

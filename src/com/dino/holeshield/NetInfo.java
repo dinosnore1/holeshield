@@ -82,14 +82,14 @@ final class NetInfo {
     static String dashboardUrl(Context c, Prefs p) {
         if (!p.webEnabled) return "";
         String ip = lanIpv4(c);
-        if (ip.isEmpty()) ip = "PI-HOLE-IP";
+        if (ip.isEmpty()) ip = "DEVICE-IP";
         return "http://" + ip + ":" + p.webPort + "/admin/";
     }
 
     static String lanDnsUrl(Context c, Prefs p) {
         if (!p.lanDns) return "";
         String ip = lanIpv4(c);
-        if (ip.isEmpty()) ip = "PI-HOLE-IP";
+        if (ip.isEmpty()) ip = "DEVICE-IP";
         return ip + ":" + p.lanDnsPort;
     }
 }

@@ -1,6 +1,6 @@
-# Pi-hole TV — bundled seed list
+# Hole Shield — bundled seed list
 # A small, conservative set of ad and tracking domains. It is a fallback for
-# when Pi-hole is unreachable; Pi-hole's own lists remain the main filter.
+# when the full gravity database is not available.
 # Format: one domain per line (hosts-file entries are accepted too).
 
 # Google advertising and measurement

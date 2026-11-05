@@ -30,8 +30,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Embedded HTTP server: serves the Pi-hole-style dashboard and a useful subset
- * of the Pi-hole v5/v6 APIs. No third-party HTTP or JSON libraries are used
+ * Embedded HTTP server: serves the dashboard and a useful subset
+ * of the v5/v6-compatible APIs. No third-party HTTP or JSON libraries are used
  * beyond Android's built-in org.json.
  */
 final class WebServer {
@@ -45,7 +45,7 @@ final class WebServer {
         default void settingsChanged() { }
     }
 
-    private static final String TAG = "PiholeTv";
+    private static final String TAG = "HoleShield";
     private static final int MAX_BODY = 1024 * 1024;
     private static final long SESSION_MS = 24 * 60 * 60 * 1000L;
 
@@ -322,7 +322,7 @@ final class WebServer {
 
         JSONObject gravity = new JSONObject();
         gravity.put("domains_being_blocked", Blocklist.blockedCount());
-        // Pi-hole's API uses Unix seconds. Keep a millisecond copy for our
+        // The API uses Unix seconds. Keep a millisecond copy for our
         // own dashboard, which formats relative times.
         gravity.put("last_update", p.lastUpdate > 0 ? p.lastUpdate / 1000L : JSONObject.NULL);
         if (p.lastUpdate > 0) gravity.put("last_update_ms", p.lastUpdate);

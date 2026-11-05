@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material 3 dark scheme generated from the Pi-hole green seed (#34D399). -->
+    <!-- Material 3 dark scheme generated from the Hole Shield green seed (#34D399). -->
     <color name="m3_primary">#FF8ED5B2</color>
     <color name="m3_on_primary">#FF003825</color>
     <color name="m3_primary_container">#FF005137</color>

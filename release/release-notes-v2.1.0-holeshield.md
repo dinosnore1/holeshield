@@ -6,8 +6,7 @@ rules, blocklists and statistics are kept.
 ## Download
 
 - **`holeshield.apk`** — install directly on a phone, tablet or Android TV.
-- **`holeshield.aab`** — signed Play bundle for Google Play upload.
-- **`holeshield-2.1.0-release-SHA256SUMS.txt`** — checksums for both files.
+- **`holeshield-2.1.0-release-SHA256SUMS.txt`** — checksums for the APK.
 
 ## New: web dashboard username
 
@@ -20,7 +19,7 @@ rules, blocklists and statistics are kept.
 - Clearing the password also clears the username.
 - Changing the web login invalidates existing dashboard sessions.
 - `/api/auth` accepts `{"username":"admin","password":"secret"}`.
-- The Pi-hole v5 compatibility endpoint accepts `auth=admin:secret` when a
+- The legacy v5 compatibility endpoint accepts `auth=admin:secret` when a
   username is set, or `auth=password` for password-only installs.
 - The Server screen and dashboard show whether the web login is off,
   password-only, or user + password.
@@ -41,6 +40,5 @@ rules, blocklists and statistics are kept.
 ## SHA-256
 
 ```
-ba1e84ab3d4e873bc5215978061c60aeb91afe9c9fb1bc19329637f4c94bb185  holeshield.aab
 27046905fae6c29359d707865cce05e3378197594ce93037499005926228a3df  holeshield.apk
 ```

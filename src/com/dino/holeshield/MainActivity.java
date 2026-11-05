@@ -77,7 +77,7 @@ import java.util.function.Consumer;
  */
 public class MainActivity extends Activity {
 
-    private enum Screen { HOME, SETTINGS, LISTS, PIHOLE, LOG, NETWORK }
+    private enum Screen { HOME, SETTINGS, LISTS, SERVER, LOG, NETWORK }
 
     private static final int REQ_VPN = 41;
     private static final int REQ_NOTIFICATION = 42;
@@ -96,12 +96,8 @@ public class MainActivity extends Activity {
     private LinearLayout page;
     private View initialFocus;
 
-    private PiholeClient.Summary pihole;
-    private boolean piholeLoading;
-    private long piholeFetchedAt;
     private boolean autoStarted;
     private boolean vpnConsentNeeded;
-    private boolean discovering;
 
     // Home screen views, updated in place so focus is never lost.
     private ShieldView shield;
@@ -122,19 +118,19 @@ public class MainActivity extends Activity {
     private LinearLayout recentBox;
     private String recentSignature = "";
 
-    // Pi-hole screen views.
-    private TextView piholeTitle;
-    private TextView piholeSub;
-    private TextView piholeQ;
-    private TextView piholeB;
-    private TextView piholePct;
-    private TextView piholeGravity;
-    private TextView piholeError;
-    private TextView piholeServer;
-    private LinearLayout piholeTopBox;
-    private LinearLayout piholeClientBox;
-    private String piholeTopSignature = "";
-    private String piholeClientSignature = "";
+    // Server screen views.
+    private TextView serverTitle;
+    private TextView serverSub;
+    private TextView serverQ;
+    private TextView serverB;
+    private TextView serverPct;
+    private TextView serverGravity;
+    private TextView serverError;
+    private TextView serverInfo;
+    private LinearLayout serverTopBox;
+    private LinearLayout serverClientBox;
+    private String serverTopSignature = "";
+    private String serverClientSignature = "";
 
     // Blocklist screen views.
     private TextView listCount;
@@ -199,11 +195,11 @@ public class MainActivity extends Activity {
         if (intent == null) return Screen.HOME;
         String action = intent.getAction();
         if ("com.dino.holeshield.QUERYLOG".equals(action)) return Screen.LOG;
+        if ("server".equals(intent.getStringExtra("screen"))) return Screen.SERVER;
         if (DnsVpnService.ACTION_PAUSE_30.equals(action)) {
             pauseFor30();
             return Screen.HOME;
         }
-        if ("pihole".equals(intent.getStringExtra("screen"))) return Screen.PIHOLE;
         return Screen.HOME;
     }
 
@@ -460,7 +456,7 @@ public class MainActivity extends Activity {
         rail.addView(section("NAVIGATION"));
         navItems = new LinkedHashMap<>();
         navItems.put(Screen.HOME, navItem("Home", Screen.HOME));
-        navItems.put(Screen.PIHOLE, navItem("Server", Screen.PIHOLE));
+        navItems.put(Screen.SERVER, navItem("Server", Screen.SERVER));
         navItems.put(Screen.LISTS, navItem("Gravity & rules", Screen.LISTS));
         navItems.put(Screen.LOG, navItem("Query log", Screen.LOG));
         navItems.put(Screen.SETTINGS, navItem("Settings", Screen.SETTINGS));
@@ -546,8 +542,8 @@ public class MainActivity extends Activity {
         phoneNavItems = new LinkedHashMap<>();
         phoneNavItems.put(Screen.HOME,
                 phoneNavItem("Home", R.drawable.ic_nav_home, Screen.HOME));
-        phoneNavItems.put(Screen.PIHOLE,
-                phoneNavItem("Server", R.drawable.ic_nav_server, Screen.PIHOLE));
+        phoneNavItems.put(Screen.SERVER,
+                phoneNavItem("Server", R.drawable.ic_nav_server, Screen.SERVER));
         phoneNavItems.put(Screen.LISTS,
                 phoneNavItem("Gravity", R.drawable.ic_nav_gravity, Screen.LISTS));
         phoneNavItems.put(Screen.LOG,
@@ -699,7 +695,7 @@ public class MainActivity extends Activity {
         switch (next) {
             case SETTINGS: content = settingsScreen(); break;
             case LISTS: content = listsScreen(); break;
-            case PIHOLE: content = piholeScreen(); break;
+            case SERVER: content = serverScreen(); break;
             case LOG: content = logScreen(); break;
             case NETWORK: content = networkScreen(); break;
             default: content = homeScreen(); break;
@@ -754,13 +750,13 @@ public class MainActivity extends Activity {
         netHint = null;
         recentBox = null;
         recentSignature = "";
-        piholeTitle = null;
-        piholeSub = null;
-        piholeQ = null;
-        piholeB = null;
-        piholePct = null;
-        piholeGravity = null;
-        piholeError = null;
+        serverTitle = null;
+        serverSub = null;
+        serverQ = null;
+        serverB = null;
+        serverPct = null;
+        serverGravity = null;
+        serverError = null;
         listCount = null;
         listUpdated = null;
     }
@@ -832,7 +828,7 @@ public class MainActivity extends Activity {
         primaryLabel = primary;
         primary.setOnClickListener(v -> toggleProtection());
         TextView setup = Ui.button(this, "Open server", false);
-        setup.setOnClickListener(v -> show(Screen.PIHOLE));
+        setup.setOnClickListener(v -> show(Screen.SERVER));
         if (isTv) {
             heroButtons.addView(primary);
             heroButtons.addView(setup, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -867,14 +863,14 @@ public class MainActivity extends Activity {
         statRate = statCard(stats, "BLOCK RATE", "of all lookups", Ui.BLUE);
         add(col, stats, isTv ? 18 : 14);
 
-        // Pi-hole card
+        // Server card
         LinearLayout net = card(22);
         LinearLayout netHead = Ui.row(this);
         netHead.addView(Ui.caption(this, "BUILT-IN FILTER"));
         netHead.addView(new View(this), Ui.lp(0, 1, 1f));
         TextView open = Ui.button(this, "Open", false);
         open.setMinWidth(Ui.dp(this, 96));
-        open.setOnClickListener(v -> show(Screen.PIHOLE));
+        open.setOnClickListener(v -> show(Screen.SERVER));
         netHead.addView(open);
         net.addView(netHead);
         netTitle = Ui.text(this, "", isTv ? 22 : 20, Ui.TEXT, true);
@@ -987,7 +983,7 @@ public class MainActivity extends Activity {
     private void updateLive() {
         updateStatusChip();
         if (screen == Screen.HOME) updateHomeLive();
-        if (screen == Screen.PIHOLE) updatePiholeLive();
+        if (screen == Screen.SERVER) updateServerLive();
         if (screen == Screen.LISTS) updateListsLive();
     }
 
@@ -1148,54 +1144,54 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ------------------------------------------------------------- Pi-hole screen
+    // -------------------------------------------------------------- Server screen
 
-    private LinearLayout piholeScreen() {
+    private LinearLayout serverScreen() {
         LinearLayout col = Ui.column(this);
         add(col, subHeader("Server", "Embedded DNS filter · dashboard · query log"), 0);
 
         LinearLayout status = card(26);
-        piholeTitle = Ui.text(this, "Filter is starting…", isTv ? 27 : 24, Ui.TEXT, true);
-        status.addView(piholeTitle);
-        piholeSub = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
-        status.addView(piholeSub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        serverTitle = Ui.text(this, "Filter is starting…", isTv ? 27 : 24, Ui.TEXT, true);
+        status.addView(serverTitle);
+        serverSub = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
+        status.addView(serverSub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 5), 0, 0));
-        piholeError = Ui.text(this, "", isTv ? 12 : 11.5f, Ui.AMBER, false);
-        piholeError.setLineSpacing(Ui.dp(this, 3), 1f);
-        status.addView(piholeError, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        serverError = Ui.text(this, "", isTv ? 12 : 11.5f, Ui.AMBER, false);
+        serverError.setLineSpacing(Ui.dp(this, 3), 1f);
+        status.addView(serverError, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
-        piholeServer = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
-        piholeServer.setLineSpacing(Ui.dp(this, 4), 1f);
-        status.addView(piholeServer, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        serverInfo = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
+        serverInfo.setLineSpacing(Ui.dp(this, 4), 1f);
+        status.addView(serverInfo, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
         add(col, status, isTv ? 20 : 14);
 
         if (isTv) {
             LinearLayout stats = Ui.row(this);
-            piholeQ = statCard(stats, "QUERIES", "today, all clients", Ui.GREEN);
-            piholeB = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
-            piholePct = statCard(stats, "PERCENT", "of all queries", Ui.AMBER);
-            piholeGravity = statCard(stats, "ON LISTS", "domains", Ui.BLUE);
+            serverQ = statCard(stats, "QUERIES", "today, all clients", Ui.GREEN);
+            serverB = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
+            serverPct = statCard(stats, "PERCENT", "of all queries", Ui.AMBER);
+            serverGravity = statCard(stats, "ON LISTS", "domains", Ui.BLUE);
             add(col, stats, 18);
         } else {
             LinearLayout stats1 = Ui.row(this);
-            piholeQ = statCard(stats1, "QUERIES", "today, all clients", Ui.GREEN);
-            piholeB = statCard(stats1, "BLOCKED", "gravity & rules", Ui.RED);
+            serverQ = statCard(stats1, "QUERIES", "today, all clients", Ui.GREEN);
+            serverB = statCard(stats1, "BLOCKED", "gravity & rules", Ui.RED);
             add(col, stats1, 14);
             LinearLayout stats2 = Ui.row(this);
-            piholePct = statCard(stats2, "PERCENT", "of all queries", Ui.AMBER);
-            piholeGravity = statCard(stats2, "ON LISTS", "domains", Ui.BLUE);
+            serverPct = statCard(stats2, "PERCENT", "of all queries", Ui.AMBER);
+            serverGravity = statCard(stats2, "ON LISTS", "domains", Ui.BLUE);
             add(col, stats2, 8);
         }
 
         TextView pause5 = Ui.button(this, "Pause 5 min", false);
-        pause5.setOnClickListener(v -> setPiholeBlocking(false, 300));
+        pause5.setOnClickListener(v -> setServerBlocking(false, 300));
         TextView pause30 = Ui.button(this, "Pause 30 min", false);
-        pause30.setOnClickListener(v -> setPiholeBlocking(false, 1800));
+        pause30.setOnClickListener(v -> setServerBlocking(false, 1800));
         TextView pause = Ui.button(this, "Pause", false);
-        pause.setOnClickListener(v -> setPiholeBlocking(false, 0));
+        pause.setOnClickListener(v -> setServerBlocking(false, 0));
         TextView resume = Ui.button(this, "Resume", true);
-        resume.setOnClickListener(v -> setPiholeBlocking(true, 0));
+        resume.setOnClickListener(v -> setServerBlocking(true, 0));
         TextView update = Ui.button(this, "Update gravity", false);
         update.setOnClickListener(v -> updateBlocklist());
         if (isTv) {
@@ -1231,15 +1227,15 @@ public class MainActivity extends Activity {
 
         LinearLayout top = card(22);
         top.addView(Ui.caption(this, "TOP BLOCKED DOMAINS"));
-        piholeTopBox = Ui.column(this);
-        top.addView(piholeTopBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        serverTopBox = Ui.column(this);
+        top.addView(serverTopBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
         add(col, top, isTv ? 18 : 14);
 
         LinearLayout clients = card(22);
         clients.addView(Ui.caption(this, "TOP CLIENTS"));
-        piholeClientBox = Ui.column(this);
-        clients.addView(piholeClientBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        serverClientBox = Ui.column(this);
+        clients.addView(serverClientBox, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
         add(col, clients, isTv ? 18 : 14);
 
@@ -1281,24 +1277,24 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 16), 0, 0));
         add(col, help, isTv ? 18 : 14);
 
-        updatePiholeLive();
+        updateServerLive();
         return col;
     }
 
-    private void updatePiholeLive() {
-        if (piholeTitle == null) return;
+    private void updateServerLive() {
+        if (serverTitle == null) return;
         boolean running = DnsVpnService.running;
         boolean paused = running && !prefs.blockingActive();
         if (!running) {
-            piholeTitle.setText("Filter is off");
-            piholeTitle.setTextColor(Ui.DIM);
+            serverTitle.setText("Filter is off");
+            serverTitle.setTextColor(Ui.DIM);
         } else if (paused) {
-            piholeTitle.setText(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
+            serverTitle.setText(prefs.scheduleEnabled && !prefs.scheduleActiveNow()
                     ? "Outside blocking hours" : "Blocking is paused");
-            piholeTitle.setTextColor(Ui.AMBER);
+            serverTitle.setTextColor(Ui.AMBER);
         } else {
-            piholeTitle.setText("Hole Shield is blocking");
-            piholeTitle.setTextColor(Ui.GREEN);
+            serverTitle.setText("Hole Shield is blocking");
+            serverTitle.setTextColor(Ui.GREEN);
         }
 
         String url = NetInfo.dashboardUrl(this, prefs);
@@ -1310,7 +1306,7 @@ public class MainActivity extends Activity {
             sub = (url.isEmpty() ? "Web dashboard off" : url)
                     + (dns.isEmpty() ? " · LAN DNS off" : " · LAN DNS " + dns);
         }
-        piholeSub.setText(sub);
+        serverSub.setText(sub);
 
         StringBuilder err = new StringBuilder();
         if (!running && !DnsVpnService.lastError.isEmpty()) err.append(DnsVpnService.lastError);
@@ -1327,34 +1323,34 @@ public class MainActivity extends Activity {
             if (err.length() > 0) err.append("\n");
             err.append("LAN DNS: ").append(DnsVpnService.lanDnsError);
         }
-        piholeError.setText(err.toString());
+        serverError.setText(err.toString());
 
-        if (piholeServer != null) {
+        if (serverInfo != null) {
             String login = !prefs.hasWebPassword()
                     ? "not set"
                     : (prefs.webUsername == null || prefs.webUsername.isEmpty()
                             ? "password only" : "user + password");
-            piholeServer.setText("Web login: " + login
+            serverInfo.setText("Web login: " + login
                     + "\nWeb server: " + (DnsVpnService.webRunning ? "listening" : "off")
                     + "   ·   LAN DNS: " + (DnsVpnService.lanDnsRunning ? "listening" : "off")
                     + "\nPort 53 on the LAN needs root; use " + prefs.lanDnsPort + " instead.");
         }
 
-        if (piholeQ != null) piholeQ.setText(Ui.count(Stats.queries()));
-        if (piholeB != null) piholeB.setText(Ui.count(Stats.blocked()));
-        if (piholePct != null) piholePct.setText(Ui.percent(Stats.rate()));
-        if (piholeGravity != null) piholeGravity.setText(Ui.count(Blocklist.blockedCount()));
+        if (serverQ != null) serverQ.setText(Ui.count(Stats.queries()));
+        if (serverB != null) serverB.setText(Ui.count(Stats.blocked()));
+        if (serverPct != null) serverPct.setText(Ui.percent(Stats.rate()));
+        if (serverGravity != null) serverGravity.setText(Ui.count(Blocklist.blockedCount()));
 
-        if (piholeTopBox != null) {
+        if (serverTopBox != null) {
             List<Stats.Top> tops = Stats.topDomains(true, 8);
             StringBuilder sig = new StringBuilder();
             for (Stats.Top t : tops) sig.append(t.key).append(t.count).append('|');
-            if (!sig.toString().equals(piholeTopSignature)
-                    || piholeTopBox.getChildCount() == 0) {
-                piholeTopSignature = sig.toString();
-                piholeTopBox.removeAllViews();
+            if (!sig.toString().equals(serverTopSignature)
+                    || serverTopBox.getChildCount() == 0) {
+                serverTopSignature = sig.toString();
+                serverTopBox.removeAllViews();
                 if (tops.isEmpty()) {
-                    piholeTopBox.addView(Ui.text(this, "No blocked queries yet.",
+                    serverTopBox.addView(Ui.text(this, "No blocked queries yet.",
                             13, Ui.FAINT, false));
                 } else {
                     for (int i = 0; i < tops.size(); i++) {
@@ -1367,7 +1363,7 @@ public class MainActivity extends Activity {
                                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
                                 Ui.dp(this, 12), 0, 0, 0));
                         row.addView(Ui.text(this, Ui.count(t.count), 12, Ui.FAINT, false));
-                        piholeTopBox.addView(row, Ui.margins(Ui.lp(
+                        serverTopBox.addView(row, Ui.margins(Ui.lp(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                 ViewGroup.LayoutParams.WRAP_CONTENT),
                                 0, i == 0 ? 0 : Ui.dp(this, 7), 0, 0));
@@ -1376,16 +1372,16 @@ public class MainActivity extends Activity {
             }
         }
 
-        if (piholeClientBox != null) {
+        if (serverClientBox != null) {
             List<Stats.Top> tops = Stats.topClients(8);
             StringBuilder sig = new StringBuilder();
             for (Stats.Top t : tops) sig.append(t.key).append(t.count).append('|');
-            if (!sig.toString().equals(piholeClientSignature)
-                    || piholeClientBox.getChildCount() == 0) {
-                piholeClientSignature = sig.toString();
-                piholeClientBox.removeAllViews();
+            if (!sig.toString().equals(serverClientSignature)
+                    || serverClientBox.getChildCount() == 0) {
+                serverClientSignature = sig.toString();
+                serverClientBox.removeAllViews();
                 if (tops.isEmpty()) {
-                    piholeClientBox.addView(Ui.text(this, "No queries yet.",
+                    serverClientBox.addView(Ui.text(this, "No queries yet.",
                             13, Ui.FAINT, false));
                 } else {
                     for (Stats.Top t : tops) {
@@ -1396,7 +1392,7 @@ public class MainActivity extends Activity {
                         name.setSingleLine(true);
                         row.addView(name, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                         row.addView(Ui.text(this, Ui.count(t.count), 12, Ui.FAINT, false));
-                        piholeClientBox.addView(row, Ui.margins(Ui.lp(
+                        serverClientBox.addView(row, Ui.margins(Ui.lp(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                 ViewGroup.LayoutParams.WRAP_CONTENT),
                                 0, Ui.dp(this, 7), 0, 0));
@@ -1406,7 +1402,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setPiholeBlocking(boolean on, int seconds) {
+    private void setServerBlocking(boolean on, int seconds) {
         prefs = Prefs.load(this);
         if (on) prefs.resumeBlocking();
         else prefs.pauseBlocking(seconds);
@@ -1415,29 +1411,7 @@ public class MainActivity extends Activity {
         Ui.toast(this, on ? "Blocking resumed"
                 : seconds > 0 ? "Blocking paused for " + (seconds / 60) + " min"
                 : "Blocking paused until you resume");
-        updatePiholeLive();
-    }
-
-    private void maybeFetchPihole(boolean force) {
-        if (!prefs.hasPihole()) return;
-        long now = System.currentTimeMillis();
-        if (!force && now - piholeFetchedAt < 20000L) return;
-        if (piholeLoading) return;
-        piholeLoading = true;
-        piholeFetchedAt = now;
-        final Prefs snapshot = prefs;
-        final int knownApi = prefs.apiVersion;
-        io.execute(() -> {
-            final PiholeClient.Summary result = PiholeClient.fetch(snapshot);
-            handler.post(() -> {
-                pihole = result;
-                piholeLoading = false;
-                if (result.ok && result.version != knownApi) {
-                    prefs.save(this);      // remember v5/v6 so we skip the probe next time
-                }
-                updateLive();
-            });
-        });
+        updateServerLive();
     }
 
     // --------------------------------------------------------- blocklist screen
@@ -2193,7 +2167,7 @@ public class MainActivity extends Activity {
                             show(Screen.SETTINGS);
                         })), rowLp(7));
         ph.addView(settingRow("Blocking", "Open the server screen to pause or resume",
-                prefs.blockingActive() ? "On" : "Paused", () -> show(Screen.PIHOLE)),
+                prefs.blockingActive() ? "On" : "Paused", () -> show(Screen.SERVER)),
                 rowLp(8));
         add(col, ph, 8);
 
@@ -2979,6 +2953,15 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    private static int parsePort(String text, int fallback) {
+        try {
+            int port = Integer.parseInt(text.trim());
+            return port >= 1 && port <= 65535 ? port : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
     private boolean validUrl(String value, boolean allowHttp) {
         try {
             URL u = new URL(value.trim());
@@ -2989,207 +2972,6 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    // ----------------------------------------------------- Pi-hole discovery
-
-    private void discoverPihole() {
-        if (discovering) {
-            Ui.toast(this, "Already scanning…");
-            return;
-        }
-        discovering = true;
-        Ui.toast(this, "Looking for Pi-hole on the local network…");
-        io.execute(() -> {
-            LinkedHashSet<String> candidates = new LinkedHashSet<>();
-            candidates.add("pi.hole");
-            candidates.add("pihole.local");
-            candidates.add("pi.local");
-            candidates.add("raspberrypi.local");
-            try {
-                ConnectivityManager cm = getSystemService(ConnectivityManager.class);
-                if (cm != null) {
-                    // Skip the VPN itself: it reports our own DNS server and no
-                    // gateway, while the LAN we want is the underlying network.
-                    for (Network network : cm.getAllNetworks()) {
-                        NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-                        if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                            continue;
-                        }
-                        LinkProperties lp = cm.getLinkProperties(network);
-                        if (lp == null) continue;
-                        for (RouteInfo route : lp.getRoutes()) {
-                            if (route.isDefaultRoute()) {
-                                addCandidate(candidates, route.getGateway());
-                            }
-                        }
-                        for (InetAddress dns : lp.getDnsServers()) {
-                            addCandidate(candidates, dns);
-                        }
-                    }
-                }
-            } catch (Exception ignored) { }
-
-            List<String> hosts = new ArrayList<>();
-            List<String> labels = new ArrayList<>();
-            for (String host : candidates) {
-                if (host == null || host.isEmpty() || "127.0.0.1".equals(host)
-                        || "::1".equals(host)) {
-                    continue;
-                }
-                int version = probePihole(host);
-                if (version > 0) {
-                    hosts.add(host);
-                    labels.add(host + "   ·   API v" + version);
-                }
-            }
-            handler.post(() -> {
-                discovering = false;
-                showDiscovered(hosts, labels);
-            });
-        });
-    }
-
-    private static void addCandidate(LinkedHashSet<String> out, InetAddress address) {
-        if (address == null || address.isAnyLocalAddress() || address.isLoopbackAddress()
-                || address.isLinkLocalAddress() || address.isMulticastAddress()) {
-            return;
-        }
-        String host = cleanAddress(address.getHostAddress());
-        if (!host.isEmpty()) out.add(host);
-    }
-
-    private static String cleanAddress(String address) {
-        if (address == null) return "";
-        int zone = address.indexOf('%');
-        if (zone > 0) address = address.substring(0, zone);
-        if (address.startsWith("[") && address.endsWith("]")) {
-            address = address.substring(1, address.length() - 1);
-        }
-        return address;
-    }
-
-    /** Brackets a bare IPv6 literal so it can be used in a URL. */
-    private static String hostForUrl(String host) {
-        if (host == null) return "";
-        String h = host.trim();
-        if (h.startsWith("[") || h.indexOf(':') < 0) return h;
-        return "[" + h + "]";
-    }
-
-    private static int parsePort(String text, int fallback) {
-        try {
-            int port = Integer.parseInt(text.trim());
-            return port >= 1 && port <= 65535 ? port : fallback;
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
-    /** @return 6, 5 or 0 (not a Pi-hole / no answer). */
-    private static int probePihole(String host) {
-        String base = "http://" + hostForUrl(host);
-        try {
-            HttpURLConnection c = (HttpURLConnection)
-                    new URL(base + "/api/auth").openConnection();
-            c.setConnectTimeout(1300);
-            c.setReadTimeout(1300);
-            c.setRequestProperty("Accept", "application/json");
-            int code = c.getResponseCode();
-            if (code == 401 || code == 403 || code == 405) {
-                c.disconnect();
-                return 6;
-            }
-            if (code == 200) {
-                String body = readSmall(c, 4096);
-                c.disconnect();
-                if (body.contains("session") || body.contains("\"valid\"")) return 6;
-            } else {
-                c.disconnect();
-            }
-        } catch (Exception ignored) { }
-
-        try {
-            HttpURLConnection c = (HttpURLConnection)
-                    new URL(base + "/admin/api.php?summaryRaw").openConnection();
-            c.setConnectTimeout(1300);
-            c.setReadTimeout(1300);
-            c.setRequestProperty("Accept", "application/json");
-            int code = c.getResponseCode();
-            if (code == 200) {
-                String body = readSmall(c, 4096);
-                c.disconnect();
-                if (body.contains("dns_queries_today") || body.toLowerCase(Locale.US)
-                        .contains("unauthorized")) {
-                    return 5;
-                }
-            } else {
-                c.disconnect();
-            }
-        } catch (Exception ignored) { }
-        return 0;
-    }
-
-    private static String readSmall(HttpURLConnection c, int limit) {
-        try (java.io.InputStream in = c.getInputStream()) {
-            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-            byte[] buf = new byte[512];
-            int n;
-            while ((n = in.read(buf)) > 0 && out.size() < limit) out.write(buf, 0, n);
-            return out.toString("UTF-8");
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    private void showDiscovered(List<String> hosts, List<String> labels) {
-        if (isFinishing() || isDestroyed()) return;
-        if (hosts.isEmpty()) {
-            Ui.builder(this)
-                    .setTitle("No Pi-hole answered")
-                    .setMessage("Tried pi.hole, common mDNS names, the gateway and the device's "
-                            + "current DNS servers on port 80.\n\nIf Pi-hole uses another port "
-                            + "or HTTPS, enter its address manually in Settings.")
-                    .setPositiveButton("Enter address", (d, w) -> show(Screen.SETTINGS))
-                    .setNegativeButton("Cancel", null)
-                    .show();
-            return;
-        }
-        String[] items = labels.toArray(new String[0]);
-        Ui.builder(this)
-                .setTitle(hosts.size() == 1 ? "Pi-hole found" : "Choose your Pi-hole")
-                .setItems(items, (d, which) -> useDiscovered(hosts.get(which)))
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void useDiscovered(String found) {
-        String host = found == null ? "" : found.trim();
-        int port = 80;
-        if (host.startsWith("[")) {
-            int close = host.indexOf(']');
-            if (close > 0) {
-                String rest = host.substring(close + 1);
-                host = host.substring(1, close);
-                if (rest.startsWith(":")) port = parsePort(rest.substring(1), 80);
-            }
-        } else {
-            int colon = host.indexOf(':');
-            if (colon > 0 && host.indexOf(':', colon + 1) < 0) {
-                port = parsePort(host.substring(colon + 1), 80);
-                host = host.substring(0, colon);
-            }
-        }
-        if (host.isEmpty()) return;
-        prefs.piholeHost = host;
-        prefs.piholePort = port;
-        prefs.usePihole = true;
-        prefs.save(this);
-        pihole = null;
-        piholeFetchedAt = 0;
-        restartIfRunning();
-        show(Screen.SETTINGS);
-        Ui.toast(this, "Using " + host + " for DNS");
     }
 
     private void edit(String title, String current, boolean secret, Consumer<String> done) {
@@ -3303,7 +3085,7 @@ public class MainActivity extends Activity {
                     + "\n\nLocal list: " + (local ? "contains it" : "does not contain it")
                     + "\nProtection: " + (DnsVpnService.running ? "running" : "off")
                     + "\nexample.com: " + normal
-                    + "\n\nIf protection is on and the ad domain still resolves, Pi-hole "
+                    + "\n\nIf protection is on and the ad domain still resolves, the upstream "
                     + "may be allowing it, or an app is using DNS-over-TLS.";
             handler.post(() -> {
                 if (isFinishing() || isDestroyed()) return;

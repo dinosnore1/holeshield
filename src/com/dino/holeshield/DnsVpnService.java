@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A DNS-only VPN: it owns a tun device, receives every DNS query the TV makes,
- * applies the local blocklist, and forwards the rest to Pi-hole.
+ * applies the local blocklist, and forwards the rest to the upstream.
  */
 public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
 
@@ -38,7 +38,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
 
     private static final String CHANNEL = "protection";
     private static final int NOTIFICATION_ID = 1;
-    private static final String TAG = "PiholeTv";
+    private static final String TAG = "HoleShield";
     private static final String VPN_ADDRESS = "10.111.221.2";
     private static final String DNS_ADDRESS = "10.111.221.1";
     private static final String VPN_ROUTE = "10.111.221.0";
@@ -470,7 +470,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
 
     private Notification notification(String text) {
         Intent open = new Intent(this, MainActivity.class)
-                .putExtra("screen", "pihole");
+                .putExtra("screen", "server");
         PendingIntent pi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 

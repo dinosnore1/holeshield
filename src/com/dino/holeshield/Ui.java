@@ -25,12 +25,12 @@ import android.widget.Toast;
  *
  * The colour tokens follow Material 3. On Android 12+ they are taken from the
  * system's dynamic ("Material You") tonal palettes; older devices use a dark
- * Material 3 scheme generated from the Pi-hole green seed colour. The app is
+ * Material 3 scheme generated from the Hole Shield green seed colour. The app is
  * deliberately always dark and keeps the same visual language on TV and phone.
  */
 final class Ui {
 
-    // Material 3 dark scheme generated from the Pi-hole seed colour #34D399.
+    // Material 3 dark scheme generated from the Hole Shield seed colour #34D399.
     private static final int F_PRIMARY = 0xFF8ED5B2;
     private static final int F_ON_PRIMARY = 0xFF003825;
     private static final int F_PRIMARY_CONTAINER = 0xFF005137;
@@ -508,8 +508,8 @@ final class Ui {
     /** A builder whose show() also matches the dialog text to the dynamic palette. */
     private static final class ThemedBuilder extends AlertDialog.Builder {
         ThemedBuilder(Context c) {
-            super(c, dark ? R.style.Theme_PiholeTV_Dialog
-                    : R.style.Theme_PiholeTV_Dialog_Light);
+            super(c, dark ? R.style.Theme_HoleShield_Dialog
+                    : R.style.Theme_HoleShield_Dialog_Light);
         }
 
         @Override public AlertDialog show() {

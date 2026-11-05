@@ -1,36 +1,31 @@
 # Hole Shield 2.0.0 — Android phones and TV
 
-Hole Shield is the new name for the self-contained DNS filter previously
-released as **Pi-hole for Android TV and phones**. This release is a new app
-package, not an in-place upgrade.
+Hole Shield is the self-contained DNS filter for Android TV and phones. This
+release introduced the current app package.
 
 ## Download
 
 - **`holeshield.apk`** — install directly on a phone, tablet or Android TV.
-- **`holeshield.aab`** — signed Play bundle for Google Play upload.
-- **`holeshield-2.0.0-SHA256SUMS.txt`** — checksums for both files.
+- **`holeshield-2.0.0-SHA256SUMS.txt`** — checksum for the APK.
 
-The APK is signed with the direct-install key. The AAB is signed with the Play
-upload key; Play App Signing will re-sign the delivered app. The two files are
-not interchangeable signing-wise.
+The APK is signed with the direct-install key.
 
-## Important: new package
+## New package
 
-The package changed from `com.dino.pihole` to `com.dino.holeshield`. Android
-treats this as a new app:
+The package is `com.dino.holeshield`. Android treats it as a new app:
 
-1. Uninstall the old **Pi-hole** app.
-2. Install `holeshield.apk` or the Play build.
+1. Uninstall any older app package.
+2. Install `holeshield.apk`.
 3. Turn on protection and approve Android's VPN prompt again.
 4. Run **Update gravity now**.
 
-Settings, rules and statistics do not migrate from the old package.
+Settings, rules and statistics do not migrate from older packages.
 
 ## What's new
 
 - Rebranded UI, dashboard, notifications, launcher label and TV banner as
   **Hole Shield** / **Hole Shield TV**.
-- Targets **Android 16 (API 36)** for current Play requirements.
+- Targets **Android 16 (API 36)**.
 - In-app **VPN disclosure** before Android's VPN consent prompt.
 - Notification permission handling on Android 13+.
 - Edge-to-edge layout on Android 15+.
@@ -42,7 +37,7 @@ Settings, rules and statistics do not migrate from the old package.
 ## Filtering
 
 - Local, DNS-only `VpnService`; no remote VPN tunnel.
-- 23-list maximum preset, deduplicated to roughly 500k domains, 600k cap.
+- Deduplicated gravity database with a 600k-domain cap.
 - Exact, wildcard and regex allow/deny rules; allow rules win.
 - CNAME inspection, local cache, DoH upstream and plain-DNS fallback.
 - Pause/resume, query log, statistics, web dashboard and LAN DNS on 5354.
@@ -51,7 +46,6 @@ Settings, rules and statistics do not migrate from the old package.
 ## Verified
 
 - 70 desktop checks.
-- Signed AAB validates and is signed with the upload key.
 - Fresh installs on Android 15 (API 35) and Android 16 (API 36) emulators.
 - In-app disclosure → Android VPN prompt → protected.
 - Cancel leaves protection off and starts no VPN service.
@@ -66,13 +60,11 @@ Settings, rules and statistics do not migrate from the old package.
   root.
 - Set Android **Private DNS** to **Off** if a strict DoT hostname bypasses the
   filter.
-- The Play listing is not public yet; the AAB is provided for upload/testing.
 - Privacy policy:
   https://dinosnore1.github.io/holeshield-privacy/privacy.html
 
 ## SHA-256
 
 ```
-0a41d54c98c485a59718a7158edacd138d7e0f6be965084769b63c39de400c3f  holeshield.aab
 5d5afc5e6be1c2c1692ce1f31438694cc63b7e4331b6a2545fef4e995ef8d9d1  holeshield.apk
 ```
