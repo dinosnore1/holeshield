@@ -135,7 +135,8 @@ jobs:
       - name: Smoke test portable JAR
         if: runner.os != 'Windows'
         run: |
-          ./desktop/tools/smoke.sh "$JAVA_HOME/bin/java" -jar "$PWD/desktop/build/dist/holeshield-desktop-2.3.2.jar"
+          JAR="$(ls desktop/build/dist/holeshield-desktop-*.jar | head -1)"
+          ./desktop/tools/smoke.sh "$JAVA_HOME/bin/java" -jar "$PWD/$JAR"
 
       - name: Smoke test portable JAR (Windows)
         if: runner.os == 'Windows'
