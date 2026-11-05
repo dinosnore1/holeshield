@@ -5,3 +5,4 @@ __pycache__/
 *.apk
 *.aab
 .DS_Store
+javac.*.args

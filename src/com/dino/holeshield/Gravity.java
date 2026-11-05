@@ -37,6 +37,18 @@ final class Gravity {
         return EMPTY;
     }
 
+    /**
+     * Rehydrates a persisted index. The caller must provide sorted, unique
+     * hashes and one category mask per entry.
+     */
+    static Gravity fromHashes(long[] hashes, byte[] flags) {
+        if (hashes == null || flags == null || hashes.length != flags.length
+                || hashes.length == 0) {
+            return EMPTY;
+        }
+        return new Gravity(hashes, flags);
+    }
+
     int size() {
         return hashes.length;
     }

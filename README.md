@@ -1,7 +1,7 @@
-# Hole Shield for Android TV and phones
+# Hole Shield for Android TV, phones and desktop
 
-A self-contained, Pi-hole-style DNS filter for Android TV, Google TV and Android
-phones. Hole Shield runs its own gravity engine, query log, statistics, web
+A self-contained, Pi-hole-style DNS filter for Android TV, Google TV, Android
+phones, Windows, Linux and macOS. Hole Shield runs its own gravity engine, query log, statistics, web
 dashboard/API and an optional LAN DNS listener. It also runs a DNS-only VPN on
 the device so every app's lookups are filtered without root.
 
@@ -20,9 +20,27 @@ before installing it.
 
 - **Package:** `com.dino.holeshield`
 - **Version:** 2.3.2 (`versionCode 9`)
+- **Desktop:** Java 17 Swing app with a bundled-runtime installer for Windows,
+  Linux and macOS (see `desktop/README.md`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
 - **Minimum Android:** 8.0 (API 26)
 - **Target/compile SDK:** 36 (Android 16)
+
+## Desktop port
+
+The `desktop/` directory contains a native Windows/Linux/macOS build with the
+same gravity format, rules, query log and web dashboard as the Android app. It
+runs local UDP/TCP DNS, supports DoH or plain upstreams, has a Swing control
+panel and tray controls, and ships as a portable JAR plus native installers.
+
+```bash
+./desktop/tools/test.sh       # 117 headless core checks
+./desktop/tools/package.sh    # app image + DMG/PKG, DEB/RPM or MSI/EXE
+```
+
+See [`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
+platform packaging notes. The GitHub Actions workflow
+`.github/workflows/desktop.yml` builds all three platforms.
 
 ## What it does
 

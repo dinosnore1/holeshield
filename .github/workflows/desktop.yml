@@ -1,0 +1,73 @@
+name: Desktop builds
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "assets/dashboard.html"
+      - "src/com/dino/holeshield/DnsPacket.java"
+      - "src/com/dino/holeshield/Gravity.java"
+      - "src/com/dino/holeshield/HostsParser.java"
+      - "src/com/dino/holeshield/Blocklists.java"
+      - "src/com/dino/holeshield/WebAuth.java"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "assets/dashboard.html"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-22.04, windows-2022]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot rpm
+
+      - name: Install WiX
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install wixtoolset --no-progress -y
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
+
+      - name: Test
+        if: runner.os != 'Windows'
+        run: ./desktop/tools/test.sh
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./desktop/tools/test.ps1
+
+      - name: Package
+        if: runner.os != 'Windows'
+        run: ./desktop/tools/package.sh
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./desktop/tools/package.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: holeshield-desktop-${{ matrix.os }}
+          path: desktop/build/dist/*
+          if-no-files-found: warn
