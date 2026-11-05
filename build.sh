@@ -20,7 +20,6 @@ OUT=build
 rm -rf "$OUT"
 mkdir -p "$OUT/compiled" "$OUT/gen" "$OUT/classes" "$OUT/dex"
 
-python3 make_art.py res/drawable
 
 "$BT/aapt2" compile --dir res -o "$OUT/compiled"
 "$BT/aapt2" link -o "$OUT/unsigned.apk" -I "$JAR" \

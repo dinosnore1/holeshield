@@ -22,4 +22,5 @@
     <color name="m3_light_on_surface">#FF191C19</color>
     <color name="m3_light_on_surface_variant">#FF414942</color>
     <color name="m3_light_outline_variant">#FFC1C9C1</color>
+    <color name="ic_launcher_background">#FF0D1512</color>
 </resources>
