@@ -9,7 +9,7 @@ $Icons = Join-Path $Out "icons"
 Remove-Item -Recurse -Force $Dest, $Icons -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $Dest, $Icons | Out-Null
 & "$Jdk\bin\java.exe" -cp "$Out\classes" com.dino.holeshield.IconGenerator "$Icons\icon.png" | Out-Null
-Copy-Item "$Out\holeshield-desktop.jar" "$Dest\holeshield-desktop-2.3.2.jar" -Force
+Copy-Item "$Out\holeshield-desktop.jar" "$Dest\holeshield-desktop-2.3.3.jar" -Force
 
 # Write a 256x256 PNG-backed ICO for the Windows installers.
 Add-Type -AssemblyName System.Drawing
@@ -38,7 +38,7 @@ New-Item -ItemType Directory -Force $Stage | Out-Null
 Copy-Item "$Out\holeshield-desktop.jar" $Stage -Force
 
 $Name = "Hole Shield"
-$Version = "2.3.2"
+$Version = "2.3.3"
 $Base = @(
   "--name", $Name,
   "--app-version", $Version,

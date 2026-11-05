@@ -100,7 +100,7 @@ final class Upstream implements Resolver {
                     .timeout(Duration.ofSeconds(8))
                     .header("Content-Type", "application/dns-message")
                     .header("Accept", "application/dns-message")
-                    .header("User-Agent", "Hole-Shield-Desktop/2.3.2")
+                    .header("User-Agent", "Hole-Shield-Desktop/2.3.3")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(payload))
                     .build();
             HttpResponse<byte[]> response = http.send(request,

@@ -100,7 +100,7 @@ Artifacts are written to `desktop/build/dist/`:
 - Linux: app image, `.deb`, `.rpm` (when `rpmbuild` is available), portable
   `.tar.gz`
 - Windows: app image, `.zip`, `.msi` and `.exe` when WiX is installed
-- Every platform: `holeshield-desktop-2.3.2.jar`
+- Every platform: `holeshield-desktop-2.3.3.jar`
 
 The GitHub Actions workflow in `.github/workflows/desktop.yml` builds and
 uploads all three platforms. It also installs the PKG/DMG, DEB, MSI and portable

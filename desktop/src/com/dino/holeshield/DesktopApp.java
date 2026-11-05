@@ -6,7 +6,7 @@ import java.io.File;
 /** Entry point for the Windows, Linux and macOS build. */
 public final class DesktopApp {
 
-    static final String VERSION = "2.3.2";
+    static final String VERSION = "2.3.3";
     static final String NAME = "Hole Shield";
 
     private final DesktopPrefs prefs;

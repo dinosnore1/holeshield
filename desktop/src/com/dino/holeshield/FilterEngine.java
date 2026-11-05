@@ -863,7 +863,7 @@ final class FilterEngine {
             connection.setConnectTimeout(15000);
             connection.setReadTimeout(30000);
             connection.setInstanceFollowRedirects(true);
-            connection.setRequestProperty("User-Agent", "Hole-Shield-Desktop/2.3.2");
+            connection.setRequestProperty("User-Agent", "Hole-Shield-Desktop/2.3.3");
             connection.setRequestProperty("Accept", "text/plain,*/*");
             int code = connection.getResponseCode();
             if (code < 200 || code >= 300) {
