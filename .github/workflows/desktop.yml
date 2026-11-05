@@ -39,7 +39,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y fakeroot rpm
+          sudo apt-get install -y fakeroot rpm dnsutils
 
       - name: Install WiX
         if: runner.os == 'Windows'
@@ -65,6 +65,78 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./desktop/tools/package.ps1
+
+      - name: Smoke test macOS PKG
+        if: runner.os == 'macOS'
+        run: |
+          sudo installer -pkg desktop/build/dist/*.pkg -target /
+          ./desktop/tools/smoke.sh "/Applications/Hole Shield.app/Contents/MacOS/Hole Shield"
+
+      - name: Smoke test macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p /tmp/holeshield-dmg
+          hdiutil attach -nobrowse -readonly desktop/build/dist/*.dmg -mountpoint /tmp/holeshield-dmg
+          ./desktop/tools/smoke.sh "/tmp/holeshield-dmg/Hole Shield.app/Contents/MacOS/Hole Shield"
+          hdiutil detach /tmp/holeshield-dmg
+
+      - name: Smoke test Linux DEB
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./desktop/build/dist/*.deb
+          EXE="$(find /opt -type f -name 'Hole Shield' | head -1)"
+          test -n "$EXE"
+          ./desktop/tools/smoke.sh "$EXE"
+
+      - name: Smoke test Linux portable archive
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p /tmp/holeshield-portable
+          tar -xzf desktop/build/dist/holeshield-linux-portable-*.tar.gz -C /tmp/holeshield-portable
+          EXE="$(find /tmp/holeshield-portable -type f -name 'Hole Shield' | head -1)"
+          test -n "$EXE"
+          ./desktop/tools/smoke.sh "$EXE"
+
+      - name: Smoke test Windows MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem desktop/build/dist/*.msi | Select-Object -First 1
+          $log = Join-Path $env:TEMP "holeshield-msi.log"
+          $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+            "/i", "`"$($msi.FullName)`"", "/qn", "/norestart", "/l*v", "`"$log`""
+          )
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
+            Get-Content $log -ErrorAction SilentlyContinue
+            throw "MSI install failed with $($p.ExitCode)"
+          }
+          $exe = Get-ChildItem "C:\Program Files" -Recurse -Filter "Hole Shield.exe" `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "installed executable not found" }
+          ./desktop/tools/smoke.ps1 -Exe $exe.FullName
+
+      - name: Smoke test Windows portable ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem desktop/build/dist/*.zip | Select-Object -First 1
+          $dir = Join-Path $env:TEMP "holeshield-portable"
+          Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
+          Expand-Archive $zip.FullName -DestinationPath $dir
+          $exe = Get-ChildItem $dir -Recurse -Filter "Hole Shield.exe" | Select-Object -First 1
+          ./desktop/tools/smoke.ps1 -Exe $exe.FullName
+
+      - name: Smoke test portable JAR
+        if: runner.os != 'Windows'
+        run: |
+          ./desktop/tools/smoke.sh "$JAVA_HOME/bin/java" -jar "$PWD/desktop/build/dist/holeshield-desktop-2.3.2.jar"
+
+      - name: Smoke test portable JAR (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $jar = Get-ChildItem desktop/build/dist/*.jar | Select-Object -First 1
+          ./desktop/tools/smoke.ps1 -Exe "$env:JAVA_HOME\bin\java.exe" -Arguments @("-jar", $jar.FullName)
 
       - uses: actions/upload-artifact@v4
         with:
