@@ -36,7 +36,9 @@ panel and tray controls, and ships as a portable JAR plus native installers.
 ./desktop/tools/package.sh    # app image + DMG/PKG, DEB/RPM or MSI/EXE
 ```
 
-See [`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
+The **2.3.3 release** includes macOS DMG/PKG, Windows MSI/EXE, Linux DEB/RPM,
+portable archives and a portable JAR. See
+[`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
 platform packaging notes. The GitHub Actions workflow
 `.github/workflows/desktop.yml` builds all three platforms.
 
