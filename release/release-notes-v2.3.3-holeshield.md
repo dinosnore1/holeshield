@@ -14,8 +14,8 @@ statistics.
 
 ### Desktop
 
-- **macOS:** `Hole Shield-2.3.3.dmg`, `Hole Shield-2.3.3.pkg`
-- **Windows:** `Hole Shield-2.3.3.msi`, `Hole Shield-2.3.3.exe`
+- **macOS:** `Hole-Shield-2.3.3.dmg`, `Hole-Shield-2.3.3.pkg`
+- **Windows:** `Hole-Shield-2.3.3.msi`, `Hole-Shield-2.3.3.exe`
 - **Linux:** `holeshield_2.3.3-1_amd64.deb`, `holeshield-2.3.3-1.x86_64.rpm`
 - **Portable:** `holeshield-desktop-2.3.3.jar` (Java 17),
   `holeshield-linux-portable-2.3.3.tar.gz`,

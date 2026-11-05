@@ -25,8 +25,8 @@ desktop/build/dist/holeshield-desktop-2.3.3.jar
   Portable JAR; requires Java 17.
 desktop/build/dist/Hole Shield.app
   macOS app image with a bundled runtime.
-desktop/build/dist/Hole Shield-2.3.3.dmg
-desktop/build/dist/Hole Shield-2.3.3.pkg
+desktop/build/dist/Hole-Shield-2.3.3.dmg
+desktop/build/dist/Hole-Shield-2.3.3.pkg
   macOS installers (unsigned).
 Linux and Windows installers are produced by the same scripts on their
 platforms: DEB/RPM/portable tar.gz and MSI/EXE/portable zip.
