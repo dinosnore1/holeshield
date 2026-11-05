@@ -57,6 +57,12 @@ Windows does not require administrator rights to bind port 53. The app still
 needs permission from the firewall to accept LAN DNS traffic. Add an inbound
 rule for UDP/TCP 53.
 
+## Signing
+
+See [`SIGNING.md`](SIGNING.md) for macOS Developer ID/notarization and Windows
+Authenticode instructions. The release installers are unsigned until those
+certificates are configured.
+
 ## Icons
 
 `IconGenerator` writes a 1024px PNG. The packaging scripts convert it to

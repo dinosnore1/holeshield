@@ -20,7 +20,8 @@ statistics.
 - **`holeshield-desktop-2.3.3-SHA256SUMS.txt`** — desktop checksums.
 
 The desktop installers bundle a Java runtime. They are unsigned, so macOS
-Gatekeeper and Windows SmartScreen will warn on first launch.
+Gatekeeper and Windows SmartScreen will warn on first launch. Signing steps are
+documented in `desktop/packaging/SIGNING.md`.
 
 ## Changes
 
