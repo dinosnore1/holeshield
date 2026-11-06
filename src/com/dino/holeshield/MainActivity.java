@@ -1477,7 +1477,7 @@ public class MainActivity extends Activity {
                 this::editListUrls), rowLp(5));
         rows.addView(settingRow("Add maximum blocklists",
                 "Append the ads, trackers, malware and TV-telemetry preset",
-                Blocklists.hasAll(prefs.blocklistUrls) ? "Active" : "Add all",
+                maximumConfigured() ? "Active" : "Add all",
                 this::addMaximumLists), rowLp(6));
         rows.addView(categoryLevelRow("Ads", "ads",
                 "Ad, popup and CNAME ad lists"), rowLp(7));
@@ -1764,8 +1764,15 @@ public class MainActivity extends Activity {
         });
     }
 
+    private boolean maximumConfigured() {
+        return Blocklists.hasAll(prefs.blocklistUrls)
+                && "max".equals(prefs.categoryLevel("ads"))
+                && "max".equals(prefs.categoryLevel("trackers"))
+                && "max".equals(prefs.categoryLevel("malware"));
+    }
+
     private void addMaximumLists() {
-        if (Blocklists.hasAll(prefs.blocklistUrls)) {
+        if (maximumConfigured()) {
             Ui.toast(this, "Maximum blocklists are already configured");
             return;
         }
@@ -1775,6 +1782,12 @@ public class MainActivity extends Activity {
                         + "and TV-telemetry lists. Existing custom sources and rules are "
                         + "kept. Downloading the full set can take a few minutes.")
                 .setPositiveButton("Add and update", (d, w) -> {
+                    prefs.categoryAds = true;
+                    prefs.categoryTrackers = true;
+                    prefs.categoryMalware = true;
+                    prefs.setCategoryLevel("ads", "max");
+                    prefs.setCategoryLevel("trackers", "max");
+                    prefs.setCategoryLevel("malware", "max");
                     prefs.blocklistUrls = Blocklists.mergeMissing(prefs.blocklistUrls);
                     prefs.lastUpdate = 0L;
                     prefs.save(this);
