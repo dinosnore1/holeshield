@@ -66,7 +66,9 @@ final class Blocklists {
     /** Adult content. */
     static final String[] ADULT = {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
-            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Adult"
+            "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Adult",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/porn.txt"
     };
 
     /** Copyright-infringing content and piracy services. */
@@ -78,8 +80,9 @@ final class Blocklists {
 
     /** Gambling and betting sites. */
     static final String[] GAMBLING = {
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.mini-onlydomains.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt",
             "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Gambling",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/gambling.txt",
             "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains"
     };
 
@@ -97,13 +100,6 @@ final class Blocklists {
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/twitter.txt",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/tiktok.txt"
     };
-
-    private static final String OLD_GAMBLING =
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt";
-    private static final String OLD_ADULT_STEVEN =
-            "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts";
-    private static final String OLD_ADULT_BLOCKLIST =
-            "https://raw.githubusercontent.com/blocklistproject/Lists/master/porn.txt";
 
     private static final String[] CLASSIC = {
             // Classic hosts lists, kept for additional unique coverage.
@@ -166,21 +162,6 @@ final class Blocklists {
 
     static int count() {
         return MAXIMUM.length;
-    }
-
-    /** Migrates oversized or renamed category sources from older builds. */
-    static String migrate(String text) {
-        if (text == null || text.isEmpty()) return text == null ? "" : text;
-        LinkedHashSet<String> out = new LinkedHashSet<>();
-        for (String raw : text.split("\n")) {
-            String line = raw.trim();
-            if (line.equals(OLD_GAMBLING)) line = GAMBLING[0];
-            else if (line.equals(OLD_ADULT_STEVEN) || line.equals(OLD_ADULT_BLOCKLIST)) {
-                line = ADULT[0];
-            }
-            if (!line.isEmpty()) out.add(line);
-        }
-        return String.join("\n", out);
     }
 
     /** Default source text for new installs and the "add all" action. */

@@ -1545,8 +1545,7 @@ public class MainActivity extends Activity {
                     show(Screen.LISTS);
                 }), rowLp(2));
         cats.addView(categoryRow("Adult", "Adult-content list",
-                prefs.categoryAdult || prefs.safeSearch,
-                () -> toggleRuntimeCategory("adult")), rowLp(3));
+                prefs.categoryAdult, () -> toggleRuntimeCategory("adult")), rowLp(3));
         cats.addView(categoryRow("Piracy", "Illegal distribution and piracy sites",
                 prefs.categoryPiracy, () -> toggleRuntimeCategory("piracy")), rowLp(4));
         cats.addView(categoryRow("Gambling", "Betting and casino sites",
@@ -1610,10 +1609,7 @@ public class MainActivity extends Activity {
         else if ("gambling".equals(key)) on = !prefs.categoryGambling;
         else if ("dating".equals(key)) on = !prefs.categoryDating;
         else on = !prefs.categorySocial;
-        if ("adult".equals(key)) {
-            prefs.categoryAdult = on;
-            prefs.safeSearch = on;
-        }
+        if ("adult".equals(key)) prefs.categoryAdult = on;
         else if ("piracy".equals(key)) prefs.categoryPiracy = on;
         else if ("gambling".equals(key)) prefs.categoryGambling = on;
         else if ("dating".equals(key)) prefs.categoryDating = on;

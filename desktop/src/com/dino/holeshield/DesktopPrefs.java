@@ -108,7 +108,7 @@ final class DesktopPrefs {
     }
 
     synchronized String blocklistUrls() {
-        return Blocklists.migrate(get("blocklistUrls", Blocklists.presetText()));
+        return get("blocklistUrls", Blocklists.presetText());
     }
 
     synchronized String customBlocked() {
