@@ -306,11 +306,12 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .cat-row .name{width:86px;color:var(--text);font-size:12.5px;font-weight:650}
 .cat-row .bar{flex:1;margin:0}
 .cat-row b{width:42px;text-align:right;color:var(--muted);font-size:12px}
-#categorySwitches button.active{background:var(--md-primary-container);color:var(--md-on-primary-container);border-color:transparent}
-#categorySwitches button.off{opacity:.55;text-decoration:line-through}
-#categoryLevels{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:8px;margin-top:8px}
-#categoryLevels label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text);background:var(--md-surface-container-high);border:1px solid var(--md-outline-variant);border-radius:12px;padding:6px 9px}
-#categoryLevels select{padding:5px 8px;border-radius:9px;font-size:12px;background:var(--md-surface-container-lowest)}
+#categoryControls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:8px}
+.catControl{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--md-surface-container-high);border:1px solid var(--md-outline-variant);border-radius:12px;padding:6px 9px}
+.catControl button{flex:1;text-align:left;border:0;background:transparent;color:var(--text);padding:4px 2px;font-weight:650}
+.catControl button.active{background:var(--md-primary-container);color:var(--md-on-primary-container);border-radius:9px;padding:4px 8px}
+.catControl button.off{opacity:.55;text-decoration:line-through}
+.catControl select{padding:5px 8px;border-radius:9px;font-size:12px;background:var(--md-surface-container-lowest)}
 .scroll{overflow:auto;max-height:520px;border-radius:14px;border:1px solid var(--row-line);background:var(--md-surface-container-lowest)}
 table{width:100%;border-collapse:collapse;min-width:860px}
 th{position:sticky;top:0;background:var(--md-surface-container);text-align:left;color:var(--muted);font-size:10.5px;
@@ -595,26 +596,15 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       <h3>Blocked by category</h3>
       <div id="categoryBreakdown"><div class="note">No blocked queries yet.</div></div>
       <h3 style="margin-top:18px">Filtering categories</h3>
-      <div id="categorySwitches" class="row">
-        <button class="small" data-cat="ads">Ads</button>
-        <button class="small" data-cat="trackers">Trackers</button>
-        <button class="small" data-cat="malware">Malware</button>
-        <button class="small" data-cat="adult">Adult</button>
-        <button class="small" data-cat="piracy">Piracy</button>
-        <button class="small" data-cat="gambling">Gambling</button>
-        <button class="small" data-cat="dating">Dating</button>
-        <button class="small" data-cat="social">Social</button>
-      </div>
-      <h3 style="margin-top:18px">Blocking level</h3>
-      <div id="categoryLevels">
-        <label>Ads <select data-level="ads"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Trackers <select data-level="trackers"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Malware <select data-level="malware"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Adult <select data-level="adult"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Piracy <select data-level="piracy"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Gambling <select data-level="gambling"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Dating <select data-level="dating"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
-        <label>Social <select data-level="social"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+      <div id="categoryControls">
+        <div class="catControl"><button class="small" data-cat="ads">Ads</button><select data-level="ads"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="trackers">Trackers</button><select data-level="trackers"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="malware">Malware</button><select data-level="malware"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="adult">Adult</button><select data-level="adult"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="piracy">Piracy</button><select data-level="piracy"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="gambling">Gambling</button><select data-level="gambling"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="dating">Dating</button><select data-level="dating"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
+        <div class="catControl"><button class="small" data-cat="social">Social</button><select data-level="social"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></div>
       </div>
       <p class="note" style="margin-top:10px">Enabling a category adds its list and starts an update. Lite, Medium and Maximum choose how many lists that category uses.</p>
     </div>
@@ -1174,7 +1164,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
 
   function renderCategorySwitches(data){
     var d = data || {};
-    $$("#categorySwitches [data-cat]").forEach(function(button){
+    $$("#categoryControls [data-cat]").forEach(function(button){
       var key = button.getAttribute("data-cat");
       var on = d[key] !== false;
       button.classList.toggle("active", on);
@@ -1185,7 +1175,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
 
   function renderCategoryLevels(data){
     var levels = (data && data.category_levels) || {};
-    $$("#categoryLevels select[data-level]").forEach(function(select){
+    $$("#categoryControls select[data-level]").forEach(function(select){
       var key = select.getAttribute("data-level");
       var value = levels[key] || "max";
       if(value === "maximum") value = "max";
@@ -1518,7 +1508,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   $("#exportCsv").addEventListener("click", function(){ exportQueries("csv"); });
   $("#exportJson").addEventListener("click", function(){ exportQueries("json"); });
 
-  $("#categorySwitches").addEventListener("click", function(ev){
+  $("#categoryControls").addEventListener("click", function(ev){
     var button = ev.target.closest("button[data-cat]");
     if(!button) return;
     var key = button.getAttribute("data-cat");
@@ -1532,7 +1522,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       .catch(function(e){ alert(e.message); });
   });
 
-  $("#categoryLevels").addEventListener("change", function(ev){
+  $("#categoryControls").addEventListener("change", function(ev){
     var select = ev.target.closest("select[data-level]");
     if(!select) return;
     var body = {};

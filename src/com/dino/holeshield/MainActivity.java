@@ -1479,45 +1479,29 @@ public class MainActivity extends Activity {
                 "Append the ads, trackers, malware and TV-telemetry preset",
                 maximumConfigured() ? "Active" : "Add all",
                 this::addMaximumLists), rowLp(6));
-        rows.addView(categoryLevelRow("Ads", "ads",
-                "Ad, popup and CNAME ad lists"), rowLp(7));
-        rows.addView(categoryLevelRow("Trackers", "trackers",
-                "CNAME trackers and smart-TV telemetry"), rowLp(8));
-        rows.addView(categoryLevelRow("Malware", "malware",
-                "URLhaus, phishing and malicious downloads"), rowLp(9));
-        rows.addView(categoryLevelRow("Adult", "adult",
-                "Adult sites and services"), rowLp(10));
-        rows.addView(categoryLevelRow("Piracy", "piracy",
-                "Illegal distribution and piracy sites"), rowLp(11));
-        rows.addView(categoryLevelRow("Gambling", "gambling",
-                "Betting and casino sites"), rowLp(12));
-        rows.addView(categoryLevelRow("Dating", "dating",
-                "Dating sites and apps"), rowLp(13));
-        rows.addView(categoryLevelRow("Social media", "social",
-                "Classic social networks; messaging apps stay available"), rowLp(14));
         rows.addView(settingRow("Per-client rules",
                 "One per line: 192.168.1.50 ads.example.com  or  !example.com to allow",
-                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(15));
+                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(7));
         add(col, rows, 0);
 
-        col.addView(section("RUNTIME CATEGORIES"));
+        col.addView(section("CATEGORIES"));
         LinearLayout cats = Ui.column(this);
-        cats.addView(categoryRow("Ads", "Ad, popup and CNAME ad lists",
-                prefs.categoryAds, () -> toggleRuntimeCategory("ads")), rowLp(0));
-        cats.addView(categoryRow("Trackers", "CNAME trackers and smart-TV telemetry",
-                prefs.categoryTrackers, () -> toggleRuntimeCategory("trackers")), rowLp(1));
-        cats.addView(categoryRow("Malware", "Malware, phishing and malicious downloads",
-                prefs.categoryMalware, () -> toggleRuntimeCategory("malware")), rowLp(2));
-        cats.addView(categoryRow("Adult", "Adult-content list",
-                prefs.categoryAdult, () -> toggleRuntimeCategory("adult")), rowLp(3));
-        cats.addView(categoryRow("Piracy", "Illegal distribution and piracy sites",
-                prefs.categoryPiracy, () -> toggleRuntimeCategory("piracy")), rowLp(4));
-        cats.addView(categoryRow("Gambling", "Betting and casino sites",
-                prefs.categoryGambling, () -> toggleRuntimeCategory("gambling")), rowLp(5));
-        cats.addView(categoryRow("Dating", "Dating sites and apps",
-                prefs.categoryDating, () -> toggleRuntimeCategory("dating")), rowLp(6));
-        cats.addView(categoryRow("Social media", "Classic social networks",
-                prefs.categorySocial, () -> toggleRuntimeCategory("social")), rowLp(7));
+        cats.addView(categoryControlRow("Ads", "ads",
+                "Ad, popup and CNAME ad lists"), rowLp(0));
+        cats.addView(categoryControlRow("Trackers", "trackers",
+                "CNAME trackers and smart-TV telemetry"), rowLp(1));
+        cats.addView(categoryControlRow("Malware", "malware",
+                "URLhaus, phishing and malicious downloads"), rowLp(2));
+        cats.addView(categoryControlRow("Adult", "adult",
+                "Adult sites and services"), rowLp(3));
+        cats.addView(categoryControlRow("Piracy", "piracy",
+                "Illegal distribution and piracy sites"), rowLp(4));
+        cats.addView(categoryControlRow("Gambling", "gambling",
+                "Betting and casino sites"), rowLp(5));
+        cats.addView(categoryControlRow("Dating", "dating",
+                "Dating sites and apps"), rowLp(6));
+        cats.addView(categoryControlRow("Social media", "social",
+                "Classic social networks; messaging apps stay available"), rowLp(7));
         cats.addView(settingRowToggle("SafeSearch / parental filter",
                 safeSearchSubtitle(), prefs.safeSearch,
                 () -> toggleSafeSearch(Screen.LISTS)), rowLp(8));
@@ -1543,32 +1527,50 @@ public class MainActivity extends Activity {
         return col;
     }
 
-    private void toggleListCategory(String[] category, String label) {
-        boolean active = Blocklists.hasAll(prefs.blocklistUrls, category);
-        prefs.blocklistUrls = active
-                ? Blocklists.removeAll(prefs.blocklistUrls, category)
-                : Blocklists.mergeMissing(prefs.blocklistUrls, category);
-        if (category == Blocklists.TRACKERS) prefs.categoryTrackers = !active;
-        else if (category == Blocklists.MALWARE) prefs.categoryMalware = !active;
-        else if (category == Blocklists.ADULT) {
-            prefs.categoryAdult = !active;
-            if (active) prefs.safeSearch = false;
-        }
-        else if (category == Blocklists.PIRACY) prefs.categoryPiracy = !active;
-        else if (category == Blocklists.GAMBLING) prefs.categoryGambling = !active;
-        else if (category == Blocklists.DATING) prefs.categoryDating = !active;
-        else if (category == Blocklists.SOCIAL) prefs.categorySocial = !active;
-        prefs.save(this);
-        Blocklist.setCategoryMask(prefs.categoryMask());
-        show(Screen.LISTS);
-        Ui.toast(this, active
-                ? label + " lists removed. Update gravity to apply."
-                : label + " lists added. Update gravity to apply.");
-    }
+    private LinearLayout categoryControlRow(String title, String key, String subtitle) {
+        LinearLayout r = Ui.row(this);
+        r.setBackground(Ui.focusableBg(this, isTv ? 20 : 18));
+        int h = Ui.dp(this, isTv ? 22 : 16);
+        int v = Ui.dp(this, isTv ? 16 : 13);
+        r.setPadding(h, v, h, v);
 
-    private LinearLayout categoryLevelRow(String title, String key, String subtitle) {
-        return settingRow(title, subtitle, levelLabel(prefs.categoryLevel(key)),
-                () -> chooseLevel(key, title));
+        LinearLayout text = Ui.column(this);
+        text.addView(Ui.text(this, title, isTv ? 16 : 15, Ui.TEXT, true));
+        if (subtitle != null && !subtitle.isEmpty()) {
+            text.addView(Ui.text(this, subtitle, isTv ? 11.5f : 11, Ui.FAINT, false),
+                    Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
+        }
+        r.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView level = Ui.text(this, levelLabel(prefs.categoryLevel(key)),
+                isTv ? 13 : 12.5f, Ui.GREEN, true);
+        level.setGravity(Gravity.CENTER);
+        level.setSingleLine(true);
+        level.setFocusable(true);
+        level.setClickable(true);
+        level.setBackground(Ui.focusableBg(this, 999));
+        level.setPadding(Ui.dp(this, isTv ? 12 : 10), Ui.dp(this, isTv ? 6 : 4),
+                Ui.dp(this, isTv ? 12 : 10), Ui.dp(this, isTv ? 6 : 4));
+        level.setOnClickListener(v2 -> chooseLevel(key, title));
+        r.addView(level, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 12 : 8), 0, 0, 0));
+
+        LinearLayout toggleWrap = Ui.row(this);
+        toggleWrap.setFocusable(true);
+        toggleWrap.setClickable(true);
+        toggleWrap.setBackground(Ui.focusableBg(this, 999));
+        int padH = Ui.dp(this, isTv ? 10 : 8);
+        int padV = Ui.dp(this, isTv ? 4 : 3);
+        toggleWrap.setPadding(padH, padV, padH, padV);
+        SwitchView toggle = new SwitchView(this);
+        toggle.setCheckedImmediate(prefs.categoryEnabled(key));
+        toggleWrap.addView(toggle);
+        toggleWrap.setOnClickListener(v2 -> toggleRuntimeCategory(key));
+        r.addView(toggleWrap, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 10 : 6), 0, 0, 0));
+
+        return r;
     }
 
     private static String levelLabel(String level) {
@@ -1641,11 +1643,6 @@ public class MainActivity extends Activity {
         show(Screen.LISTS);
         if (needUpdate) updateBlocklist();
         else Ui.toast(this, on ? "Category enabled" : "Category disabled");
-    }
-
-    private LinearLayout categoryRow(String title, String subtitle, boolean on,
-                                     Runnable action) {
-        return settingRowToggle(title, subtitle, on, action);
     }
 
     private String safeSearchSubtitle() {
