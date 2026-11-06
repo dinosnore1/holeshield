@@ -373,6 +373,11 @@ public final class TestDns {
 
     private static void blocklistPreset() {
         check(Blocklists.MAXIMUM.length >= 23, "maximum preset has a broad list set");
+        check(Blocklists.byKey("adult").length > 0, "adult category list exists");
+        check(Blocklists.byKey("piracy").length > 0, "piracy category list exists");
+        check(Blocklists.byKey("gambling").length > 0, "gambling category list exists");
+        check(Blocklists.byKey("dating").length > 0, "dating category list exists");
+        check(Blocklists.byKey("social").length > 0, "social category list exists");
         check(Blocklists.TRACKERS.length >= 10, "tracker preset has telemetry lists");
         check(Blocklists.MALWARE.length >= 2, "malware preset has security lists");
         check(Blocklists.hasAll(Blocklists.presetText()), "preset text contains every list");

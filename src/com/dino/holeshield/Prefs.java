@@ -53,6 +53,10 @@ final class Prefs {
     int trackerDomains = 0;
     int malwareDomains = 0;
     int adultDomains = 0;
+    int piracyDomains = 0;
+    int gamblingDomains = 0;
+    int datingDomains = 0;
+    int socialDomains = 0;
     /** Per-list download results, as "url|ok|count|error|at" lines. */
     String listHealth = "";
 
@@ -76,6 +80,11 @@ final class Prefs {
     boolean categoryAds = true;
     boolean categoryTrackers = true;
     boolean categoryMalware = true;
+    boolean categoryAdult = false;
+    boolean categoryPiracy = false;
+    boolean categoryGambling = false;
+    boolean categoryDating = false;
+    boolean categorySocial = false;
     /** Parental filter: adds the adult-content list to gravity. */
     boolean safeSearch = false;
 
@@ -128,6 +137,10 @@ final class Prefs {
         s.trackerDomains = p.getInt("trackerDomains", s.trackerDomains);
         s.malwareDomains = p.getInt("malwareDomains", s.malwareDomains);
         s.adultDomains = p.getInt("adultDomains", s.adultDomains);
+        s.piracyDomains = p.getInt("piracyDomains", s.piracyDomains);
+        s.gamblingDomains = p.getInt("gamblingDomains", s.gamblingDomains);
+        s.datingDomains = p.getInt("datingDomains", s.datingDomains);
+        s.socialDomains = p.getInt("socialDomains", s.socialDomains);
         s.listHealth = p.getString("listHealth", s.listHealth);
         s.customBlocked = p.getString("customBlocked", s.customBlocked);
         s.customAllowed = p.getString("customAllowed", s.customAllowed);
@@ -140,6 +153,11 @@ final class Prefs {
         s.categoryAds = p.getBoolean("categoryAds", s.categoryAds);
         s.categoryTrackers = p.getBoolean("categoryTrackers", s.categoryTrackers);
         s.categoryMalware = p.getBoolean("categoryMalware", s.categoryMalware);
+        s.categoryAdult = p.getBoolean("categoryAdult", s.safeSearch);
+        s.categoryPiracy = p.getBoolean("categoryPiracy", s.categoryPiracy);
+        s.categoryGambling = p.getBoolean("categoryGambling", s.categoryGambling);
+        s.categoryDating = p.getBoolean("categoryDating", s.categoryDating);
+        s.categorySocial = p.getBoolean("categorySocial", s.categorySocial);
         s.safeSearch = p.getBoolean("safeSearch", s.safeSearch);
         s.webEnabled = p.getBoolean("webEnabled", s.webEnabled);
         s.webPort = p.getInt("webPort", s.webPort);
@@ -198,6 +216,10 @@ final class Prefs {
                 .putInt("trackerDomains", trackerDomains)
                 .putInt("malwareDomains", malwareDomains)
                 .putInt("adultDomains", adultDomains)
+                .putInt("piracyDomains", piracyDomains)
+                .putInt("gamblingDomains", gamblingDomains)
+                .putInt("datingDomains", datingDomains)
+                .putInt("socialDomains", socialDomains)
                 .putString("listHealth", listHealth)
                 .putString("customBlocked", customBlocked)
                 .putString("customAllowed", customAllowed)
@@ -210,6 +232,11 @@ final class Prefs {
                 .putBoolean("categoryAds", categoryAds)
                 .putBoolean("categoryTrackers", categoryTrackers)
                 .putBoolean("categoryMalware", categoryMalware)
+                .putBoolean("categoryAdult", categoryAdult)
+                .putBoolean("categoryPiracy", categoryPiracy)
+                .putBoolean("categoryGambling", categoryGambling)
+                .putBoolean("categoryDating", categoryDating)
+                .putBoolean("categorySocial", categorySocial)
                 .putBoolean("safeSearch", safeSearch)
                 .putBoolean("webEnabled", webEnabled)
                 .putInt("webPort", webPort)
@@ -259,7 +286,11 @@ final class Prefs {
         if (categoryAds) mask |= Gravity.ADS;
         if (categoryTrackers) mask |= Gravity.TRACKERS;
         if (categoryMalware) mask |= Gravity.MALWARE;
-        if (safeSearch) mask |= Gravity.ADULT;
+        if (categoryAdult || safeSearch) mask |= Gravity.ADULT;
+        if (categoryPiracy) mask |= Gravity.PIRACY;
+        if (categoryGambling) mask |= Gravity.GAMBLING;
+        if (categoryDating) mask |= Gravity.DATING;
+        if (categorySocial) mask |= Gravity.SOCIAL;
         return mask;
     }
 

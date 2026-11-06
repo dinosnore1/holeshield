@@ -10,8 +10,9 @@ import java.util.Set;
  * malware/phishing coverage independently.
  *
  * The maximum preset combines ad, tracker, malware/phishing and dedicated
- * TV/streaming telemetry lists. If a service breaks, add an exact allow rule
- * instead of disabling all filtering.
+ * TV/streaming telemetry lists. Adult, piracy, gambling, dating and social
+ * categories are separate opt-in lists. If a service breaks, add an exact
+ * allow rule instead of disabling all filtering.
  */
 final class Blocklists {
 
@@ -52,9 +53,30 @@ final class Blocklists {
             "https://phishing.army/download/phishing_army_blocklist_extended.txt"
     };
 
-    /** Parental filter used when SafeSearch / adult filtering is enabled. */
+    /** Adult content. */
     static final String[] ADULT = {
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
             "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts"
+    };
+
+    /** Copyright-infringing content and piracy services. */
+    static final String[] PIRACY = {
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt"
+    };
+
+    /** Gambling and betting sites. */
+    static final String[] GAMBLING = {
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt"
+    };
+
+    /** Dating sites and apps. */
+    static final String[] DATING = {
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Dating"
+    };
+
+    /** Classic social networks. Messaging and streaming apps are not included. */
+    static final String[] SOCIAL = {
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/social-onlydomains.txt"
     };
 
     private static final String[] CLASSIC = {
@@ -75,14 +97,35 @@ final class Blocklists {
     static final int CATEGORY_TRACKERS = 1;
     static final int CATEGORY_MALWARE = 2;
     static final int CATEGORY_ADULT = 3;
-    static final int CATEGORY_OTHER = 4;
+    static final int CATEGORY_PIRACY = 4;
+    static final int CATEGORY_GAMBLING = 5;
+    static final int CATEGORY_DATING = 6;
+    static final int CATEGORY_SOCIAL = 7;
+    static final int CATEGORY_OTHER = 8;
 
     private Blocklists() { }
+
+    /** Category array for a dashboard/runtime switch key. */
+    static String[] byKey(String key) {
+        if ("ads".equals(key)) return CORE;
+        if ("trackers".equals(key)) return TRACKERS;
+        if ("malware".equals(key)) return MALWARE;
+        if ("adult".equals(key)) return ADULT;
+        if ("piracy".equals(key)) return PIRACY;
+        if ("gambling".equals(key)) return GAMBLING;
+        if ("dating".equals(key)) return DATING;
+        if ("social".equals(key)) return SOCIAL;
+        return new String[0];
+    }
 
     static int categoryOf(String url) {
         if (contains(TRACKERS, url)) return CATEGORY_TRACKERS;
         if (contains(MALWARE, url)) return CATEGORY_MALWARE;
         if (contains(ADULT, url)) return CATEGORY_ADULT;
+        if (contains(PIRACY, url)) return CATEGORY_PIRACY;
+        if (contains(GAMBLING, url)) return CATEGORY_GAMBLING;
+        if (contains(DATING, url)) return CATEGORY_DATING;
+        if (contains(SOCIAL, url)) return CATEGORY_SOCIAL;
         if (contains(CORE, url) || contains(CLASSIC, url)) return CATEGORY_ADS;
         return CATEGORY_OTHER;
     }
@@ -104,6 +147,7 @@ final class Blocklists {
         StringBuilder out = new StringBuilder();
         out.append("# Hole Shield maximum blocklist preset\n");
         out.append("# Ads, trackers, malware/phishing and TV-telemetry lists.\n");
+        out.append("# Adult, piracy, gambling, dating and social lists are opt-in.\n");
         out.append("# Tap \"Update now\" after changing this list.\n");
         for (String url : MAXIMUM) out.append(url).append('\n');
         return out.toString().trim();

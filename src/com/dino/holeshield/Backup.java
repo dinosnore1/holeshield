@@ -48,6 +48,10 @@ final class Backup {
         s.put("trackerDomains", p.trackerDomains);
         s.put("malwareDomains", p.malwareDomains);
         s.put("adultDomains", p.adultDomains);
+        s.put("piracyDomains", p.piracyDomains);
+        s.put("gamblingDomains", p.gamblingDomains);
+        s.put("datingDomains", p.datingDomains);
+        s.put("socialDomains", p.socialDomains);
         s.put("listHealth", p.listHealth);
         s.put("customBlocked", p.customBlocked);
         s.put("customAllowed", p.customAllowed);
@@ -60,6 +64,11 @@ final class Backup {
         s.put("categoryAds", p.categoryAds);
         s.put("categoryTrackers", p.categoryTrackers);
         s.put("categoryMalware", p.categoryMalware);
+        s.put("categoryAdult", p.categoryAdult);
+        s.put("categoryPiracy", p.categoryPiracy);
+        s.put("categoryGambling", p.categoryGambling);
+        s.put("categoryDating", p.categoryDating);
+        s.put("categorySocial", p.categorySocial);
         s.put("safeSearch", p.safeSearch);
         s.put("webEnabled", p.webEnabled);
         s.put("webPort", p.webPort);
@@ -115,6 +124,11 @@ final class Backup {
         p.categoryAds = s.optBoolean("categoryAds", p.categoryAds);
         p.categoryTrackers = s.optBoolean("categoryTrackers", p.categoryTrackers);
         p.categoryMalware = s.optBoolean("categoryMalware", p.categoryMalware);
+        p.categoryAdult = s.optBoolean("categoryAdult", p.categoryAdult);
+        p.categoryPiracy = s.optBoolean("categoryPiracy", p.categoryPiracy);
+        p.categoryGambling = s.optBoolean("categoryGambling", p.categoryGambling);
+        p.categoryDating = s.optBoolean("categoryDating", p.categoryDating);
+        p.categorySocial = s.optBoolean("categorySocial", p.categorySocial);
         p.safeSearch = s.optBoolean("safeSearch", p.safeSearch);
         p.webEnabled = s.optBoolean("webEnabled", p.webEnabled);
         p.webPort = s.optInt("webPort", p.webPort);

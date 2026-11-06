@@ -375,7 +375,12 @@ final class WebDashboard {
         root.put("categories", new Json.Obj()
                 .put("ads", filter.adsCount())
                 .put("trackers", filter.trackerCount())
-                .put("malware", filter.malwareCount()));
+                .put("malware", filter.malwareCount())
+                .put("adult", filter.adultCount())
+                .put("piracy", filter.piracyCount())
+                .put("gambling", filter.gamblingCount())
+                .put("dating", filter.datingCount())
+                .put("social", filter.socialCount()));
         root.put("clients", new Json.Obj()
                 .put("active", stats.clientCount())
                 .put("total", stats.clientCount()));
@@ -392,7 +397,12 @@ final class WebDashboard {
         root.put("category_switches", new Json.Obj()
                 .put("ads", prefs.getBool("categoryAds", true))
                 .put("trackers", prefs.getBool("categoryTrackers", true))
-                .put("malware", prefs.getBool("categoryMalware", true)));
+                .put("malware", prefs.getBool("categoryMalware", true))
+                .put("adult", prefs.getBool("categoryAdult", false))
+                .put("piracy", prefs.getBool("categoryPiracy", false))
+                .put("gambling", prefs.getBool("categoryGambling", false))
+                .put("dating", prefs.getBool("categoryDating", false))
+                .put("social", prefs.getBool("categorySocial", false)));
         root.put("took", 0.001);
         return root;
     }
@@ -687,17 +697,48 @@ final class WebDashboard {
             if (body.containsKey("adult")) {
                 prefs.setBool("categoryAdult", bool(body.get("adult")));
             }
+            if (body.containsKey("piracy")) {
+                prefs.setBool("categoryPiracy", bool(body.get("piracy")));
+            }
+            if (body.containsKey("gambling")) {
+                prefs.setBool("categoryGambling", bool(body.get("gambling")));
+            }
+            if (body.containsKey("dating")) {
+                prefs.setBool("categoryDating", bool(body.get("dating")));
+            }
+            if (body.containsKey("social")) {
+                prefs.setBool("categorySocial", bool(body.get("social")));
+            }
             if (body.containsKey("other")) {
                 prefs.setBool("categoryOther", bool(body.get("other")));
             }
+            boolean needUpdate = false;
+            String[] keys = {"ads", "trackers", "malware", "adult",
+                    "piracy", "gambling", "dating", "social"};
+            for (String key : keys) {
+                if (!body.containsKey(key) || !bool(body.get(key))) continue;
+                for (String url : Blocklists.byKey(key)) {
+                    if (!filter.listUrls().contains(url)) {
+                        filter.addListUrl(url);
+                        needUpdate = true;
+                    }
+                }
+            }
             prefs.save();
             filter.reloadRules();
+            if (needUpdate && !filter.isUpdating()) {
+                filter.updateBlocklists(null, null);
+            }
         }
         sendJson(exchange, 200, new Json.Obj()
                 .put("ads", prefs.getBool("categoryAds", true))
                 .put("trackers", prefs.getBool("categoryTrackers", true))
                 .put("malware", prefs.getBool("categoryMalware", true))
-                .put("adult", prefs.getBool("categoryAdult", true))
+                .put("adult", prefs.getBool("categoryAdult", false))
+                .put("piracy", prefs.getBool("categoryPiracy", false))
+                .put("gambling", prefs.getBool("categoryGambling", false))
+                .put("dating", prefs.getBool("categoryDating", false))
+                .put("social", prefs.getBool("categorySocial", false))
                 .put("other", prefs.getBool("categoryOther", true))
                 .put("safe_search", false)
                 .put("took", 0.001));

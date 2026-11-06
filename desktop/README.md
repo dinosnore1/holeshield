@@ -8,7 +8,8 @@ the same allow/deny rules and the same web dashboard.
 
 - Local DNS resolver on UDP and TCP, with a TTL cache.
 - Encrypted DNS over HTTPS (Cloudflare by default) or a plain upstream.
-- Gravity blocklists with Ads, Trackers, Malware, Adult and Other categories.
+- Gravity blocklists with Ads, Trackers, Malware, Adult, Piracy, Gambling,
+  Dating, Social and Other categories.
 - Exact, wildcard and regular-expression allow/deny rules.
 - CNAME target inspection.
 - Query log, live/24h/week/month charts, top domains, clients and query types.

@@ -52,7 +52,11 @@ final class DesktopPrefs {
         if (!values.containsKey("categoryAds")) set("categoryAds", "true");
         if (!values.containsKey("categoryTrackers")) set("categoryTrackers", "true");
         if (!values.containsKey("categoryMalware")) set("categoryMalware", "true");
-        if (!values.containsKey("categoryAdult")) set("categoryAdult", "true");
+        if (!values.containsKey("categoryAdult")) set("categoryAdult", "false");
+        if (!values.containsKey("categoryPiracy")) set("categoryPiracy", "false");
+        if (!values.containsKey("categoryGambling")) set("categoryGambling", "false");
+        if (!values.containsKey("categoryDating")) set("categoryDating", "false");
+        if (!values.containsKey("categorySocial")) set("categorySocial", "false");
         if (!values.containsKey("categoryOther")) set("categoryOther", "true");
         if (!values.containsKey("filtering")) set("filtering", "true");
         if (!values.containsKey("pauseUntil")) set("pauseUntil", "0");
@@ -124,7 +128,11 @@ final class DesktopPrefs {
         if (getBool("categoryAds", true)) mask |= Gravity.ADS;
         if (getBool("categoryTrackers", true)) mask |= Gravity.TRACKERS;
         if (getBool("categoryMalware", true)) mask |= Gravity.MALWARE;
-        if (getBool("categoryAdult", true)) mask |= Gravity.ADULT;
+        if (getBool("categoryAdult", false)) mask |= Gravity.ADULT;
+        if (getBool("categoryPiracy", false)) mask |= Gravity.PIRACY;
+        if (getBool("categoryGambling", false)) mask |= Gravity.GAMBLING;
+        if (getBool("categoryDating", false)) mask |= Gravity.DATING;
+        if (getBool("categorySocial", false)) mask |= Gravity.SOCIAL;
         if (getBool("categoryOther", true)) mask |= Gravity.OTHER;
         return mask;
     }

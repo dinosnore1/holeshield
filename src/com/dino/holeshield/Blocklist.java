@@ -47,6 +47,10 @@ final class Blocklist {
     private static final String TRACKER_FILE = "blocklist_trackers.txt";
     private static final String MALWARE_FILE = "blocklist_malware.txt";
     private static final String ADULT_FILE = "blocklist_adult.txt";
+    private static final String PIRACY_FILE = "blocklist_piracy.txt";
+    private static final String GAMBLING_FILE = "blocklist_gambling.txt";
+    private static final String DATING_FILE = "blocklist_dating.txt";
+    private static final String SOCIAL_FILE = "blocklist_social.txt";
     private static final String OTHER_FILE = "blocklist_other.txt";
     private static final int MAX_DOMAINS = 600000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
@@ -220,6 +224,10 @@ final class Blocklist {
         long[] trackers = readCategory(c, TRACKER_FILE);
         long[] ads = readCategory(c, ADS_FILE);
         long[] adult = readCategory(c, ADULT_FILE);
+        long[] piracy = readCategory(c, PIRACY_FILE);
+        long[] gambling = readCategory(c, GAMBLING_FILE);
+        long[] dating = readCategory(c, DATING_FILE);
+        long[] social = readCategory(c, SOCIAL_FILE);
         long[] other = readCategory(c, OTHER_FILE);
 
         // Seed list shipped in the APK. It is ads-oriented.
@@ -250,6 +258,14 @@ final class Blocklist {
         budget -= trackers.length;
         adult = cap(adult, budget);
         budget -= adult.length;
+        piracy = cap(piracy, budget);
+        budget -= piracy.length;
+        gambling = cap(gambling, budget);
+        budget -= gambling.length;
+        dating = cap(dating, budget);
+        budget -= dating.length;
+        social = cap(social, budget);
+        budget -= social.length;
         ads = cap(ads, budget);
         budget -= ads.length;
         other = cap(other, budget);
@@ -260,12 +276,17 @@ final class Blocklist {
                 Gravity.clean(malware),
                 Gravity.clean(trackers),
                 Gravity.clean(adult),
+                Gravity.clean(piracy),
+                Gravity.clean(gambling),
+                Gravity.clean(dating),
+                Gravity.clean(social),
                 Gravity.clean(ads),
                 Gravity.clean(other),
                 Gravity.clean(seedHashes)
         };
         int[] bits = {
                 Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
+                Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
                 Gravity.ADS, Gravity.OTHER, Gravity.ADS
         };
         return Gravity.build(sources, bits, MAX_DOMAINS);
@@ -548,6 +569,10 @@ final class Blocklist {
         if ((flags & Gravity.TRACKERS) != 0) return "Trackers";
         if ((flags & Gravity.ADS) != 0) return "Ads";
         if ((flags & Gravity.ADULT) != 0) return "Adult";
+        if ((flags & Gravity.PIRACY) != 0) return "Piracy";
+        if ((flags & Gravity.GAMBLING) != 0) return "Gambling";
+        if ((flags & Gravity.DATING) != 0) return "Dating";
+        if ((flags & Gravity.SOCIAL) != 0) return "Social";
         if ((flags & Gravity.OTHER) != 0) return "Other";
         return "Gravity";
     }
@@ -723,6 +748,10 @@ final class Blocklist {
                 List<String> trackerUrls = new ArrayList<>();
                 List<String> malwareUrls = new ArrayList<>();
                 List<String> adultUrls = new ArrayList<>();
+                List<String> piracyUrls = new ArrayList<>();
+                List<String> gamblingUrls = new ArrayList<>();
+                List<String> datingUrls = new ArrayList<>();
+                List<String> socialUrls = new ArrayList<>();
                 List<String> otherUrls = new ArrayList<>();
                 for (String url : urls) {
                     switch (Blocklists.categoryOf(url)) {
@@ -734,6 +763,18 @@ final class Blocklist {
                             break;
                         case Blocklists.CATEGORY_ADULT:
                             adultUrls.add(url);
+                            break;
+                        case Blocklists.CATEGORY_PIRACY:
+                            piracyUrls.add(url);
+                            break;
+                        case Blocklists.CATEGORY_GAMBLING:
+                            gamblingUrls.add(url);
+                            break;
+                        case Blocklists.CATEGORY_DATING:
+                            datingUrls.add(url);
+                            break;
+                        case Blocklists.CATEGORY_SOCIAL:
+                            socialUrls.add(url);
                             break;
                         case Blocklists.CATEGORY_ADS:
                             adsUrls.add(url);
@@ -750,20 +791,26 @@ final class Blocklist {
                 int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors);
                 int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors);
                 int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors);
-                int adultCount = p.safeSearch
-                        ? downloadCategory(app, adultUrls, ADULT_FILE, health, tally, errors)
-                        : deleteCategory(app, ADULT_FILE);
+                int adultCount = downloadCategory(app, adultUrls, ADULT_FILE, health, tally, errors);
+                int piracyCount = downloadCategory(app, piracyUrls, PIRACY_FILE, health, tally, errors);
+                int gamblingCount = downloadCategory(app, gamblingUrls, GAMBLING_FILE, health, tally, errors);
+                int datingCount = downloadCategory(app, datingUrls, DATING_FILE, health, tally, errors);
+                int socialCount = downloadCategory(app, socialUrls, SOCIAL_FILE, health, tally, errors);
                 int otherCount = downloadCategory(app, otherUrls, OTHER_FILE, health, tally, errors);
                 int listsOk = tally[0];
                 int listsFailed = tally[1];
-                int domains = adsCount + trackerCount + malwareCount + adultCount + otherCount;
+                int domains = adsCount + trackerCount + malwareCount + adultCount
+                        + piracyCount + gamblingCount + datingCount + socialCount
+                        + otherCount;
                 if (listsOk == 0 || domains == 0) {
                     throw new Exception(errors.length() > 0 ? errors.toString()
                             : "No domains found");
                 }
                 Log.i("HoleShield", "gravity ads=" + adsCount + " trackers="
                         + trackerCount + " malware=" + malwareCount
-                        + " adult=" + adultCount);
+                        + " adult=" + adultCount + " piracy=" + piracyCount
+                        + " gambling=" + gamblingCount + " dating=" + datingCount
+                        + " social=" + socialCount);
                 File legacy = new File(app.getFilesDir(), LEGACY_FILE);
                 if (legacy.exists()) legacy.delete();
 
@@ -772,6 +819,10 @@ final class Blocklist {
                 p.trackerDomains = trackerCount;
                 p.malwareDomains = malwareCount;
                 p.adultDomains = adultCount;
+                p.piracyDomains = piracyCount;
+                p.gamblingDomains = gamblingCount;
+                p.datingDomains = datingCount;
+                p.socialDomains = socialCount;
                 p.listHealth = joinHealth(health);
                 p.save(app);
                 reload(app);

@@ -228,7 +228,7 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
 .coverageTitle{display:flex;align-items:center;gap:12px;margin:26px 0 0;font-size:11.5px;letter-spacing:.14em;color:var(--muted);font-weight:800}
 .coverageTitle::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
-.coverage{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px;margin-bottom:0}
+.coverage{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:10px;margin-bottom:0}
 .card{
   position:relative;overflow:hidden;
   background:linear-gradient(180deg,var(--md-surface-container-high),var(--md-surface-container));
@@ -543,6 +543,26 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       <div class="cardHead"><span class="label">Malware</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19Z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg></span></div>
       <b id="malware">0</b><small>domains on lists</small>
     </div>
+    <div class="card amber">
+      <div class="cardHead"><span class="label">Adult</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6Z"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span></div>
+      <b id="adult">0</b><small>domains on lists</small>
+    </div>
+    <div class="card red">
+      <div class="cardHead"><span class="label">Piracy</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H4Z"/><path d="M8 20h8M12 16v4"/><path d="m9 8 6 4-6 4Z"/></svg></span></div>
+      <b id="piracy">0</b><small>domains on lists</small>
+    </div>
+    <div class="card amber">
+      <div class="cardHead"><span class="label">Gambling</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="8" cy="10" r="1.4"/><circle cx="16" cy="14" r="1.4"/><path d="M8 14h.01M16 10h.01"/></svg></span></div>
+      <b id="gambling">0</b><small>domains on lists</small>
+    </div>
+    <div class="card green">
+      <div class="cardHead"><span class="label">Dating</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg></span></div>
+      <b id="dating">0</b><small>domains on lists</small>
+    </div>
+    <div class="card blue">
+      <div class="cardHead"><span class="label">Social</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span></div>
+      <b id="social">0</b><small>domains on lists</small>
+    </div>
   </section>
   <p class="note">Unique domains per category; categories can overlap.</p>
 
@@ -576,8 +596,13 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         <button class="small" data-cat="ads">Ads</button>
         <button class="small" data-cat="trackers">Trackers</button>
         <button class="small" data-cat="malware">Malware</button>
+        <button class="small" data-cat="adult">Adult</button>
+        <button class="small" data-cat="piracy">Piracy</button>
+        <button class="small" data-cat="gambling">Gambling</button>
+        <button class="small" data-cat="dating">Dating</button>
+        <button class="small" data-cat="social">Social</button>
       </div>
-      <p class="note" style="margin-top:10px">Changes apply immediately; no gravity reload is needed.</p>
+      <p class="note" style="margin-top:10px">Enabling a category adds its list and starts an update.</p>
     </div>
   </section>
 
@@ -895,6 +920,11 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     $("#ads").textContent = fmt(cat.ads);
     $("#trackers").textContent = fmt(cat.trackers);
     $("#malware").textContent = fmt(cat.malware);
+    $("#adult").textContent = fmt(cat.adult);
+    $("#piracy").textContent = fmt(cat.piracy);
+    $("#gambling").textContent = fmt(cat.gambling);
+    $("#dating").textContent = fmt(cat.dating);
+    $("#social").textContent = fmt(cat.social);
     $("#clients").textContent = fmt(c.active);
     $("#updated").textContent = ago(g.last_update_ms || (g.last_update ? Number(g.last_update) * 1000 : 0));
     var on = !!s.blocking;

@@ -127,8 +127,17 @@ public final class DesktopTest {
         eq(Gravity.ADS | Gravity.TRACKERS, g.flagsOf(3),
                 "overlapping category flags");
         Gravity restored = Gravity.fromHashes(new long[]{1, 3},
-                new byte[]{(byte) Gravity.ADS, (byte) Gravity.MALWARE});
+                new int[]{Gravity.ADS, Gravity.MALWARE});
         eq(Gravity.MALWARE, restored.flagsOf(3), "fromHashes keeps flags");
+        Gravity multi = Gravity.build(new long[][]{{1}, {1}},
+                new int[]{Gravity.PIRACY, Gravity.SOCIAL}, 100);
+        eq(Gravity.PIRACY | Gravity.SOCIAL, multi.flagsOf(1),
+                "new categories merge");
+        check(Blocklists.byKey("adult").length > 0, "adult list preset");
+        check(Blocklists.byKey("piracy").length > 0, "piracy list preset");
+        check(Blocklists.byKey("gambling").length > 0, "gambling list preset");
+        check(Blocklists.byKey("dating").length > 0, "dating list preset");
+        check(Blocklists.byKey("social").length > 0, "social list preset");
     }
 
     private static void filter() {

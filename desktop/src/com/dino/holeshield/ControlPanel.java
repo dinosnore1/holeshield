@@ -966,10 +966,14 @@ final class ControlPanel extends JFrame {
             addCategory(rows, "Trackers", "categoryTrackers");
             addCategory(rows, "Malware", "categoryMalware");
             addCategory(rows, "Adult", "categoryAdult");
+            addCategory(rows, "Piracy", "categoryPiracy");
+            addCategory(rows, "Gambling", "categoryGambling");
+            addCategory(rows, "Dating", "categoryDating");
+            addCategory(rows, "Social media", "categorySocial");
             addCategory(rows, "Other", "categoryOther");
             cats.add(rows, BorderLayout.CENTER);
-            cats.setPreferredSize(new Dimension(100, 282));
-            cats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 282));
+            cats.setPreferredSize(new Dimension(100, 482));
+            cats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 520));
             page.add(cats);
             page.add(Box.createVerticalStrut(14));
 
@@ -1026,12 +1030,22 @@ final class ControlPanel extends JFrame {
             row.setBorder(new EmptyBorder(6, 0, 6, 0));
             JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 9, 0));
             left.setOpaque(false);
-            Widgets.ToggleSwitch toggle = new Widgets.ToggleSwitch(prefs.getBool(key, true));
+            boolean fallback = !(key.equals("categoryAdult")
+                    || key.equals("categoryPiracy")
+                    || key.equals("categoryGambling")
+                    || key.equals("categoryDating")
+                    || key.equals("categorySocial"));
+            Widgets.ToggleSwitch toggle = new Widgets.ToggleSwitch(
+                    prefs.getBool(key, fallback));
             toggle.setOnChange(value -> {
                 prefs.setBool(key, value);
+                if (value) {
+                    for (String url : Blocklists.byKey(key)) filter.addListUrl(url);
+                }
                 prefs.save();
                 filter.reloadRules();
                 refresh();
+                if (value) app.updateLists();
             });
             left.add(toggle);
             left.add(Widgets.label(label, 12.5f, Font.BOLD, 0));
@@ -1084,6 +1098,14 @@ final class ControlPanel extends JFrame {
                     DesktopApp.formatNumber(filter.malwareCount()) + " domains");
             categoryCounts.get("categoryAdult").setText(
                     DesktopApp.formatNumber(filter.adultCount()) + " domains");
+            categoryCounts.get("categoryPiracy").setText(
+                    DesktopApp.formatNumber(filter.piracyCount()) + " domains");
+            categoryCounts.get("categoryGambling").setText(
+                    DesktopApp.formatNumber(filter.gamblingCount()) + " domains");
+            categoryCounts.get("categoryDating").setText(
+                    DesktopApp.formatNumber(filter.datingCount()) + " domains");
+            categoryCounts.get("categorySocial").setText(
+                    DesktopApp.formatNumber(filter.socialCount()) + " domains");
             categoryCounts.get("categoryOther").setText(
                     DesktopApp.formatNumber(filter.otherCount()) + " domains");
 

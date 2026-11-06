@@ -1491,9 +1491,34 @@ public class MainActivity extends Activity {
                         ? "Active" : "Add",
                 () -> toggleListCategory(Blocklists.MALWARE,
                         "Malware & phishing")), rowLp(8));
+        rows.addView(settingRow("Adult content list",
+                "Blocks adult sites and services",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.ADULT)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.ADULT, "Adult content")), rowLp(9));
+        rows.addView(settingRow("Piracy list",
+                "Blocks sites mainly used for illegal distribution",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.PIRACY)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.PIRACY, "Piracy")), rowLp(10));
+        rows.addView(settingRow("Gambling list",
+                "Blocks betting and casino sites",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.GAMBLING)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.GAMBLING, "Gambling")), rowLp(11));
+        rows.addView(settingRow("Dating list",
+                "Blocks dating sites and apps",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.DATING)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.DATING, "Dating")), rowLp(12));
+        rows.addView(settingRow("Social media list",
+                "Blocks classic social networks; messaging apps stay available",
+                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.SOCIAL)
+                        ? "Active" : "Add",
+                () -> toggleListCategory(Blocklists.SOCIAL, "Social media")), rowLp(13));
         rows.addView(settingRow("Per-client rules",
                 "One per line: 192.168.1.50 ads.example.com  or  !example.com to allow",
-                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(9));
+                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(14));
         add(col, rows, 0);
 
         col.addView(section("RUNTIME CATEGORIES"));
@@ -1519,9 +1544,19 @@ public class MainActivity extends Activity {
                     Blocklist.setCategoryMask(prefs.categoryMask());
                     show(Screen.LISTS);
                 }), rowLp(2));
+        cats.addView(categoryRow("Adult", "Adult-content list",
+                prefs.categoryAdult, () -> toggleRuntimeCategory("adult")), rowLp(3));
+        cats.addView(categoryRow("Piracy", "Illegal distribution and piracy sites",
+                prefs.categoryPiracy, () -> toggleRuntimeCategory("piracy")), rowLp(4));
+        cats.addView(categoryRow("Gambling", "Betting and casino sites",
+                prefs.categoryGambling, () -> toggleRuntimeCategory("gambling")), rowLp(5));
+        cats.addView(categoryRow("Dating", "Dating sites and apps",
+                prefs.categoryDating, () -> toggleRuntimeCategory("dating")), rowLp(6));
+        cats.addView(categoryRow("Social media", "Classic social networks",
+                prefs.categorySocial, () -> toggleRuntimeCategory("social")), rowLp(7));
         cats.addView(settingRowToggle("SafeSearch / parental filter",
                 safeSearchSubtitle(), prefs.safeSearch,
-                () -> toggleSafeSearch(Screen.LISTS)), rowLp(3));
+                () -> toggleSafeSearch(Screen.LISTS)), rowLp(8));
         add(col, cats, 8);
 
         addHealthPanel(col);
@@ -1549,11 +1584,44 @@ public class MainActivity extends Activity {
         prefs.blocklistUrls = active
                 ? Blocklists.removeAll(prefs.blocklistUrls, category)
                 : Blocklists.mergeMissing(prefs.blocklistUrls, category);
+        if (category == Blocklists.TRACKERS) prefs.categoryTrackers = !active;
+        else if (category == Blocklists.MALWARE) prefs.categoryMalware = !active;
+        else if (category == Blocklists.ADULT) {
+            prefs.categoryAdult = !active;
+            if (active) prefs.safeSearch = false;
+        }
+        else if (category == Blocklists.PIRACY) prefs.categoryPiracy = !active;
+        else if (category == Blocklists.GAMBLING) prefs.categoryGambling = !active;
+        else if (category == Blocklists.DATING) prefs.categoryDating = !active;
+        else if (category == Blocklists.SOCIAL) prefs.categorySocial = !active;
         prefs.save(this);
+        Blocklist.setCategoryMask(prefs.categoryMask());
         show(Screen.LISTS);
         Ui.toast(this, active
                 ? label + " lists removed. Update gravity to apply."
                 : label + " lists added. Update gravity to apply.");
+    }
+
+    private void toggleRuntimeCategory(String key) {
+        boolean on;
+        if ("adult".equals(key)) on = !prefs.categoryAdult;
+        else if ("piracy".equals(key)) on = !prefs.categoryPiracy;
+        else if ("gambling".equals(key)) on = !prefs.categoryGambling;
+        else if ("dating".equals(key)) on = !prefs.categoryDating;
+        else on = !prefs.categorySocial;
+        if ("adult".equals(key)) prefs.categoryAdult = on;
+        else if ("piracy".equals(key)) prefs.categoryPiracy = on;
+        else if ("gambling".equals(key)) prefs.categoryGambling = on;
+        else if ("dating".equals(key)) prefs.categoryDating = on;
+        else prefs.categorySocial = on;
+        String[] lists = Blocklists.byKey(key);
+        boolean needUpdate = on && !Blocklists.hasAll(prefs.blocklistUrls, lists);
+        if (needUpdate) prefs.blocklistUrls = Blocklists.mergeMissing(prefs.blocklistUrls, lists);
+        prefs.save(this);
+        Blocklist.setCategoryMask(prefs.categoryMask());
+        show(Screen.LISTS);
+        if (needUpdate) updateBlocklist();
+        else Ui.toast(this, on ? "Category enabled" : "Category disabled");
     }
 
     private LinearLayout categoryRow(String title, String subtitle, boolean on,
@@ -1570,6 +1638,7 @@ public class MainActivity extends Activity {
     private void toggleSafeSearch(Screen returnTo) {
         prefs = Prefs.load(this);
         prefs.safeSearch = !prefs.safeSearch;
+        prefs.categoryAdult = prefs.safeSearch;
         prefs.blocklistUrls = prefs.safeSearch
                 ? Blocklists.mergeMissing(prefs.blocklistUrls, Blocklists.ADULT)
                 : Blocklists.removeAll(prefs.blocklistUrls, Blocklists.ADULT);

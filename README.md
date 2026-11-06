@@ -32,7 +32,7 @@ runs local UDP/TCP DNS, supports DoH or plain upstreams, has a Swing control
 panel and tray controls, and ships as native installers for Windows, Linux and macOS.
 
 ```bash
-./desktop/tools/test.sh       # 117 headless core checks
+./desktop/tools/test.sh       # 123 headless core checks
 ./desktop/tools/package.sh    # app image + DMG/PKG, DEB/RPM or MSI/EXE
 ```
 
@@ -64,9 +64,10 @@ platform packaging notes. The GitHub Actions workflow
 - **Local DNS cache**, DoH or DNS-over-TLS upstream (Cloudflare by default)
   and a plain-DNS fallback. Choose the blocked response: `0.0.0.0`, NXDOMAIN or
   NODATA.
-- **Runtime category switches** for Ads, Trackers and Malware. The compact
-  64-bit gravity index makes these instant and keeps a 600k-domain list to a few
-  megabytes.
+- **Runtime category switches** for Ads, Trackers, Malware, Adult, Piracy,
+  Gambling, Dating and Social. Each opt-in category has its own maintained list;
+  enabling it adds the list and starts an update. The compact gravity index makes
+  switches instant and keeps a 600k-domain list to a few megabytes.
 - **Blocking hours.** Optional daily window (overnight ranges supported) pauses
   blocking automatically outside the window and resumes at the start time.
 - **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,
@@ -137,7 +138,7 @@ shown.
 
 ```bash
 cd ~/holeshield
-./tools/test.sh          # 131 desktop checks for DNS, packet, list, hash and web-auth code
+./tools/test.sh          # 136 desktop checks for DNS, packet, list, hash and web-auth code
 ./build.sh               # writes build/holeshield.apk (sideload signing key)
 ```
 
@@ -420,7 +421,7 @@ build.sh                     no-Gradle APK build
 
 ## Tests
 
-`./tools/test.sh` runs **131 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **136 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
 from tun packets, blocked A/AAAA/HTTPS replies in all three blocked-response
 modes, answer-address extraction, TTL selection, IPv4/IPv6 UDP replies and

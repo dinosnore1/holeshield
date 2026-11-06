@@ -335,6 +335,11 @@ final class WebServer {
         categories.put("ads", p.adsDomains);
         categories.put("trackers", p.trackerDomains);
         categories.put("malware", p.malwareDomains);
+        categories.put("adult", p.adultDomains);
+        categories.put("piracy", p.piracyDomains);
+        categories.put("gambling", p.gamblingDomains);
+        categories.put("dating", p.datingDomains);
+        categories.put("social", p.socialDomains);
 
         root.put("queries", q);
         root.put("gravity", gravity);
@@ -353,6 +358,11 @@ final class WebServer {
         switches.put("ads", p.categoryAds);
         switches.put("trackers", p.categoryTrackers);
         switches.put("malware", p.categoryMalware);
+        switches.put("adult", p.categoryAdult || p.safeSearch);
+        switches.put("piracy", p.categoryPiracy);
+        switches.put("gambling", p.categoryGambling);
+        switches.put("dating", p.categoryDating);
+        switches.put("social", p.categorySocial);
         root.put("category_switches", switches);
         root.put("took", 0.001);
         return root;
@@ -387,17 +397,40 @@ final class WebServer {
     private void categories(Request r, OutputStream out, Prefs p) throws Exception {
         if ("POST".equals(r.method)) {
             JSONObject body = bodyJson(r);
-            if (body.has("ads")) p.categoryAds = body.optBoolean("ads", p.categoryAds);
-            if (body.has("trackers")) p.categoryTrackers = body.optBoolean("trackers", p.categoryTrackers);
-            if (body.has("malware")) p.categoryMalware = body.optBoolean("malware", p.categoryMalware);
+            boolean needUpdate = false;
+            String[] keys = {"ads", "trackers", "malware", "adult",
+                    "piracy", "gambling", "dating", "social"};
+            for (String key : keys) {
+                if (!body.has(key)) continue;
+                boolean on = body.optBoolean(key, false);
+                if ("ads".equals(key)) p.categoryAds = on;
+                else if ("trackers".equals(key)) p.categoryTrackers = on;
+                else if ("malware".equals(key)) p.categoryMalware = on;
+                else if ("adult".equals(key)) p.categoryAdult = on;
+                else if ("piracy".equals(key)) p.categoryPiracy = on;
+                else if ("gambling".equals(key)) p.categoryGambling = on;
+                else if ("dating".equals(key)) p.categoryDating = on;
+                else if ("social".equals(key)) p.categorySocial = on;
+                String[] lists = Blocklists.byKey(key);
+                if (on && !Blocklists.hasAll(p.blocklistUrls, lists)) {
+                    p.blocklistUrls = Blocklists.mergeMissing(p.blocklistUrls, lists);
+                    needUpdate = true;
+                }
+            }
             p.save(context);
             Blocklist.setCategoryMask(p.categoryMask());
             if (host != null) host.settingsChanged();
+            if (needUpdate && !Blocklist.isUpdating()) Blocklist.updateAsync(context, null);
         }
         JSONObject o = new JSONObject();
         o.put("ads", p.categoryAds);
         o.put("trackers", p.categoryTrackers);
         o.put("malware", p.categoryMalware);
+        o.put("adult", p.categoryAdult || p.safeSearch);
+        o.put("piracy", p.categoryPiracy);
+        o.put("gambling", p.categoryGambling);
+        o.put("dating", p.categoryDating);
+        o.put("social", p.categorySocial);
         o.put("safe_search", p.safeSearch);
         o.put("took", 0.001);
         sendJson(out, 200, o.toString());
@@ -825,6 +858,11 @@ final class WebServer {
         h.put("category_ads", p.categoryAds);
         h.put("category_trackers", p.categoryTrackers);
         h.put("category_malware", p.categoryMalware);
+        h.put("category_adult", p.categoryAdult || p.safeSearch);
+        h.put("category_piracy", p.categoryPiracy);
+        h.put("category_gambling", p.categoryGambling);
+        h.put("category_dating", p.categoryDating);
+        h.put("category_social", p.categorySocial);
         h.put("upstream", p.upstreamLabel());
         root.put("host", h);
         root.put("took", 0.001);

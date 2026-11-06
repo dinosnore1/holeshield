@@ -46,6 +46,15 @@ final class FilterEngine {
     private static final int MAX_REGEX = 500;
     private static final String GRAVITY_FILE = "gravity.bin";
     private static final String META_FILE = "gravity.properties";
+    private static final String[] META_KEYS = {
+            "ads", "trackers", "malware", "adult", "piracy",
+            "gambling", "dating", "social", "other"
+    };
+    private static final int[] CATEGORY_BITS = {
+            Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE, Gravity.ADULT,
+            Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
+            Gravity.OTHER
+    };
 
     interface Progress {
         void progress(String message, int done, int total);
@@ -162,6 +171,10 @@ final class FilterEngine {
     private volatile int trackerCount;
     private volatile int malwareCount;
     private volatile int adultCount;
+    private volatile int piracyCount;
+    private volatile int gamblingCount;
+    private volatile int datingCount;
+    private volatile int socialCount;
     private volatile int otherCount;
     private volatile List<Health> health = Collections.emptyList();
 
@@ -241,7 +254,8 @@ final class FilterEngine {
                 new FileInputStream(file)))) {
             byte[] magic = new byte[7];
             in.readFully(magic);
-            if (!"HSGRAV1".equals(new String(magic, StandardCharsets.US_ASCII))) {
+            String tag = new String(magic, StandardCharsets.US_ASCII);
+            if (!"HSGRAV1".equals(tag) && !"HSGRAV2".equals(tag)) {
                 gravity = seedGravity();
                 gravityCount = gravity.size();
                 return;
@@ -249,9 +263,15 @@ final class FilterEngine {
             int count = in.readInt();
             if (count < 0 || count > 2_000_000) throw new IllegalArgumentException("count");
             long[] hashes = new long[count];
-            byte[] flags = new byte[count];
             for (int i = 0; i < count; i++) hashes[i] = in.readLong();
-            in.readFully(flags);
+            int[] flags = new int[count];
+            if ("HSGRAV1".equals(tag)) {
+                byte[] old = new byte[count];
+                in.readFully(old);
+                for (int i = 0; i < count; i++) flags[i] = old[i] & 0xFF;
+            } else {
+                for (int i = 0; i < count; i++) flags[i] = in.readInt();
+            }
             gravity = Gravity.fromHashes(hashes, flags);
             gravityCount = gravity.size();
         } catch (Exception e) {
@@ -295,6 +315,10 @@ final class FilterEngine {
             trackerCount = (int) parseLong(meta.getProperty("trackers", "0"));
             malwareCount = (int) parseLong(meta.getProperty("malware", "0"));
             adultCount = (int) parseLong(meta.getProperty("adult", "0"));
+            piracyCount = (int) parseLong(meta.getProperty("piracy", "0"));
+            gamblingCount = (int) parseLong(meta.getProperty("gambling", "0"));
+            datingCount = (int) parseLong(meta.getProperty("dating", "0"));
+            socialCount = (int) parseLong(meta.getProperty("social", "0"));
             otherCount = (int) parseLong(meta.getProperty("other", "0"));
             ArrayList<Health> list = new ArrayList<>();
             for (String key : meta.stringPropertyNames()) {
@@ -307,16 +331,18 @@ final class FilterEngine {
         } catch (Exception ignored) { }
     }
 
-    private void saveMeta(int total, int ads, int trackers, int malware, int adult,
-                          int other, long updated, List<Health> results) {
+    private int[] categoryCounts() {
+        return new int[]{adsCount, trackerCount, malwareCount, adultCount,
+                piracyCount, gamblingCount, datingCount, socialCount, otherCount};
+    }
+
+    private void saveMeta(int total, int[] counts, long updated, List<Health> results) {
         java.util.Properties meta = new java.util.Properties();
         meta.setProperty("updated", String.valueOf(updated));
         meta.setProperty("total", String.valueOf(total));
-        meta.setProperty("ads", String.valueOf(ads));
-        meta.setProperty("trackers", String.valueOf(trackers));
-        meta.setProperty("malware", String.valueOf(malware));
-        meta.setProperty("adult", String.valueOf(adult));
-        meta.setProperty("other", String.valueOf(other));
+        for (int i = 0; i < META_KEYS.length; i++) {
+            meta.setProperty(META_KEYS[i], String.valueOf(counts[i]));
+        }
         int i = 0;
         for (Health h : results) {
             meta.setProperty("health." + (i++), h.url + "|" + (h.ok ? "1" : "0") + "|"
@@ -336,15 +362,15 @@ final class FilterEngine {
         } catch (Exception ignored) { }
     }
 
-    private void saveGravity(long[] hashes, byte[] flags) {
+    private void saveGravity(long[] hashes, int[] flags) {
         File file = new File(dir, GRAVITY_FILE);
         File temp = new File(dir, GRAVITY_FILE + ".tmp");
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                 new FileOutputStream(temp)))) {
-            out.write("HSGRAV1".getBytes(StandardCharsets.US_ASCII));
+            out.write("HSGRAV2".getBytes(StandardCharsets.US_ASCII));
             out.writeInt(hashes.length);
             for (long hash : hashes) out.writeLong(hash);
-            out.write(flags);
+            for (int flag : flags) out.writeInt(flag);
         } catch (Exception e) {
             lastError = "Could not save gravity: " + e.getMessage();
             return;
@@ -605,6 +631,10 @@ final class FilterEngine {
     int trackerCount() { return trackerCount; }
     int malwareCount() { return malwareCount; }
     int adultCount() { return adultCount; }
+    int piracyCount() { return piracyCount; }
+    int gamblingCount() { return gamblingCount; }
+    int datingCount() { return datingCount; }
+    int socialCount() { return socialCount; }
     int otherCount() { return otherCount; }
 
     long lastUpdate() { return lastUpdate; }
@@ -682,11 +712,8 @@ final class FilterEngine {
         for (String url : urls) {
             futures.add(pool.submit((Callable<SourceResult>) () -> downloadSource(url)));
         }
-        long[][] sources = new long[5][];
-        int[] bits = {Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE,
-                Gravity.ADULT, Gravity.OTHER};
-        LongBuffer[] buffers = {new LongBuffer(4096), new LongBuffer(4096),
-                new LongBuffer(4096), new LongBuffer(4096), new LongBuffer(4096)};
+        LongBuffer[] buffers = new LongBuffer[CATEGORY_BITS.length];
+        for (int i = 0; i < buffers.length; i++) buffers[i] = new LongBuffer(4096);
         ArrayList<Health> results = new ArrayList<>();
         int succeeded = 0;
         try {
@@ -712,27 +739,23 @@ final class FilterEngine {
 
         if (succeeded == 0) {
             if (lastError.isEmpty()) lastError = "No blocklist source could be downloaded.";
-            saveMeta(gravityCount(), adsCount, trackerCount, malwareCount,
-                    adultCount, otherCount, lastUpdate, results);
+            saveMeta(gravityCount(), categoryCounts(), lastUpdate, results);
             health = results;
             return;
         }
 
         // Merge the small bundled seed into the ads category.
-        Gravity seed = seedGravity();
-        if (seed.size() > 0) {
-            try (InputStream in = FilterEngine.class.getResourceAsStream("/seed-blocklist.txt")) {
-                if (in != null) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(
-                            in, StandardCharsets.UTF_8));
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        String domain = HostsParser.parseLine(line);
-                        if (!domain.isEmpty()) buffers[0].add(Gravity.hash(domain));
-                    }
+        try (InputStream in = FilterEngine.class.getResourceAsStream("/seed-blocklist.txt")) {
+            if (in != null) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        in, StandardCharsets.UTF_8));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String domain = HostsParser.parseLine(line);
+                    if (!domain.isEmpty()) buffers[0].add(Gravity.hash(domain));
                 }
-            } catch (Exception ignored) { }
-        }
+            }
+        } catch (Exception ignored) { }
 
         int budget = MAX_DOMAINS;
         long[] malware = cap(Gravity.clean(buffers[2].toArray()), budget);
@@ -741,19 +764,27 @@ final class FilterEngine {
         budget -= trackers.length;
         long[] adult = cap(Gravity.clean(buffers[3].toArray()), budget);
         budget -= adult.length;
+        long[] piracy = cap(Gravity.clean(buffers[4].toArray()), budget);
+        budget -= piracy.length;
+        long[] gambling = cap(Gravity.clean(buffers[5].toArray()), budget);
+        budget -= gambling.length;
+        long[] dating = cap(Gravity.clean(buffers[6].toArray()), budget);
+        budget -= dating.length;
+        long[] social = cap(Gravity.clean(buffers[7].toArray()), budget);
+        budget -= social.length;
         long[] ads = cap(Gravity.clean(buffers[0].toArray()), budget);
         budget -= ads.length;
-        long[] other = cap(Gravity.clean(buffers[4].toArray()), budget);
+        long[] other = cap(Gravity.clean(buffers[8].toArray()), budget);
 
-        Gravity fresh = Gravity.build(new long[][]{malware, trackers, adult, ads, other},
-                new int[]{Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
-                        Gravity.ADS, Gravity.OTHER}, MAX_DOMAINS);
+        Gravity fresh = Gravity.build(
+                new long[][]{malware, trackers, adult, piracy, gambling,
+                        dating, social, ads, other},
+                CATEGORY_BITS, MAX_DOMAINS);
 
-        // Save the merged hash/flags pair. Gravity does not expose them, so
-        // rebuild a sorted array from the per-category sources to persist.
-        long[][] merged = mergeForSave(malware, trackers, adult, ads, other);
+        long[][] merged = mergeForSave(malware, trackers, adult, piracy,
+                gambling, dating, social, ads, other);
         saveGravity(merged[0], toFlags(merged[0], merged[1], malware, trackers,
-                adult, ads, other));
+                adult, piracy, gambling, dating, social, ads, other));
 
         gravity = fresh;
         gravityCount = fresh.size();
@@ -761,19 +792,26 @@ final class FilterEngine {
         trackerCount = trackers.length;
         malwareCount = malware.length;
         adultCount = adult.length;
+        piracyCount = piracy.length;
+        gamblingCount = gambling.length;
+        datingCount = dating.length;
+        socialCount = social.length;
         otherCount = other.length;
         lastUpdate = System.currentTimeMillis();
         lastError = "";
         health = results;
-        saveMeta(gravityCount, adsCount, trackerCount, malwareCount, adultCount,
-                otherCount, lastUpdate, results);
+        saveMeta(gravityCount, categoryCounts(), lastUpdate, results);
     }
 
     private static int categoryIndex(int category) {
         if (category == Blocklists.CATEGORY_TRACKERS) return 1;
         if (category == Blocklists.CATEGORY_MALWARE) return 2;
         if (category == Blocklists.CATEGORY_ADULT) return 3;
-        if (category == Blocklists.CATEGORY_OTHER) return 4;
+        if (category == Blocklists.CATEGORY_PIRACY) return 4;
+        if (category == Blocklists.CATEGORY_GAMBLING) return 5;
+        if (category == Blocklists.CATEGORY_DATING) return 6;
+        if (category == Blocklists.CATEGORY_SOCIAL) return 7;
+        if (category == Blocklists.CATEGORY_OTHER) return 8;
         return 0;
     }
 
@@ -784,8 +822,10 @@ final class FilterEngine {
     }
 
     private static long[][] mergeForSave(long[] malware, long[] trackers, long[] adult,
-                                         long[] ads, long[] other) {
-        long[][] sources = {malware, trackers, adult, ads, other};
+                                         long[] piracy, long[] gambling, long[] dating,
+                                         long[] social, long[] ads, long[] other) {
+        long[][] sources = {malware, trackers, adult, piracy, gambling,
+                dating, social, ads, other};
         int total = 0;
         for (long[] source : sources) total += source.length;
         long[] hashes = new long[total];
@@ -823,20 +863,20 @@ final class FilterEngine {
         return new long[][]{hashes, categories};
     }
 
-    private static byte[] toFlags(long[] hashes, long[] categories, long[] malware,
-                                  long[] trackers, long[] adult, long[] ads,
-                                  long[] other) {
-        long[][] sources = {malware, trackers, adult, ads, other};
-        int[] bits = {Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
-                Gravity.ADS, Gravity.OTHER};
-        byte[] flags = new byte[hashes.length];
+    private static int[] toFlags(long[] hashes, long[] categories, long[] malware,
+                                 long[] trackers, long[] adult, long[] piracy,
+                                 long[] gambling, long[] dating, long[] social,
+                                 long[] ads, long[] other) {
+        long[][] sources = {malware, trackers, adult, piracy, gambling,
+                dating, social, ads, other};
+        int[] flags = new int[hashes.length];
         for (int i = 0; i < hashes.length; i++) {
             int mask = 0;
             long category = categories[i];
             for (int c = 0; c < sources.length; c++) {
-                if ((category & (1L << c)) != 0) mask |= bits[c];
+                if ((category & (1L << c)) != 0) mask |= CATEGORY_BITS[c];
             }
-            flags[i] = (byte) (mask & 0xFF);
+            flags[i] = mask;
         }
         return flags;
     }

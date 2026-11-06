@@ -6,10 +6,10 @@ import java.util.Arrays;
  * Compact, read-only gravity index.
  *
  * Domains are reduced to 64-bit FNV-1a hashes and kept in a sorted array with
- * one category bitmask byte per entry. A 600k-domain list costs about 5.4 MB
+ * one category bitmask per entry. A 600k-domain list costs about 7.8 MB
  * instead of the tens of megabytes a HashSet of strings needs. Lookups are a
- * binary search, and the category mask lets the resolver switch Ads, Trackers
- * or Malware off at runtime without rebuilding the list.
+ * binary search, and the category mask lets the resolver switch categories off
+ * at runtime without rebuilding the list.
  *
  * Free of Android imports so the desktop checks can exercise it.
  */
@@ -19,16 +19,21 @@ final class Gravity {
     static final int TRACKERS = 2;
     static final int MALWARE = 4;
     static final int ADULT = 8;
-    static final int OTHER = 16;
+    static final int PIRACY = 16;
+    static final int GAMBLING = 32;
+    static final int DATING = 64;
+    static final int SOCIAL = 128;
+    static final int OTHER = 256;
 
-    static final int ALL = ADS | TRACKERS | MALWARE | ADULT | OTHER;
+    static final int ALL = ADS | TRACKERS | MALWARE | ADULT | PIRACY
+            | GAMBLING | DATING | SOCIAL | OTHER;
 
-    private static final Gravity EMPTY = new Gravity(new long[0], new byte[0]);
+    private static final Gravity EMPTY = new Gravity(new long[0], new int[0]);
 
     private final long[] hashes;
-    private final byte[] flags;
+    private final int[] flags;
 
-    private Gravity(long[] hashes, byte[] flags) {
+    private Gravity(long[] hashes, int[] flags) {
         this.hashes = hashes;
         this.flags = flags;
     }
@@ -41,7 +46,7 @@ final class Gravity {
      * Rehydrates a persisted index. The caller must provide sorted, unique
      * hashes and one category mask per entry.
      */
-    static Gravity fromHashes(long[] hashes, byte[] flags) {
+    static Gravity fromHashes(long[] hashes, int[] flags) {
         if (hashes == null || flags == null || hashes.length != flags.length
                 || hashes.length == 0) {
             return EMPTY;
@@ -75,7 +80,7 @@ final class Gravity {
     /** Category flags for one hash, or 0 when it is absent. */
     int flagsOf(long hash) {
         int at = Arrays.binarySearch(hashes, hash);
-        return at < 0 ? 0 : (flags[at] & 0xFF);
+        return at < 0 ? 0 : flags[at];
     }
 
     boolean contains(long hash) {
@@ -97,7 +102,7 @@ final class Gravity {
         if (total > max) total = max;
 
         long[] outHashes = new long[total];
-        byte[] outFlags = new byte[total];
+        int[] outFlags = new int[total];
         int[] at = new int[sources.length];
         int written = 0;
 
@@ -124,7 +129,7 @@ final class Gravity {
                 while (at[i] < source.length && source[at[i]] == smallest) at[i]++;
             }
             outHashes[written] = smallest;
-            outFlags[written] = (byte) (merged & 0xFF);
+            outFlags[written] = merged;
             written++;
         }
 

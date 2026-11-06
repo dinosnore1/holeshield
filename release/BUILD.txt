@@ -32,7 +32,7 @@ Also published:
   holeshield_2.3.3-1_amd64.deb
   holeshield-2.3.3-1.x86_64.rpm
   holeshield-desktop-2.3.3-SHA256SUMS.txt
-117 headless desktop checks pass.
+123 headless desktop checks pass.
 VM smoke tests pass on GitHub-hosted macOS, Ubuntu and Windows VMs:
 macOS PKG + DMG, Ubuntu DEB, and Windows MSI. Each installed app is started
 headless and checked for a
@@ -53,7 +53,7 @@ Build command
 
 Verified
 --------
-- 131 desktop checks pass, including PBKDF2 login, compact gravity index,
+- 136 desktop checks pass, including PBKDF2 login, compact gravity index,
   blocked-response modes and blocklist category rules.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,
