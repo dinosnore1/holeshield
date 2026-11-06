@@ -111,7 +111,7 @@ final class Blocklists {
 
     /**
      * Kept within the app's gravity cap. The lists overlap heavily; the
-     * deduplicated total is capped at 600k domains rather than the sum of sizes.
+     * deduplicated total is capped at 1M domains rather than the sum of sizes.
      */
     static final String[] MAXIMUM = concat(CORE, TRACKERS, MALWARE, CLASSIC);
 

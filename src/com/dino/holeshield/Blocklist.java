@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  * Gravity engine with compact hashed lists.
  *
  * Gravity lists are kept as compact 64-bit hashes with a category bitmask, so
- * a 600k-domain list uses a few megabytes and Ads/Trackers/Malware can be
+ * a 1M-domain list uses about 12 MB and categories can be
  * switched at runtime without rebuilding anything. Subdomains are matched too
  * when the "block subdomains" setting is on. Custom rules can be exact,
  * wildcard ("*.example.com") or regular expressions. Allow rules are checked
@@ -52,7 +52,7 @@ final class Blocklist {
     private static final String DATING_FILE = "blocklist_dating.txt";
     private static final String SOCIAL_FILE = "blocklist_social.txt";
     private static final String OTHER_FILE = "blocklist_other.txt";
-    private static final int MAX_DOMAINS = 600000;
+    private static final int MAX_DOMAINS = 1000000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
 
@@ -250,7 +250,7 @@ final class Blocklist {
             if (legacy.length > 0) other = legacy;
         }
 
-        // Security categories get the first claim on the 600k cap.
+        // Security categories get the first claim on the 1M cap.
         int budget = MAX_DOMAINS;
         malware = cap(malware, budget);
         budget -= malware.length;
@@ -787,7 +787,7 @@ final class Blocklist {
                 ArrayList<Health> health = new ArrayList<>();
                 int[] tally = new int[2];
                 StringBuilder errors = new StringBuilder();
-                // Security lists first so they survive the 600k cap.
+                // Security lists first so they survive the 1M cap.
                 int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors);
                 int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors);
                 int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors);

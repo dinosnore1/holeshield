@@ -67,7 +67,7 @@ platform packaging notes. The GitHub Actions workflow
 - **Runtime category switches** for Ads, Trackers, Malware, Adult, Piracy,
   Gambling, Dating and Social. Each opt-in category has its own maintained list;
   enabling it adds the list and starts an update. The compact gravity index makes
-  switches instant and keeps a 600k-domain list to a few megabytes.
+  switches instant and keeps a 1M-domain list to about 12 MB.
 - **Blocking hours.** Optional daily window (overnight ranges supported) pauses
   blocking automatically outside the window and resumes at the start time.
 - **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,
@@ -176,7 +176,7 @@ installing Hole Shield; settings and statistics do not migrate.
    `http://DEVICE_IP:8080/admin/` (replace with the device's LAN IP).
 6. Optional but recommended: set a **Web username and password** in the app's
    Settings before exposing the dashboard to your LAN.
-7. Run **Update gravity now** to download the maximum preset (up to 600k
+7. Run **Update gravity now** to download the maximum preset (up to 1M
    deduplicated domains). The first download can take a few minutes.
 8. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
    return no address) while `example.com` resolves normally.

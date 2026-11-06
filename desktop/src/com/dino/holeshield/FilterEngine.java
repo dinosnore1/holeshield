@@ -41,7 +41,7 @@ final class FilterEngine {
     static final int WILDCARD = 1;
     static final int REGEX = 2;
 
-    private static final int MAX_DOMAINS = 600000;
+    private static final int MAX_DOMAINS = 1000000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
     private static final String GRAVITY_FILE = "gravity.bin";

@@ -6,7 +6,7 @@ import java.util.Arrays;
  * Compact, read-only gravity index.
  *
  * Domains are reduced to 64-bit FNV-1a hashes and kept in a sorted array with
- * one category bitmask per entry. A 600k-domain list costs about 7.8 MB
+ * one category bitmask per entry. A 1M-domain list costs about 12 MB
  * instead of the tens of megabytes a HashSet of strings needs. Lookups are a
  * binary search, and the category mask lets the resolver switch categories off
  * at runtime without rebuilding the list.
