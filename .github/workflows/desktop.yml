@@ -145,10 +145,11 @@ jobs:
       - name: Build and install universal package
         run: |
           set -euo pipefail
-          ARM_APP="$(find artifacts/arm -maxdepth 2 -type d -name 'Hole Shield.app' | head -1)"
-          INTEL_APP="$(find artifacts/intel -maxdepth 2 -type d -name 'Hole Shield.app' | head -1)"
-          test -n "$ARM_APP"
-          test -n "$INTEL_APP"
+          ARM_APP=/tmp/hs-arm-app.app
+          INTEL_APP=/tmp/hs-intel-app.app
+          mkdir -p "$ARM_APP" "$INTEL_APP"
+          cp -R artifacts/arm/Contents "$ARM_APP/Contents"
+          cp -R artifacts/intel/Contents "$INTEL_APP/Contents"
           ./desktop/tools/package-universal-macos.sh \
             --arm "$ARM_APP" \
             --intel "$INTEL_APP" \
