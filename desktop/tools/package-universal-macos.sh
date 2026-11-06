@@ -57,6 +57,7 @@ fi
 DEST="/Applications/Hole Shield.app"
 rm -rf "$DEST"
 mv "$SRC" "$DEST"
+chmod +x "$DEST/Contents/MacOS/Hole Shield"
 rm -rf "/Applications/Hole Shield-arm64.app" "/Applications/Hole Shield-x64.app"
 exit 0
 SH

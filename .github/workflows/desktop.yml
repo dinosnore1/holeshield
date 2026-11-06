@@ -150,6 +150,7 @@ jobs:
           mkdir -p "$ARM_APP" "$INTEL_APP"
           cp -R artifacts/arm/Contents "$ARM_APP/Contents"
           cp -R artifacts/intel/Contents "$INTEL_APP/Contents"
+          chmod +x "$ARM_APP/Contents/MacOS/Hole Shield" "$INTEL_APP/Contents/MacOS/Hole Shield"
           ./desktop/tools/package-universal-macos.sh \
             --arm "$ARM_APP" \
             --intel "$INTEL_APP" \
