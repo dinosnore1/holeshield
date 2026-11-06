@@ -64,8 +64,7 @@ SH
 chmod +x "$TMP/scripts/postinstall"
 
 PKG="$OUT/Hole-Shield-$VERSION-universal.pkg"
-DMG="$OUT/Hole-Shield-$VERSION-universal.dmg"
-rm -f "$PKG" "$DMG"
+rm -f "$PKG"
 
 echo "Building universal PKG…"
 pkgbuild --root "$TMP/payload" --scripts "$TMP/scripts" \
@@ -79,40 +78,21 @@ if [ -n "${MAC_INSTALLER_SIGN_ID:-}" ]; then
   mv "$SIGNED" "$PKG"
 fi
 
-echo "Building universal DMG…"
-mkdir -p "$TMP/dmg"
-cp "$PKG" "$TMP/dmg/"
-cat > "$TMP/dmg/README.txt" <<EOF
-Hole Shield $VERSION — universal macOS installer
-
-Open Hole-Shield-$VERSION-universal.pkg. The installer detects this Mac's
-architecture and installs the Apple Silicon or Intel build automatically.
-EOF
-hdiutil create -volname "Hole Shield" -srcfolder "$TMP/dmg" \
-  -ov -format UDZO "$DMG" >/dev/null
-
-if [ -n "${MAC_APP_SIGN_ID:-}" ]; then
-  echo "Signing universal DMG…"
-  codesign --force --timestamp --sign "$MAC_APP_SIGN_ID" "$DMG"
-fi
-
 if [ -n "${MAC_NOTARY_PROFILE:-}" ] || \
    { [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ] \
      && [ -n "${APPLE_APP_PASSWORD:-}" ]; }; then
-  for file in "$PKG" "$DMG"; do
-    if [ -n "${MAC_NOTARY_PROFILE:-}" ]; then
-      xcrun notarytool submit "$file" --keychain-profile "$MAC_NOTARY_PROFILE" --wait
-    else
-      xcrun notarytool submit "$file" --apple-id "$APPLE_ID" \
-        --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
-    fi
-    xcrun stapler staple "$file"
-    xcrun stapler validate "$file"
-  done
+  if [ -n "${MAC_NOTARY_PROFILE:-}" ]; then
+    xcrun notarytool submit "$PKG" --keychain-profile "$MAC_NOTARY_PROFILE" --wait
+  else
+    xcrun notarytool submit "$PKG" --apple-id "$APPLE_ID" \
+      --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+  fi
+  xcrun stapler staple "$PKG"
+  xcrun stapler validate "$PKG"
 fi
 
 echo "Architectures:"
 lipo -info "$ARM_APP/Contents/MacOS/Hole Shield" 2>/dev/null || true
 lipo -info "$INTEL_APP/Contents/MacOS/Hole Shield" 2>/dev/null || true
 echo "Built:"
-ls -lh "$PKG" "$DMG"
+ls -lh "$PKG"

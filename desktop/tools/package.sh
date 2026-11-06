@@ -77,9 +77,7 @@ if [ "${MAC_APP_ONLY:-0}" = "1" ] && [ "$OS" = "Darwin" ]; then
 fi
 
 if [ "$OS" = "Darwin" ]; then
-  echo "Building DMG and PKG…"
-  "$JDK/bin/jpackage" --type dmg "${BASE[@]}" \
-    --mac-package-name "$NAME" --mac-package-identifier com.dino.holeshield
+  echo "Building PKG…"
   "$JDK/bin/jpackage" --type pkg "${BASE[@]}" \
     --mac-package-name "$NAME" --mac-package-identifier com.dino.holeshield
 elif [ "$OS" = "Linux" ]; then

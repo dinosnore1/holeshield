@@ -14,7 +14,7 @@ statistics.
 
 ### Desktop
 
-- **macOS (universal):** `Hole-Shield-2.3.3-universal.pkg`, `Hole-Shield-2.3.3-universal.dmg`
+- **macOS (universal):** `Hole-Shield-2.3.3-universal.pkg`
 - **Windows:** `Hole-Shield-2.3.3.msi`, `Hole-Shield-2.3.3.exe`
 - **Linux:** `holeshield_2.3.3-1_amd64.deb`, `holeshield-2.3.3-1.x86_64.rpm`
 - **`holeshield-desktop-2.3.3-SHA256SUMS.txt`** — desktop checksums.
@@ -46,7 +46,7 @@ SmartScreen will warn on first launch. Signing steps are documented in
 - 131 Android JVM checks pass.
 - 117 desktop checks pass.
 - Android CI build and signing pass on a clean runner.
-- Desktop VM smoke tests pass for macOS PKG/DMG, Linux DEB and Windows MSI.
+- Desktop VM smoke tests pass for macOS universal PKG, Linux DEB and Windows MSI.
 - `doubleclick.net` is blocked; `example.com` resolves through DoH.
 - No store, bundle or legacy-brand references remain in the repository.
 

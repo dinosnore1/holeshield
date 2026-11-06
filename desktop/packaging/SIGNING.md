@@ -8,7 +8,7 @@ own; none are stored in this repository.
 ### Prerequisites
 
 - Apple Developer Program membership.
-- **Developer ID Application** certificate, for the app and DMG.
+- **Developer ID Application** certificate, for the app bundles.
 - **Developer ID Installer** certificate, for the PKG.
 - An app-specific password from <https://appleid.apple.com>, or a `notarytool`
   keychain profile.
@@ -44,7 +44,7 @@ MAC_NOTARY_PROFILE="holeshield-notary" \
 
 The script signs both app bundles with the hardened runtime and Java
 entitlements, signs the universal PKG with the installer identity, signs the
-DMG, notarizes and staples both, and checks Gatekeeper.
+PKG, notarizes and staples it, and checks Gatekeeper.
 
 Without `MAC_NOTARY_PROFILE`, set `APPLE_ID`, `APPLE_TEAM_ID` and
 `APPLE_APP_PASSWORD` instead. If neither is set, the script signs but skips
@@ -55,7 +55,6 @@ notarization.
 ```bash
 spctl --assess --type install --verbose=2 "desktop/build/dist/Hole-Shield-2.3.3-universal.pkg"
 xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3-universal.pkg"
-xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3-universal.dmg"
 ```
 
 ## Windows

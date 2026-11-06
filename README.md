@@ -33,7 +33,7 @@ panel and tray controls, and ships as native installers for Windows, Linux and m
 
 ```bash
 ./desktop/tools/test.sh       # 123 headless core checks
-./desktop/tools/package.sh    # app image + DMG/PKG, DEB/RPM or MSI/EXE
+./desktop/tools/package.sh    # app image + PKG, DEB/RPM or MSI/EXE
 ```
 
 The **2.3.3 release** includes one universal macOS package for Intel and Apple

@@ -7,13 +7,12 @@ installer includes a trimmed Java runtime, so the user does not need Java.
 
 - `Hole-Shield-2.3.3-universal.pkg` — one installer containing both Apple
   Silicon and Intel app bundles. The postinstall selects the native app.
-- `Hole-Shield-2.3.3-universal.dmg` — disk image containing the universal PKG.
 - `Hole Shield.app` — build output for one architecture; not released.
 
 The build is unsigned. To ship it:
 
 1. Sign the app and nested runtime with a Developer ID Application certificate.
-2. Sign the DMG/PKG with a Developer ID Installer certificate.
+2. Sign the PKG with a Developer ID Installer certificate.
 3. Notarize with `notarytool` and staple the ticket.
 
 To start the resolver automatically at login without prompting for a password,

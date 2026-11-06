@@ -22,17 +22,16 @@ Desktop (2.3.3)
 Built with JDK 17 + jpackage and published in the 2.3.3 release.
 
 desktop/build/dist/Hole-Shield-2.3.3-universal.pkg
-desktop/build/dist/Hole-Shield-2.3.3-universal.dmg
   Universal macOS package for Intel and Apple Silicon (unsigned).
 Also published:
-  Hole-Shield-2.3.3-universal.dmg / .pkg (macOS Intel + Apple Silicon)
+  Hole-Shield-2.3.3-universal.pkg (macOS Intel + Apple Silicon)
   Hole-Shield-2.3.3.msi / .exe (Windows)
   holeshield_2.3.3-1_amd64.deb
   holeshield-2.3.3-1.x86_64.rpm
   holeshield-desktop-2.3.3-SHA256SUMS.txt
 123 headless desktop checks pass.
 VM smoke tests pass on GitHub-hosted macOS, Ubuntu and Windows VMs:
-macOS PKG + DMG, Ubuntu DEB, and Windows MSI. Each installed app is started
+macOS universal PKG, Ubuntu DEB, and Windows MSI. Each installed app is started
 headless and checked for a
 blocked lookup, an allowed lookup, the DoH upstream and the dashboard API.
 
