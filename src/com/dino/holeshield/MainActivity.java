@@ -1536,30 +1536,51 @@ public class MainActivity extends Activity {
 
         LinearLayout text = Ui.column(this);
         text.addView(Ui.text(this, title, isTv ? 16 : 15, Ui.TEXT, true));
+        String detail = levelLabel(prefs.categoryLevel(key));
         if (subtitle != null && !subtitle.isEmpty()) {
-            text.addView(Ui.text(this, subtitle, isTv ? 11.5f : 11, Ui.FAINT, false),
-                    Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
+            detail = subtitle + " · " + detail;
         }
+        text.addView(Ui.text(this, detail, isTv ? 11.5f : 11, Ui.FAINT, false),
+                Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
         r.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView level = Ui.text(this, levelLabel(prefs.categoryLevel(key)),
-                isTv ? 13 : 12.5f, Ui.GREEN, true);
-        level.setGravity(Gravity.CENTER);
-        level.setSingleLine(true);
-        level.setFocusable(true);
-        level.setClickable(true);
-        level.setBackground(Ui.focusableBg(this, 999));
-        level.setPadding(Ui.dp(this, isTv ? 12 : 10), Ui.dp(this, isTv ? 6 : 4),
-                Ui.dp(this, isTv ? 12 : 10), Ui.dp(this, isTv ? 6 : 4));
-        level.setOnClickListener(v2 -> chooseLevel(key, title));
-        r.addView(level, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+        TextView chevron = Ui.text(this, "›", isTv ? 26 : 23, Ui.DIM, false);
+        chevron.setGravity(Gravity.CENTER);
+        chevron.setFocusable(true);
+        chevron.setClickable(true);
+        StateListDrawable chevronBg = new StateListDrawable();
+        chevronBg.addState(new int[]{android.R.attr.state_focused},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        chevronBg.addState(new int[]{android.R.attr.state_pressed},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        chevronBg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
+        chevron.setBackground(chevronBg);
+        int chevronPadH = Ui.dp(this, isTv ? 12 : 10);
+        chevron.setPadding(chevronPadH, Ui.dp(this, isTv ? 6 : 4),
+                chevronPadH, Ui.dp(this, isTv ? 6 : 4));
+        chevron.setOnClickListener(v2 -> chooseLevel(key, title));
+        r.addView(chevron, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 12 : 8), 0, 0, 0));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Ui.STROKE);
+        LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
+                Ui.dp(this, 1), Ui.dp(this, isTv ? 32 : 28));
+        dividerLp.setMargins(Ui.dp(this, isTv ? 10 : 8), 0,
+                Ui.dp(this, isTv ? 10 : 8), 0);
+        r.addView(divider, dividerLp);
 
         LinearLayout toggleWrap = Ui.row(this);
         toggleWrap.setFocusable(true);
         toggleWrap.setClickable(true);
-        toggleWrap.setBackground(Ui.focusableBg(this, 999));
+        StateListDrawable toggleBg = new StateListDrawable();
+        toggleBg.addState(new int[]{android.R.attr.state_focused},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        toggleBg.addState(new int[]{android.R.attr.state_pressed},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        toggleBg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
+        toggleWrap.setBackground(toggleBg);
         int padH = Ui.dp(this, isTv ? 10 : 8);
         int padV = Ui.dp(this, isTv ? 4 : 3);
         toggleWrap.setPadding(padH, padV, padH, padV);
