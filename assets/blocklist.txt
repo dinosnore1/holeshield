@@ -204,3 +204,15 @@ inmobi.com
 mopub.com
 startapp.com
 tapjoy.com
+
+# Amazon Fire TV and Prime Video interface ads / telemetry
+arcus-uswest.amazon.com
+dcape-na.amazon.com
+aviary.amazon.com
+aviary.amazon.de
+unagi-na.amazon.com
+unagi-eu.amazon.com
+prod.us-east-1.sonar.prime-video.amazon.dev
+mads.amazon.com
+fls-na.amazon.com
+device-metrics-us.amazon.com

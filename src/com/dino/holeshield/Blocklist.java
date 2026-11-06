@@ -253,8 +253,10 @@ final class Blocklist {
 
         long[] seedHashes = seed.toArray();
         long[] adsWithSeed = new long[ads.length + seedHashes.length];
-        System.arraycopy(ads, 0, adsWithSeed, 0, ads.length);
-        System.arraycopy(seedHashes, 0, adsWithSeed, ads.length, seedHashes.length);
+        // Keep the bundled fallback domains ahead of the downloaded ad lists
+        // so the fair cap never truncates them.
+        System.arraycopy(seedHashes, 0, adsWithSeed, 0, seedHashes.length);
+        System.arraycopy(ads, 0, adsWithSeed, seedHashes.length, ads.length);
 
         long[][] sources = {
                 adsWithSeed, trackers, malware, adult, piracy,

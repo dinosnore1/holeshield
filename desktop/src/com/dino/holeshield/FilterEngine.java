@@ -755,21 +755,30 @@ final class FilterEngine {
             return;
         }
 
-        // Merge the small bundled seed into the ads category.
+        // Merge the small bundled seed into the ads category. Keep it ahead of
+        // the downloaded ad lists so the fair cap never truncates it.
+        long[] seedHashes = new long[0];
         try (InputStream in = FilterEngine.class.getResourceAsStream("/seed-blocklist.txt")) {
             if (in != null) {
+                LongBuffer seed = new LongBuffer(4096);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(
                         in, StandardCharsets.UTF_8));
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String domain = HostsParser.parseLine(line);
-                    if (!domain.isEmpty()) buffers[0].add(Gravity.hash(domain));
+                    if (!domain.isEmpty()) seed.add(Gravity.hash(domain));
                 }
+                seedHashes = seed.toArray();
             }
         } catch (Exception ignored) { }
+        long[] downloadedAds = buffers[0].toArray();
+        long[] adsWithSeed = new long[seedHashes.length + downloadedAds.length];
+        System.arraycopy(seedHashes, 0, adsWithSeed, 0, seedHashes.length);
+        System.arraycopy(downloadedAds, 0, adsWithSeed, seedHashes.length,
+                downloadedAds.length);
 
         long[][] raw = {
-                buffers[0].toArray(), buffers[1].toArray(), buffers[2].toArray(),
+                adsWithSeed, buffers[1].toArray(), buffers[2].toArray(),
                 buffers[3].toArray(), buffers[4].toArray(), buffers[5].toArray(),
                 buffers[6].toArray(), buffers[7].toArray(), buffers[8].toArray()
         };
