@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Builds one universal macOS PKG containing both Apple Silicon and Intel apps.
+# The package installs the matching app into /Applications.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+VERSION="${MAC_VERSION:-2.3.3}"
+OUT="${MAC_OUT:-$ROOT/desktop/build/dist}"
+ARM_APP=""
+INTEL_APP=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --arm) ARM_APP="${2:-}"; shift 2 ;;
+    --intel) INTEL_APP="${2:-}"; shift 2 ;;
+    --out) OUT="${2:-}"; shift 2 ;;
+    --version) VERSION="${2:-}"; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+if [ -z "$ARM_APP" ] || [ ! -d "$ARM_APP" ]; then
+  echo "missing Apple Silicon app bundle (--arm)" >&2; exit 1
+fi
+if [ -z "$INTEL_APP" ] || [ ! -d "$INTEL_APP" ]; then
+  echo "missing Intel app bundle (--intel)" >&2; exit 1
+fi
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/payload/Applications" "$TMP/scripts" "$OUT"
+
+cp -R "$ARM_APP" "$TMP/payload/Applications/Hole Shield-arm64.app"
+cp -R "$INTEL_APP" "$TMP/payload/Applications/Hole Shield-x64.app"
+
+cat > "$TMP/scripts/postinstall" <<'SH'
+#!/bin/sh
+set -e
+osascript -e 'tell application "Hole Shield" to quit' >/dev/null 2>&1 || true
+sleep 1
+ARCH="$(uname -m)"
+if [ "$ARCH" = "arm64" ]; then
+  SRC="/Applications/Hole Shield-arm64.app"
+else
+  SRC="/Applications/Hole Shield-x64.app"
+fi
+DEST="/Applications/Hole Shield.app"
+rm -rf "$DEST"
+mv "$SRC" "$DEST"
+rm -rf "/Applications/Hole Shield-arm64.app" "/Applications/Hole Shield-x64.app"
+exit 0
+SH
+chmod +x "$TMP/scripts/postinstall"
+
+PKG="$OUT/Hole-Shield-$VERSION-universal.pkg"
+DMG="$OUT/Hole-Shield-$VERSION-universal.dmg"
+rm -f "$PKG" "$DMG"
+
+echo "Building universal PKG…"
+pkgbuild --root "$TMP/payload" --scripts "$TMP/scripts" \
+  --identifier com.dino.holeshield --version "$VERSION" \
+  --install-location / "$PKG"
+
+if [ -n "${MAC_INSTALLER_SIGN_ID:-}" ]; then
+  echo "Signing universal PKG…"
+  SIGNED="$TMP/Hole-Shield-$VERSION-universal-signed.pkg"
+  productsign --sign "$MAC_INSTALLER_SIGN_ID" "$PKG" "$SIGNED"
+  mv "$SIGNED" "$PKG"
+fi
+
+echo "Building universal DMG…"
+mkdir -p "$TMP/dmg"
+cp "$PKG" "$TMP/dmg/"
+cat > "$TMP/dmg/README.txt" <<EOF
+Hole Shield $VERSION — universal macOS installer
+
+Open Hole-Shield-$VERSION-universal.pkg. The installer detects this Mac's
+architecture and installs the Apple Silicon or Intel build automatically.
+EOF
+hdiutil create -volname "Hole Shield" -srcfolder "$TMP/dmg" \
+  -ov -format UDZO "$DMG" >/dev/null
+
+if [ -n "${MAC_APP_SIGN_ID:-}" ]; then
+  echo "Signing universal DMG…"
+  codesign --force --timestamp --sign "$MAC_APP_SIGN_ID" "$DMG"
+fi
+
+if [ -n "${MAC_NOTARY_PROFILE:-}" ] || \
+   { [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ] \
+     && [ -n "${APPLE_APP_PASSWORD:-}" ]; }; then
+  for file in "$PKG" "$DMG"; do
+    if [ -n "${MAC_NOTARY_PROFILE:-}" ]; then
+      xcrun notarytool submit "$file" --keychain-profile "$MAC_NOTARY_PROFILE" --wait
+    else
+      xcrun notarytool submit "$file" --apple-id "$APPLE_ID" \
+        --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+    fi
+    xcrun stapler staple "$file"
+    xcrun stapler validate "$file"
+  done
+fi
+
+echo "Architectures:"
+lipo -info "$ARM_APP/Contents/MacOS/Hole Shield" 2>/dev/null || true
+lipo -info "$INTEL_APP/Contents/MacOS/Hole Shield" 2>/dev/null || true
+echo "Built:"
+ls -lh "$PKG" "$DMG"

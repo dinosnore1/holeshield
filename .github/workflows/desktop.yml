@@ -123,3 +123,47 @@ jobs:
             desktop/build/dist/*.msi
             desktop/build/dist/*.exe
           if-no-files-found: warn
+
+  universal:
+    name: macOS universal package
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: holeshield-desktop-macos-15
+          path: artifacts/arm
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: holeshield-desktop-macos-15-intel
+          path: artifacts/intel
+
+      - name: Combine Apple Silicon and Intel apps
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/hs-arm /tmp/hs-intel
+          ARM_DMG="$(find artifacts/arm -name '*.dmg' | head -1)"
+          INTEL_DMG="$(find artifacts/intel -name '*.dmg' | head -1)"
+          test -n "$ARM_DMG"
+          test -n "$INTEL_DMG"
+          hdiutil attach -nobrowse -readonly "$ARM_DMG" -mountpoint /tmp/hs-arm
+          hdiutil attach -nobrowse -readonly "$INTEL_DMG" -mountpoint /tmp/hs-intel
+          cp -R "/tmp/hs-arm/Hole Shield.app" /tmp/hs-arm-app.app
+          cp -R "/tmp/hs-intel/Hole Shield.app" /tmp/hs-intel-app.app
+          hdiutil detach /tmp/hs-arm
+          hdiutil detach /tmp/hs-intel
+          ./desktop/tools/package-universal-macos.sh \
+            --arm /tmp/hs-arm-app.app \
+            --intel /tmp/hs-intel-app.app \
+            --out desktop/build/dist \
+            --version 2.3.3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: holeshield-desktop-macos-universal
+          path: desktop/build/dist/*universal*
+          if-no-files-found: error
