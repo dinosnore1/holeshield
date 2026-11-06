@@ -97,7 +97,7 @@ Windows:
 
 Artifacts are written to `desktop/build/dist/`:
 
-- macOS: one universal `.pkg` and `.dmg` for Intel and Apple Silicon
+- macOS: one universal `.pkg` for Intel and Apple Silicon
 - Linux: `.deb`, `.rpm` (when `rpmbuild` is available)
 - Windows: `.msi` and `.exe` when WiX is installed
 
