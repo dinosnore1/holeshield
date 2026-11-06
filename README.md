@@ -36,8 +36,8 @@ panel and tray controls, and ships as native installers for Windows, Linux and m
 ./desktop/tools/package.sh    # app image + DMG/PKG, DEB/RPM or MSI/EXE
 ```
 
-The **2.3.3 release** includes macOS DMG/PKG, Windows MSI/EXE and Linux
-DEB/RPM. See
+The **2.3.3 release** includes one universal macOS package for Intel and Apple
+Silicon, Windows MSI/EXE and Linux DEB/RPM. See
 [`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
 platform packaging notes. The GitHub Actions workflow
 `.github/workflows/desktop.yml` builds all three platforms.

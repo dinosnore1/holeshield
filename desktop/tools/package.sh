@@ -71,6 +71,11 @@ if [ -n "$ICON" ]; then BASE+=(--icon "$ICON"); fi
 echo "Building app image…"
 "$JDK/bin/jpackage" --type app-image "${BASE[@]}"
 
+if [ "${MAC_APP_ONLY:-0}" = "1" ] && [ "$OS" = "Darwin" ]; then
+  echo "macOS app image only (universal package consumes this)."
+  exit 0
+fi
+
 if [ "$OS" = "Darwin" ]; then
   echo "Building DMG and PKG…"
   "$JDK/bin/jpackage" --type dmg "${BASE[@]}" \

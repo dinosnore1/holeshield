@@ -59,6 +59,8 @@ jobs:
 
       - name: Package
         if: runner.os != 'Windows'
+        env:
+          MAC_APP_ONLY: "1"
         run: ./desktop/tools/package.sh
 
       - name: Package (Windows)
@@ -66,19 +68,9 @@ jobs:
         shell: pwsh
         run: ./desktop/tools/package.ps1
 
-      - name: Smoke test macOS PKG
+      - name: Smoke test macOS app image
         if: runner.os == 'macOS'
-        run: |
-          sudo installer -pkg desktop/build/dist/*.pkg -target /
-          ./desktop/tools/smoke.sh "/Applications/Hole Shield.app/Contents/MacOS/Hole Shield"
-
-      - name: Smoke test macOS DMG
-        if: runner.os == 'macOS'
-        run: |
-          mkdir -p /tmp/holeshield-dmg
-          hdiutil attach -nobrowse -readonly desktop/build/dist/*.dmg -mountpoint /tmp/holeshield-dmg
-          ./desktop/tools/smoke.sh "/tmp/holeshield-dmg/Hole Shield.app/Contents/MacOS/Hole Shield"
-          hdiutil detach /tmp/holeshield-dmg
+        run: ./desktop/tools/smoke.sh "desktop/build/dist/Hole Shield.app/Contents/MacOS/Hole Shield"
 
       - name: Smoke test Linux DEB
         if: runner.os == 'Linux'
@@ -112,12 +104,20 @@ jobs:
           if (-not $exe) { throw "installed executable not found" }
           ./desktop/tools/smoke.ps1 -Exe $exe.FullName
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload macOS app input
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: holeshield-mac-input-${{ matrix.os }}
+          path: desktop/build/dist/Hole Shield.app
+          if-no-files-found: error
+
+      - name: Upload Linux and Windows installers
+        if: runner.os != 'macOS'
+        uses: actions/upload-artifact@v4
         with:
           name: holeshield-desktop-${{ matrix.os }}
           path: |
-            desktop/build/dist/*.dmg
-            desktop/build/dist/*.pkg
             desktop/build/dist/*.deb
             desktop/build/dist/*.rpm
             desktop/build/dist/*.msi
@@ -134,33 +134,28 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: holeshield-desktop-macos-15
+          name: holeshield-mac-input-macos-15
           path: artifacts/arm
 
       - uses: actions/download-artifact@v4
         with:
-          name: holeshield-desktop-macos-15-intel
+          name: holeshield-mac-input-macos-15-intel
           path: artifacts/intel
 
-      - name: Combine Apple Silicon and Intel apps
+      - name: Build and install universal package
         run: |
           set -euo pipefail
-          mkdir -p /tmp/hs-arm /tmp/hs-intel
-          ARM_DMG="$(find artifacts/arm -name '*.dmg' | head -1)"
-          INTEL_DMG="$(find artifacts/intel -name '*.dmg' | head -1)"
-          test -n "$ARM_DMG"
-          test -n "$INTEL_DMG"
-          hdiutil attach -nobrowse -readonly "$ARM_DMG" -mountpoint /tmp/hs-arm
-          hdiutil attach -nobrowse -readonly "$INTEL_DMG" -mountpoint /tmp/hs-intel
-          cp -R "/tmp/hs-arm/Hole Shield.app" /tmp/hs-arm-app.app
-          cp -R "/tmp/hs-intel/Hole Shield.app" /tmp/hs-intel-app.app
-          hdiutil detach /tmp/hs-arm
-          hdiutil detach /tmp/hs-intel
+          ARM_APP="$(find artifacts/arm -maxdepth 2 -type d -name 'Hole Shield.app' | head -1)"
+          INTEL_APP="$(find artifacts/intel -maxdepth 2 -type d -name 'Hole Shield.app' | head -1)"
+          test -n "$ARM_APP"
+          test -n "$INTEL_APP"
           ./desktop/tools/package-universal-macos.sh \
-            --arm /tmp/hs-arm-app.app \
-            --intel /tmp/hs-intel-app.app \
+            --arm "$ARM_APP" \
+            --intel "$INTEL_APP" \
             --out desktop/build/dist \
             --version 2.3.3
+          sudo installer -pkg desktop/build/dist/Hole-Shield-2.3.3-universal.pkg -target /
+          ./desktop/tools/smoke.sh "/Applications/Hole Shield.app/Contents/MacOS/Hole Shield"
 
       - uses: actions/upload-artifact@v4
         with:

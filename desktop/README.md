@@ -97,13 +97,14 @@ Windows:
 
 Artifacts are written to `desktop/build/dist/`:
 
-- macOS: `.dmg`, `.pkg`
+- macOS: one universal `.pkg` and `.dmg` for Intel and Apple Silicon
 - Linux: `.deb`, `.rpm` (when `rpmbuild` is available)
 - Windows: `.msi` and `.exe` when WiX is installed
 
-The GitHub Actions workflow in `.github/workflows/desktop.yml` builds and
-uploads all three platforms. It also installs the PKG/DMG, DEB and MSI on macOS,
-Ubuntu and Windows VMs, starts the installed app headless, resolves
+The GitHub Actions workflow in `.github/workflows/desktop.yml` builds both Mac
+architectures, combines them into one universal package, and uploads all three
+platforms. It also installs the universal PKG, DEB and MSI on macOS, Ubuntu and
+Windows VMs, starts the installed app headless, resolves
 a blocked and an allowed domain, verifies the DoH upstream and checks the
 dashboard API. The installers are unsigned by default; see
 `desktop/packaging/README.md` for signing notes.

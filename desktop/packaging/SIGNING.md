@@ -28,30 +28,23 @@ xcrun notarytool store-credentials "holeshield-notary" \
   --password "app-specific-password"
 ```
 
-### Sign and notarize
+### Sign and notarize the universal package
 
-Build first:
-
-```bash
-./desktop/tools/package.sh
-```
-
-Then sign, recreate the DMG/PKG, notarize and staple:
+The release uses one universal PKG containing both app bundles. Build the two
+architectures first (CI does this on `macos-15` and `macos-15-intel`), then:
 
 ```bash
 MAC_APP_SIGN_ID="Developer ID Application: Your Name (TEAMID)" \
 MAC_INSTALLER_SIGN_ID="Developer ID Installer: Your Name (TEAMID)" \
 MAC_NOTARY_PROFILE="holeshield-notary" \
-./desktop/tools/sign-macos.sh
+./desktop/tools/package-universal-macos.sh \
+  --arm /path/to/arm64/Hole\ Shield.app \
+  --intel /path/to/x64/Hole\ Shield.app
 ```
 
-The script:
-
-- signs the app bundle with the hardened runtime and the Java entitlements in
-  `desktop/packaging/macos/entitlements.plist`;
-- rebuilds and signs the DMG;
-- rebuilds and signs the PKG with the installer identity;
-- submits both to Apple, waits, staples the tickets and checks Gatekeeper.
+The script signs both app bundles with the hardened runtime and Java
+entitlements, signs the universal PKG with the installer identity, signs the
+DMG, notarizes and staples both, and checks Gatekeeper.
 
 Without `MAC_NOTARY_PROFILE`, set `APPLE_ID`, `APPLE_TEAM_ID` and
 `APPLE_APP_PASSWORD` instead. If neither is set, the script signs but skips
@@ -60,11 +53,9 @@ notarization.
 ### Verify
 
 ```bash
-codesign --verify --deep --strict --verbose=2 "desktop/build/dist/Hole Shield.app"
-spctl --assess --type execute --verbose=2 "desktop/build/dist/Hole Shield.app"
-spctl --assess --type install --verbose=2 "desktop/build/dist/Hole-Shield-2.3.3.pkg"
-xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3.dmg"
-xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3.pkg"
+spctl --assess --type install --verbose=2 "desktop/build/dist/Hole-Shield-2.3.3-universal.pkg"
+xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3-universal.pkg"
+xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3-universal.dmg"
 ```
 
 ## Windows

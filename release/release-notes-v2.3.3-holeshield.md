@@ -14,14 +14,16 @@ statistics.
 
 ### Desktop
 
-- **macOS:** `Hole-Shield-2.3.3.dmg`, `Hole-Shield-2.3.3.pkg`
+- **macOS (universal):** `Hole-Shield-2.3.3-universal.pkg`, `Hole-Shield-2.3.3-universal.dmg`
 - **Windows:** `Hole-Shield-2.3.3.msi`, `Hole-Shield-2.3.3.exe`
 - **Linux:** `holeshield_2.3.3-1_amd64.deb`, `holeshield-2.3.3-1.x86_64.rpm`
 - **`holeshield-desktop-2.3.3-SHA256SUMS.txt`** — desktop checksums.
 
-The desktop installers bundle a Java runtime. They are unsigned, so macOS
-Gatekeeper and Windows SmartScreen will warn on first launch. Signing steps are
-documented in `desktop/packaging/SIGNING.md`.
+The desktop installers bundle a Java runtime. The universal macOS package
+contains both Intel and Apple Silicon builds and selects the native one during
+installation. The installers are unsigned, so macOS Gatekeeper and Windows
+SmartScreen will warn on first launch. Signing steps are documented in
+`desktop/packaging/SIGNING.md`.
 
 ## Changes
 

@@ -30,6 +30,16 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/payload/Applications" "$TMP/scripts" "$OUT"
 
+if [ -n "${MAC_APP_SIGN_ID:-}" ]; then
+  echo "Signing both app bundles…"
+  ENTITLEMENTS="$ROOT/desktop/packaging/macos/entitlements.plist"
+  for app in "$ARM_APP" "$INTEL_APP"; do
+    codesign --force --deep --options runtime --timestamp \
+      --entitlements "$ENTITLEMENTS" --sign "$MAC_APP_SIGN_ID" "$app"
+    codesign --verify --deep --strict --verbose=2 "$app"
+  done
+fi
+
 cp -R "$ARM_APP" "$TMP/payload/Applications/Hole Shield-arm64.app"
 cp -R "$INTEL_APP" "$TMP/payload/Applications/Hole Shield-x64.app"
 

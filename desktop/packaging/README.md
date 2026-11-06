@@ -5,9 +5,10 @@ installer includes a trimmed Java runtime, so the user does not need Java.
 
 ## macOS
 
-- `Hole Shield.app` — application bundle used by the installers.
-- `Hole Shield-2.3.3.dmg` — drag-to-Applications disk image.
-- `Hole Shield-2.3.3.pkg` — installer package.
+- `Hole-Shield-2.3.3-universal.pkg` — one installer containing both Apple
+  Silicon and Intel app bundles. The postinstall selects the native app.
+- `Hole-Shield-2.3.3-universal.dmg` — disk image containing the universal PKG.
+- `Hole Shield.app` — build output for one architecture; not released.
 
 The build is unsigned. To ship it:
 
