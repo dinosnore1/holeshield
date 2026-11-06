@@ -28,7 +28,10 @@ final class Blocklists {
             "https://big.oisd.nl/",
             "https://o0.pages.dev/Xtra/hosts.txt",
             "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_ads_justdomains.txt",
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/popupads-onlydomains.txt"
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/popupads-onlydomains.txt",
+            "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/ads.txt",
+            "https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt"
     };
 
     /** Smart-TV, streaming-box and Android telemetry/tracker lists. */
@@ -44,39 +47,58 @@ final class Blocklists {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.tiktok.extended-onlydomains.txt",
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.vivo-onlydomains.txt",
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.winoffice-onlydomains.txt",
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.xiaomi-onlydomains.txt"
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.xiaomi-onlydomains.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_trackers_justdomains.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/tracking.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/smart-tv.txt"
     };
 
     /** Malware, phishing and malicious-download lists. */
     static final String[] MALWARE = {
             "https://malware-filter.gitlab.io/malware-filter/urlhaus-filter-hosts.txt",
-            "https://phishing.army/download/phishing_army_blocklist_extended.txt"
+            "https://phishing.army/download/phishing_army_blocklist_extended.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/malware.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/phishing.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/ransomware.txt"
     };
 
     /** Adult content. */
     static final String[] ADULT = {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
-            "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts"
+            "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Adult",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/porn.txt"
     };
 
     /** Copyright-infringing content and piracy services. */
     static final String[] PIRACY = {
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt"
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/piracy.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/warez/domains"
     };
 
     /** Gambling and betting sites. */
     static final String[] GAMBLING = {
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt"
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Gambling",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/gambling.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains"
     };
 
     /** Dating sites and apps. */
     static final String[] DATING = {
-            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Dating"
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Dating",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains"
     };
 
     /** Classic social networks. Messaging and streaming apps are not included. */
     static final String[] SOCIAL = {
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/social-onlydomains.txt"
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/social-onlydomains.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/social_networks/domains",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/facebook.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/twitter.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/tiktok.txt"
     };
 
     private static final String[] CLASSIC = {

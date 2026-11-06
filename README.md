@@ -48,7 +48,7 @@ platform packaging notes. The GitHub Actions workflow
   and IPv6 DNS to the embedded resolver. The VPN does not carry video, downloads
   or general LAN traffic.
 - **Embedded gravity database.** Ships with a conservative seed list and a
-  maximum preset of 23 maintained ad, tracker, malware/phishing and TV-telemetry lists, including
+  maximum preset of 33 maintained ad, tracker, malware/phishing and TV-telemetry lists, including
   Hagezi Ultimate, OISD Big, 1Hosts Xtra, AdGuard CNAME ads, Perflyst SmartTV
   and classic hosts lists. Tracker/telemetry and malware/phishing categories can be
   added or removed independently. The web dashboard shows Ads, Trackers and
@@ -138,7 +138,7 @@ shown.
 
 ```bash
 cd ~/holeshield
-./tools/test.sh          # 136 desktop checks for DNS, packet, list, hash and web-auth code
+./tools/test.sh          # 143 desktop checks for DNS, packet, list, hash and web-auth code
 ./build.sh               # writes build/holeshield.apk (sideload signing key)
 ```
 
@@ -421,7 +421,7 @@ build.sh                     no-Gradle APK build
 
 ## Tests
 
-`./tools/test.sh` runs **136 desktop checks** covering query parsing (including
+`./tools/test.sh` runs **143 desktop checks** covering query parsing (including
 rejection of responses/non-standard opcodes), stripping IPv4/IPv6/UDP headers
 from tun packets, blocked A/AAAA/HTTPS replies in all three blocked-response
 modes, answer-address extraction, TTL selection, IPv4/IPv6 UDP replies and

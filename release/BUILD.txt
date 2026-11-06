@@ -50,7 +50,7 @@ Build command
 
 Verified
 --------
-- 136 desktop checks pass, including PBKDF2 login, compact gravity index,
+- 143 desktop checks pass, including PBKDF2 login, compact gravity index,
   blocked-response modes and blocklist category rules.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,
