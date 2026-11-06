@@ -364,6 +364,11 @@ final class WebServer {
         switches.put("dating", p.categoryDating);
         switches.put("social", p.categorySocial);
         root.put("category_switches", switches);
+        JSONObject levels = new JSONObject();
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            levels.put(key, p.categoryLevel(key));
+        }
+        root.put("category_levels", levels);
         root.put("took", 0.001);
         return root;
     }
@@ -402,6 +407,20 @@ final class WebServer {
                     "piracy", "gambling", "dating", "social"};
             for (String key : keys) {
                 if (!body.has(key)) continue;
+                Object value = body.opt(key);
+                if (value instanceof String) {
+                    String level = String.valueOf(value).toLowerCase(Locale.US);
+                    if ("maximum".equals(level)) level = "max";
+                    if (!"lite".equals(level) && !"medium".equals(level)
+                            && !"max".equals(level)) continue;
+                    p.setCategoryLevel(key, level);
+                    if (categoryOn(p, key)) {
+                        p.blocklistUrls = Blocklists.applyLevel(
+                                p.blocklistUrls, key, level);
+                        needUpdate = true;
+                    }
+                    continue;
+                }
                 boolean on = body.optBoolean(key, false);
                 if ("ads".equals(key)) p.categoryAds = on;
                 else if ("trackers".equals(key)) p.categoryTrackers = on;
@@ -411,10 +430,13 @@ final class WebServer {
                 else if ("gambling".equals(key)) p.categoryGambling = on;
                 else if ("dating".equals(key)) p.categoryDating = on;
                 else if ("social".equals(key)) p.categorySocial = on;
-                String[] lists = Blocklists.byKey(key);
-                if (on && !Blocklists.hasAll(p.blocklistUrls, lists)) {
-                    p.blocklistUrls = Blocklists.mergeMissing(p.blocklistUrls, lists);
-                    needUpdate = true;
+                if (on) {
+                    String next = Blocklists.applyLevel(p.blocklistUrls, key,
+                            p.categoryLevel(key));
+                    if (!next.equals(p.blocklistUrls)) {
+                        p.blocklistUrls = next;
+                        needUpdate = true;
+                    }
                 }
             }
             p.save(context);
@@ -431,9 +453,18 @@ final class WebServer {
         o.put("gambling", p.categoryGambling);
         o.put("dating", p.categoryDating);
         o.put("social", p.categorySocial);
+        JSONObject levels = new JSONObject();
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            levels.put(key, p.categoryLevel(key));
+        }
+        o.put("category_levels", levels);
         o.put("safe_search", p.safeSearch);
         o.put("took", 0.001);
         sendJson(out, 200, o.toString());
+    }
+
+    private static boolean categoryOn(Prefs p, String key) {
+        return p.categoryEnabled(key);
     }
 
     private void exportQueries(Request r, OutputStream out) throws Exception {

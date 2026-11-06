@@ -308,6 +308,9 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .cat-row b{width:42px;text-align:right;color:var(--muted);font-size:12px}
 #categorySwitches button.active{background:var(--md-primary-container);color:var(--md-on-primary-container);border-color:transparent}
 #categorySwitches button.off{opacity:.55;text-decoration:line-through}
+#categoryLevels{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:8px;margin-top:8px}
+#categoryLevels label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text);background:var(--md-surface-container-high);border:1px solid var(--md-outline-variant);border-radius:12px;padding:6px 9px}
+#categoryLevels select{padding:5px 8px;border-radius:9px;font-size:12px;background:var(--md-surface-container-lowest)}
 .scroll{overflow:auto;max-height:520px;border-radius:14px;border:1px solid var(--row-line);background:var(--md-surface-container-lowest)}
 table{width:100%;border-collapse:collapse;min-width:860px}
 th{position:sticky;top:0;background:var(--md-surface-container);text-align:left;color:var(--muted);font-size:10.5px;
@@ -602,7 +605,18 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         <button class="small" data-cat="dating">Dating</button>
         <button class="small" data-cat="social">Social</button>
       </div>
-      <p class="note" style="margin-top:10px">Enabling a category adds its list and starts an update.</p>
+      <h3 style="margin-top:18px">Blocking level</h3>
+      <div id="categoryLevels">
+        <label>Ads <select data-level="ads"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Trackers <select data-level="trackers"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Malware <select data-level="malware"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Adult <select data-level="adult"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Piracy <select data-level="piracy"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Gambling <select data-level="gambling"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Dating <select data-level="dating"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+        <label>Social <select data-level="social"><option value="lite">Lite</option><option value="medium">Medium</option><option value="max">Maximum</option></select></label>
+      </div>
+      <p class="note" style="margin-top:10px">Enabling a category adds its list and starts an update. Lite, Medium and Maximum choose how many lists that category uses.</p>
     </div>
   </section>
 
@@ -1169,6 +1183,17 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     });
   }
 
+  function renderCategoryLevels(data){
+    var levels = (data && data.category_levels) || {};
+    $$("#categoryLevels select[data-level]").forEach(function(select){
+      var key = select.getAttribute("data-level");
+      var value = levels[key] || "max";
+      if(value === "maximum") value = "max";
+      if(value !== "lite" && value !== "medium" && value !== "max") value = "max";
+      select.value = value;
+    });
+  }
+
   function renderHealth(data){
     var rows = (data && data.lists) || [];
     var el = $("#listHealth");
@@ -1296,7 +1321,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       if(a[7]) renderLists(a[7]);
       if(a[8]) { renderHistory(a[8]); renderCategoryCounts(a[8]); }
       if(a[9]) renderHealth(a[9]);
-      if(a[10]) renderCategorySwitches(a[10]);
+      if(a[10]) { renderCategorySwitches(a[10]); renderCategoryLevels(a[10]); }
     });
   }
 
@@ -1503,7 +1528,19 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     api("/api/settings/categories", {
       method: "POST",
       body: JSON.stringify(body)
-    }).then(function(data){ renderCategorySwitches(data); })
+    }).then(function(data){ renderCategorySwitches(data); renderCategoryLevels(data); })
+      .catch(function(e){ alert(e.message); });
+  });
+
+  $("#categoryLevels").addEventListener("change", function(ev){
+    var select = ev.target.closest("select[data-level]");
+    if(!select) return;
+    var body = {};
+    body[select.getAttribute("data-level")] = select.value;
+    api("/api/settings/categories", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }).then(function(data){ renderCategorySwitches(data); renderCategoryLevels(data); })
       .catch(function(e){ alert(e.message); });
   });
 

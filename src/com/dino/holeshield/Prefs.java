@@ -85,6 +85,14 @@ final class Prefs {
     boolean categoryGambling = false;
     boolean categoryDating = false;
     boolean categorySocial = false;
+    String levelAds = "max";
+    String levelTrackers = "max";
+    String levelMalware = "max";
+    String levelAdult = "max";
+    String levelPiracy = "max";
+    String levelGambling = "max";
+    String levelDating = "max";
+    String levelSocial = "max";
     /** Parental filter: adds the adult-content list to gravity. */
     boolean safeSearch = false;
 
@@ -187,6 +195,14 @@ final class Prefs {
             s.blocklistPresetVersion = Blocklists.PRESET_VERSION;
             s.save(c);
         }
+        s.levelAds = p.getString("levelAds", Blocklists.detectLevel(s.blocklistUrls, "ads"));
+        s.levelTrackers = p.getString("levelTrackers", Blocklists.detectLevel(s.blocklistUrls, "trackers"));
+        s.levelMalware = p.getString("levelMalware", Blocklists.detectLevel(s.blocklistUrls, "malware"));
+        s.levelAdult = p.getString("levelAdult", Blocklists.detectLevel(s.blocklistUrls, "adult"));
+        s.levelPiracy = p.getString("levelPiracy", Blocklists.detectLevel(s.blocklistUrls, "piracy"));
+        s.levelGambling = p.getString("levelGambling", Blocklists.detectLevel(s.blocklistUrls, "gambling"));
+        s.levelDating = p.getString("levelDating", Blocklists.detectLevel(s.blocklistUrls, "dating"));
+        s.levelSocial = p.getString("levelSocial", Blocklists.detectLevel(s.blocklistUrls, "social"));
         return s;
     }
 
@@ -237,6 +253,14 @@ final class Prefs {
                 .putBoolean("categoryGambling", categoryGambling)
                 .putBoolean("categoryDating", categoryDating)
                 .putBoolean("categorySocial", categorySocial)
+                .putString("levelAds", levelAds)
+                .putString("levelTrackers", levelTrackers)
+                .putString("levelMalware", levelMalware)
+                .putString("levelAdult", levelAdult)
+                .putString("levelPiracy", levelPiracy)
+                .putString("levelGambling", levelGambling)
+                .putString("levelDating", levelDating)
+                .putString("levelSocial", levelSocial)
                 .putBoolean("safeSearch", safeSearch)
                 .putBoolean("webEnabled", webEnabled)
                 .putInt("webPort", webPort)
@@ -281,6 +305,42 @@ final class Prefs {
     // --------------------------------------------------------------- filtering
 
     /** Category bits that are currently allowed to block. */
+    boolean categoryEnabled(String key) {
+        if ("ads".equals(key)) return categoryAds;
+        if ("trackers".equals(key)) return categoryTrackers;
+        if ("malware".equals(key)) return categoryMalware;
+        if ("adult".equals(key)) return categoryAdult || safeSearch;
+        if ("piracy".equals(key)) return categoryPiracy;
+        if ("gambling".equals(key)) return categoryGambling;
+        if ("dating".equals(key)) return categoryDating;
+        if ("social".equals(key)) return categorySocial;
+        return false;
+    }
+
+    String categoryLevel(String key) {
+        if ("ads".equals(key)) return levelAds;
+        if ("trackers".equals(key)) return levelTrackers;
+        if ("malware".equals(key)) return levelMalware;
+        if ("adult".equals(key)) return levelAdult;
+        if ("piracy".equals(key)) return levelPiracy;
+        if ("gambling".equals(key)) return levelGambling;
+        if ("dating".equals(key)) return levelDating;
+        if ("social".equals(key)) return levelSocial;
+        return "max";
+    }
+
+    void setCategoryLevel(String key, String level) {
+        String value = level == null ? "max" : level;
+        if ("ads".equals(key)) levelAds = value;
+        else if ("trackers".equals(key)) levelTrackers = value;
+        else if ("malware".equals(key)) levelMalware = value;
+        else if ("adult".equals(key)) levelAdult = value;
+        else if ("piracy".equals(key)) levelPiracy = value;
+        else if ("gambling".equals(key)) levelGambling = value;
+        else if ("dating".equals(key)) levelDating = value;
+        else if ("social".equals(key)) levelSocial = value;
+    }
+
     int categoryMask() {
         int mask = Gravity.OTHER;
         if (categoryAds) mask |= Gravity.ADS;

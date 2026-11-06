@@ -1035,12 +1035,20 @@ final class ControlPanel extends JFrame {
                     || key.equals("categoryGambling")
                     || key.equals("categoryDating")
                     || key.equals("categorySocial"));
+            String levelKey = key.substring("category".length()).toLowerCase(Locale.ROOT);
+            boolean supportsLevels = false;
+            for (String candidate : Blocklists.CATEGORY_KEYS) {
+                if (candidate.equals(levelKey)) supportsLevels = true;
+            }
+            final boolean hasLevels = supportsLevels;
             Widgets.ToggleSwitch toggle = new Widgets.ToggleSwitch(
                     prefs.getBool(key, fallback));
             toggle.setOnChange(value -> {
                 prefs.setBool(key, value);
-                if (value) {
-                    for (String url : Blocklists.byKey(key)) filter.addListUrl(url);
+                if (value && hasLevels) {
+                    prefs.set("blocklistUrls", Blocklists.applyLevel(
+                            prefs.blocklistUrls(), levelKey,
+                            prefs.categoryLevel(levelKey)));
                 }
                 prefs.save();
                 filter.reloadRules();
@@ -1050,8 +1058,37 @@ final class ControlPanel extends JFrame {
             left.add(toggle);
             left.add(Widgets.label(label, 12.5f, Font.BOLD, 0));
             row.add(left, BorderLayout.WEST);
+            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+            right.setOpaque(false);
             JLabel count = Widgets.label("0 domains", 11, Font.PLAIN, 1);
-            row.add(count, BorderLayout.EAST);
+            right.add(count);
+            if (hasLevels) {
+                String current = prefs.categoryLevel(levelKey);
+                String selected = "lite".equals(current) ? "Lite"
+                        : "medium".equals(current) ? "Medium" : "Maximum";
+                JComboBox<String> level = Widgets.combo(
+                        new String[]{"Lite", "Medium", "Maximum"}, selected);
+                level.setPreferredSize(new Dimension(102, 28));
+                level.addActionListener(e -> {
+                    Object item = level.getSelectedItem();
+                    String choice = item == null ? "Maximum" : item.toString();
+                    String value = "Lite".equals(choice) ? "lite"
+                            : "Medium".equals(choice) ? "medium" : "max";
+                    prefs.setCategoryLevel(levelKey, value);
+                    if (prefs.getBool(key, fallback)) {
+                        prefs.set("blocklistUrls", Blocklists.applyLevel(
+                                prefs.blocklistUrls(), levelKey, value));
+                    }
+                    prefs.save();
+                    filter.reloadRules();
+                    refresh();
+                    if (prefs.getBool(key, fallback) && !filter.isUpdating()) {
+                        app.updateLists();
+                    }
+                });
+                right.add(level);
+            }
+            row.add(right, BorderLayout.EAST);
             categorySwitches.put(key, toggle);
             categoryCounts.put(key, count);
             parent.add(row);

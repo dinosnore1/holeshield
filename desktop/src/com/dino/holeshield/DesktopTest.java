@@ -138,6 +138,25 @@ public final class DesktopTest {
         check(Blocklists.byKey("gambling").length > 0, "gambling list preset");
         check(Blocklists.byKey("dating").length > 0, "dating list preset");
         check(Blocklists.byKey("social").length > 0, "social list preset");
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            check(Blocklists.urlsFor(key, "lite").length > 0,
+                    key + " lite tier");
+            check(Blocklists.urlsFor(key, "medium").length
+                            >= Blocklists.urlsFor(key, "lite").length,
+                    key + " medium tier covers lite");
+            check(Blocklists.urlsFor(key, "max").length
+                            >= Blocklists.urlsFor(key, "medium").length,
+                    key + " maximum tier covers medium");
+            check(Blocklists.allUrls(key).length
+                            >= Blocklists.urlsFor(key, "max").length,
+                    key + " URL set covers maximum");
+        }
+        String lite = Blocklists.applyLevel(Blocklists.presetText(), "trackers", "lite");
+        check(Blocklists.detectLevel(lite, "trackers").equals("lite"),
+                "tracker lite level round-trips");
+        String max = Blocklists.applyLevel(lite, "trackers", "max");
+        check(Blocklists.detectLevel(max, "trackers").equals("max"),
+                "tracker maximum level round-trips");
     }
 
     private static void filter() {

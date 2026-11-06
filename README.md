@@ -65,9 +65,11 @@ platform packaging notes. The GitHub Actions workflow
   and a plain-DNS fallback. Choose the blocked response: `0.0.0.0`, NXDOMAIN or
   NODATA.
 - **Runtime category switches** for Ads, Trackers, Malware, Adult, Piracy,
-  Gambling, Dating and Social. Each opt-in category has its own maintained list;
-  enabling it adds the list and starts an update. The compact gravity index makes
-  switches instant and keeps a 1M-domain list to about 12 MB.
+  Gambling, Dating and Social. Every category also has a **Lite, Medium or
+  Maximum** blocking level that chooses how many curated lists it uses.
+  Enabling a category adds its selected tier and starts an update. The compact
+  gravity index makes switches instant and keeps a 1M-domain list to about
+  12 MB.
 - **Blocking hours.** Optional daily window (overnight ranges supported) pauses
   blocking automatically outside the window and resumes at the start time.
 - **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,

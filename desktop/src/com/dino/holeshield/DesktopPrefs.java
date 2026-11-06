@@ -58,6 +58,11 @@ final class DesktopPrefs {
         if (!values.containsKey("categoryDating")) set("categoryDating", "false");
         if (!values.containsKey("categorySocial")) set("categorySocial", "false");
         if (!values.containsKey("categoryOther")) set("categoryOther", "true");
+        String urls = blocklistUrls();
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            String name = "level" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
+            if (!values.containsKey(name)) set(name, Blocklists.detectLevel(urls, key));
+        }
         if (!values.containsKey("filtering")) set("filtering", "true");
         if (!values.containsKey("pauseUntil")) set("pauseUntil", "0");
         if (!values.containsKey("launchAtLogin")) set("launchAtLogin", "false");
@@ -121,6 +126,16 @@ final class DesktopPrefs {
 
     synchronized String clientRules() {
         return get("clientRules", "");
+    }
+
+    synchronized String categoryLevel(String key) {
+        String name = "level" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
+        return get(name, Blocklists.detectLevel(blocklistUrls(), key));
+    }
+
+    synchronized void setCategoryLevel(String key, String level) {
+        String name = "level" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
+        set(name, level == null ? "max" : level);
     }
 
     synchronized int categoryMask() {

@@ -1479,71 +1479,35 @@ public class MainActivity extends Activity {
                 "Append the ads, trackers, malware and TV-telemetry preset",
                 Blocklists.hasAll(prefs.blocklistUrls) ? "Active" : "Add all",
                 this::addMaximumLists), rowLp(6));
-        rows.addView(settingRow("Tracker & telemetry lists",
-                "CNAME trackers, Android and smart-TV telemetry",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.TRACKERS)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.TRACKERS,
-                        "Tracker & telemetry")), rowLp(7));
-        rows.addView(settingRow("Malware & phishing lists",
-                "URLhaus malicious downloads and phishing domains",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.MALWARE)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.MALWARE,
-                        "Malware & phishing")), rowLp(8));
-        rows.addView(settingRow("Adult content list",
-                "Blocks adult sites and services",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.ADULT)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.ADULT, "Adult content")), rowLp(9));
-        rows.addView(settingRow("Piracy list",
-                "Blocks sites mainly used for illegal distribution",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.PIRACY)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.PIRACY, "Piracy")), rowLp(10));
-        rows.addView(settingRow("Gambling list",
-                "Blocks betting and casino sites",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.GAMBLING)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.GAMBLING, "Gambling")), rowLp(11));
-        rows.addView(settingRow("Dating list",
-                "Blocks dating sites and apps",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.DATING)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.DATING, "Dating")), rowLp(12));
-        rows.addView(settingRow("Social media list",
-                "Blocks classic social networks; messaging apps stay available",
-                Blocklists.hasAll(prefs.blocklistUrls, Blocklists.SOCIAL)
-                        ? "Active" : "Add",
-                () -> toggleListCategory(Blocklists.SOCIAL, "Social media")), rowLp(13));
+        rows.addView(categoryLevelRow("Ads", "ads",
+                "Ad, popup and CNAME ad lists"), rowLp(7));
+        rows.addView(categoryLevelRow("Trackers", "trackers",
+                "CNAME trackers and smart-TV telemetry"), rowLp(8));
+        rows.addView(categoryLevelRow("Malware", "malware",
+                "URLhaus, phishing and malicious downloads"), rowLp(9));
+        rows.addView(categoryLevelRow("Adult", "adult",
+                "Adult sites and services"), rowLp(10));
+        rows.addView(categoryLevelRow("Piracy", "piracy",
+                "Illegal distribution and piracy sites"), rowLp(11));
+        rows.addView(categoryLevelRow("Gambling", "gambling",
+                "Betting and casino sites"), rowLp(12));
+        rows.addView(categoryLevelRow("Dating", "dating",
+                "Dating sites and apps"), rowLp(13));
+        rows.addView(categoryLevelRow("Social media", "social",
+                "Classic social networks; messaging apps stay available"), rowLp(14));
         rows.addView(settingRow("Per-client rules",
                 "One per line: 192.168.1.50 ads.example.com  or  !example.com to allow",
-                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(14));
+                countLines(prefs.clientRules) + " rules", this::editClientRules), rowLp(15));
         add(col, rows, 0);
 
         col.addView(section("RUNTIME CATEGORIES"));
         LinearLayout cats = Ui.column(this);
         cats.addView(categoryRow("Ads", "Ad, popup and CNAME ad lists",
-                prefs.categoryAds, () -> {
-                    prefs.categoryAds = !prefs.categoryAds;
-                    prefs.save(this);
-                    Blocklist.setCategoryMask(prefs.categoryMask());
-                    show(Screen.LISTS);
-                }), rowLp(0));
+                prefs.categoryAds, () -> toggleRuntimeCategory("ads")), rowLp(0));
         cats.addView(categoryRow("Trackers", "CNAME trackers and smart-TV telemetry",
-                prefs.categoryTrackers, () -> {
-                    prefs.categoryTrackers = !prefs.categoryTrackers;
-                    prefs.save(this);
-                    Blocklist.setCategoryMask(prefs.categoryMask());
-                    show(Screen.LISTS);
-                }), rowLp(1));
+                prefs.categoryTrackers, () -> toggleRuntimeCategory("trackers")), rowLp(1));
         cats.addView(categoryRow("Malware", "Malware, phishing and malicious downloads",
-                prefs.categoryMalware, () -> {
-                    prefs.categoryMalware = !prefs.categoryMalware;
-                    prefs.save(this);
-                    Blocklist.setCategoryMask(prefs.categoryMask());
-                    show(Screen.LISTS);
-                }), rowLp(2));
+                prefs.categoryMalware, () -> toggleRuntimeCategory("malware")), rowLp(2));
         cats.addView(categoryRow("Adult", "Adult-content list",
                 prefs.categoryAdult, () -> toggleRuntimeCategory("adult")), rowLp(3));
         cats.addView(categoryRow("Piracy", "Illegal distribution and piracy sites",
@@ -1602,21 +1566,76 @@ public class MainActivity extends Activity {
                 : label + " lists added. Update gravity to apply.");
     }
 
+    private LinearLayout categoryLevelRow(String title, String key, String subtitle) {
+        return settingRow(title, subtitle, levelLabel(prefs.categoryLevel(key)),
+                () -> chooseLevel(key, title));
+    }
+
+    private static String levelLabel(String level) {
+        if ("lite".equals(level)) return "Lite";
+        if ("medium".equals(level)) return "Medium";
+        return "Maximum";
+    }
+
+    private void chooseLevel(String key, String title) {
+        String[] levels = {"lite", "medium", "max"};
+        int selected = 2;
+        String current = prefs.categoryLevel(key);
+        if ("lite".equals(current)) selected = 0;
+        else if ("medium".equals(current)) selected = 1;
+        chooseOption(title, "Choose how much of this category to block",
+                new String[]{"Lite", "Medium", "Maximum"}, selected, index -> {
+                    String level = levels[Math.max(0, Math.min(2, index))];
+                    prefs.setCategoryLevel(key, level);
+                    enableCategory(key);
+                    prefs.blocklistUrls = Blocklists.applyLevel(
+                            prefs.blocklistUrls, key, level);
+                    prefs.save(this);
+                    Blocklist.setCategoryMask(prefs.categoryMask());
+                    show(Screen.LISTS);
+                    updateBlocklist();
+                });
+    }
+
+    private void enableCategory(String key) {
+        if ("ads".equals(key)) prefs.categoryAds = true;
+        else if ("trackers".equals(key)) prefs.categoryTrackers = true;
+        else if ("malware".equals(key)) prefs.categoryMalware = true;
+        else if ("adult".equals(key)) prefs.categoryAdult = true;
+        else if ("piracy".equals(key)) prefs.categoryPiracy = true;
+        else if ("gambling".equals(key)) prefs.categoryGambling = true;
+        else if ("dating".equals(key)) prefs.categoryDating = true;
+        else if ("social".equals(key)) prefs.categorySocial = true;
+    }
+
     private void toggleRuntimeCategory(String key) {
         boolean on;
-        if ("adult".equals(key)) on = !prefs.categoryAdult;
+        if ("ads".equals(key)) on = !prefs.categoryAds;
+        else if ("trackers".equals(key)) on = !prefs.categoryTrackers;
+        else if ("malware".equals(key)) on = !prefs.categoryMalware;
+        else if ("adult".equals(key)) on = !prefs.categoryAdult;
         else if ("piracy".equals(key)) on = !prefs.categoryPiracy;
         else if ("gambling".equals(key)) on = !prefs.categoryGambling;
         else if ("dating".equals(key)) on = !prefs.categoryDating;
         else on = !prefs.categorySocial;
-        if ("adult".equals(key)) prefs.categoryAdult = on;
+        if ("ads".equals(key)) prefs.categoryAds = on;
+        else if ("trackers".equals(key)) prefs.categoryTrackers = on;
+        else if ("malware".equals(key)) prefs.categoryMalware = on;
+        else if ("adult".equals(key)) {
+            prefs.categoryAdult = on;
+            prefs.safeSearch = on;
+        }
         else if ("piracy".equals(key)) prefs.categoryPiracy = on;
         else if ("gambling".equals(key)) prefs.categoryGambling = on;
         else if ("dating".equals(key)) prefs.categoryDating = on;
         else prefs.categorySocial = on;
-        String[] lists = Blocklists.byKey(key);
-        boolean needUpdate = on && !Blocklists.hasAll(prefs.blocklistUrls, lists);
-        if (needUpdate) prefs.blocklistUrls = Blocklists.mergeMissing(prefs.blocklistUrls, lists);
+        boolean needUpdate = false;
+        if (on) {
+            String next = Blocklists.applyLevel(prefs.blocklistUrls, key,
+                    prefs.categoryLevel(key));
+            needUpdate = !next.equals(prefs.blocklistUrls);
+            prefs.blocklistUrls = next;
+        }
         prefs.save(this);
         Blocklist.setCategoryMask(prefs.categoryMask());
         show(Screen.LISTS);

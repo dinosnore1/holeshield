@@ -250,27 +250,17 @@ final class Blocklist {
             if (legacy.length > 0) other = legacy;
         }
 
-        // Security categories get the first claim on the 1M cap.
-        int budget = MAX_DOMAINS;
-        malware = cap(malware, budget);
-        budget -= malware.length;
-        trackers = cap(trackers, budget);
-        budget -= trackers.length;
-        adult = cap(adult, budget);
-        budget -= adult.length;
-        piracy = cap(piracy, budget);
-        budget -= piracy.length;
-        gambling = cap(gambling, budget);
-        budget -= gambling.length;
-        dating = cap(dating, budget);
-        budget -= dating.length;
-        social = cap(social, budget);
-        budget -= social.length;
-        ads = cap(ads, budget);
-        budget -= ads.length;
-        other = cap(other, budget);
-        budget -= other.length;
-        long[] seedHashes = cap(seed.toArray(), budget);
+        // Per-category budgets keep one huge list from starving the others.
+        malware = cap(malware, Gravity.capFor(Gravity.MALWARE));
+        trackers = cap(trackers, Gravity.capFor(Gravity.TRACKERS));
+        adult = cap(adult, Gravity.capFor(Gravity.ADULT));
+        piracy = cap(piracy, Gravity.capFor(Gravity.PIRACY));
+        gambling = cap(gambling, Gravity.capFor(Gravity.GAMBLING));
+        dating = cap(dating, Gravity.capFor(Gravity.DATING));
+        social = cap(social, Gravity.capFor(Gravity.SOCIAL));
+        ads = cap(ads, Gravity.capFor(Gravity.ADS));
+        other = cap(other, Gravity.capFor(Gravity.OTHER));
+        long[] seedHashes = cap(seed.toArray(), Gravity.capFor(Gravity.ADS));
 
         long[][] sources = {
                 Gravity.clean(malware),
@@ -815,14 +805,14 @@ final class Blocklist {
                 if (legacy.exists()) legacy.delete();
 
                 p.lastUpdate = System.currentTimeMillis();
-                p.adsDomains = adsCount;
-                p.trackerDomains = trackerCount;
-                p.malwareDomains = malwareCount;
-                p.adultDomains = adultCount;
-                p.piracyDomains = piracyCount;
-                p.gamblingDomains = gamblingCount;
-                p.datingDomains = datingCount;
-                p.socialDomains = socialCount;
+                p.adsDomains = Math.min(adsCount, Gravity.capFor(Gravity.ADS));
+                p.trackerDomains = Math.min(trackerCount, Gravity.capFor(Gravity.TRACKERS));
+                p.malwareDomains = Math.min(malwareCount, Gravity.capFor(Gravity.MALWARE));
+                p.adultDomains = Math.min(adultCount, Gravity.capFor(Gravity.ADULT));
+                p.piracyDomains = Math.min(piracyCount, Gravity.capFor(Gravity.PIRACY));
+                p.gamblingDomains = Math.min(gamblingCount, Gravity.capFor(Gravity.GAMBLING));
+                p.datingDomains = Math.min(datingCount, Gravity.capFor(Gravity.DATING));
+                p.socialDomains = Math.min(socialCount, Gravity.capFor(Gravity.SOCIAL));
                 p.listHealth = joinHealth(health);
                 p.save(app);
                 reload(app);

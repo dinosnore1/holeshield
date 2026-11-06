@@ -109,11 +109,53 @@ final class Blocklists {
             LEGACY_DEFAULT
     };
 
+    private static final String[] GAMBLING_LITE = {
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.mini-onlydomains.txt"
+    };
+
+    static final String[] ADS_MAX = concat(CORE, CLASSIC);
+    static final String[] ADS_MEDIUM = {CORE[0], CORE[1], CORE[4], CORE[5]};
+    static final String[] ADS_LITE = {LEGACY_DEFAULT};
+
+    static final String[] TRACKERS_MAX = TRACKERS;
+    static final String[] TRACKERS_MEDIUM = take(TRACKERS, 8);
+    static final String[] TRACKERS_LITE = take(TRACKERS, 3);
+
+    static final String[] MALWARE_MAX = MALWARE;
+    static final String[] MALWARE_MEDIUM = take(MALWARE, 3);
+    static final String[] MALWARE_LITE = take(MALWARE, 2);
+
+    static final String[] ADULT_MAX = ADULT;
+    static final String[] ADULT_MEDIUM = take(ADULT, 2);
+    static final String[] ADULT_LITE = take(ADULT, 1);
+
+    static final String[] PIRACY_MAX = PIRACY;
+    static final String[] PIRACY_MEDIUM = take(PIRACY, 2);
+    static final String[] PIRACY_LITE = take(PIRACY, 1);
+
+    static final String[] GAMBLING_MAX = GAMBLING;
+    static final String[] GAMBLING_MEDIUM = take(GAMBLING, 2);
+    static final String[] GAMBLING_LITE_TIER = GAMBLING_LITE;
+
+    static final String[] DATING_MAX = DATING;
+    static final String[] DATING_MEDIUM = take(DATING, 1);
+    static final String[] DATING_LITE = take(DATING, 1);
+
+    static final String[] SOCIAL_MAX = SOCIAL;
+    static final String[] SOCIAL_MEDIUM = take(SOCIAL, 2);
+    static final String[] SOCIAL_LITE = take(SOCIAL, 1);
+
     /**
      * Kept within the app's gravity cap. The lists overlap heavily; the
      * deduplicated total is capped at 1M domains rather than the sum of sizes.
      */
     static final String[] MAXIMUM = concat(CORE, TRACKERS, MALWARE, CLASSIC);
+
+    /** Category keys that support Lite / Medium / Maximum levels. */
+    static final String[] CATEGORY_KEYS = {
+            "ads", "trackers", "malware", "adult",
+            "piracy", "gambling", "dating", "social"
+    };
 
     static final int CATEGORY_ADS = 0;
     static final int CATEGORY_TRACKERS = 1;
@@ -140,6 +182,70 @@ final class Blocklists {
         return new String[0];
     }
 
+    static String[] urlsFor(String key, String level) {
+        String value = level == null ? "max" : level;
+        if ("ads".equals(key)) {
+            return "lite".equals(value) ? ADS_LITE : "medium".equals(value) ? ADS_MEDIUM : ADS_MAX;
+        }
+        if ("trackers".equals(key)) {
+            return "lite".equals(value) ? TRACKERS_LITE : "medium".equals(value) ? TRACKERS_MEDIUM : TRACKERS_MAX;
+        }
+        if ("malware".equals(key)) {
+            return "lite".equals(value) ? MALWARE_LITE : "medium".equals(value) ? MALWARE_MEDIUM : MALWARE_MAX;
+        }
+        if ("adult".equals(key)) {
+            return "lite".equals(value) ? ADULT_LITE : "medium".equals(value) ? ADULT_MEDIUM : ADULT_MAX;
+        }
+        if ("piracy".equals(key)) {
+            return "lite".equals(value) ? PIRACY_LITE : "medium".equals(value) ? PIRACY_MEDIUM : PIRACY_MAX;
+        }
+        if ("gambling".equals(key)) {
+            return "lite".equals(value) ? GAMBLING_LITE_TIER : "medium".equals(value) ? GAMBLING_MEDIUM : GAMBLING_MAX;
+        }
+        if ("dating".equals(key)) {
+            return "lite".equals(value) ? DATING_LITE : "medium".equals(value) ? DATING_MEDIUM : DATING_MAX;
+        }
+        if ("social".equals(key)) {
+            return "lite".equals(value) ? SOCIAL_LITE : "medium".equals(value) ? SOCIAL_MEDIUM : SOCIAL_MAX;
+        }
+        return new String[0];
+    }
+
+    static String[] allUrls(String key) {
+        String[] max = urlsFor(key, "max");
+        String[] medium = urlsFor(key, "medium");
+        String[] lite = urlsFor(key, "lite");
+        if ("gambling".equals(key)) return concat(max, GAMBLING_LITE);
+        return concat(max, medium, lite);
+    }
+
+    static String detectLevel(String text, String key) {
+        if (hasAll(text, urlsFor(key, "max"))) return "max";
+        if (hasAll(text, urlsFor(key, "medium"))) return "medium";
+        if (hasAll(text, urlsFor(key, "lite"))) return "lite";
+        return "max";
+    }
+
+    static String applyLevel(String text, String key, String level) {
+        String base = removeAll(text, allUrls(key));
+        if (level == null || "off".equals(level)) return base;
+        Set<String> have = new LinkedHashSet<>(urls(base));
+        StringBuilder out = new StringBuilder(base);
+        for (String url : urlsFor(key, level)) {
+            if (!have.add(url)) continue;
+            if (out.length() > 0) out.append('\n');
+            out.append(url);
+        }
+        return out.toString();
+    }
+
+    private static String[] take(String[] values, int count) {
+        int n = Math.max(0, Math.min(count, values.length));
+        String[] out = new String[n];
+        System.arraycopy(values, 0, out, 0, n);
+        return out;
+    }
+
     static int categoryOf(String url) {
         if (contains(TRACKERS, url)) return CATEGORY_TRACKERS;
         if (contains(MALWARE, url)) return CATEGORY_MALWARE;
@@ -148,6 +254,7 @@ final class Blocklists {
         if (contains(GAMBLING, url)) return CATEGORY_GAMBLING;
         if (contains(DATING, url)) return CATEGORY_DATING;
         if (contains(SOCIAL, url)) return CATEGORY_SOCIAL;
+        if (contains(GAMBLING_LITE, url)) return CATEGORY_GAMBLING;
         if (contains(CORE, url) || contains(CLASSIC, url)) return CATEGORY_ADS;
         return CATEGORY_OTHER;
     }

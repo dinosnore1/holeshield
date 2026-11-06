@@ -28,6 +28,21 @@ final class Gravity {
     static final int ALL = ADS | TRACKERS | MALWARE | ADULT | PIRACY
             | GAMBLING | DATING | SOCIAL | OTHER;
 
+    /** Per-category caps sum to slightly under the 1M total cap. */
+    static int capFor(int bit) {
+        switch (bit) {
+            case ADS: return 250000;
+            case TRACKERS: return 90000;
+            case MALWARE: return 210000;
+            case ADULT: return 160000;
+            case PIRACY: return 60000;
+            case GAMBLING: return 150000;
+            case DATING: return 25000;
+            case SOCIAL: return 35000;
+            default: return 10000;
+        }
+    }
+
     private static final Gravity EMPTY = new Gravity(new long[0], new int[0]);
 
     private final long[] hashes;

@@ -426,6 +426,40 @@ public final class TestDns {
                 "tracker category merge");
         check(!Blocklists.hasAll(withTrackers, Blocklists.MALWARE),
                 "tracker merge does not add malware");
+
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            String[] lite = Blocklists.urlsFor(key, "lite");
+            String[] medium = Blocklists.urlsFor(key, "medium");
+            String[] max = Blocklists.urlsFor(key, "max");
+            check(lite.length > 0 && medium.length > 0 && max.length > 0,
+                    key + " has lite, medium and maximum tiers");
+            check(lite.length <= medium.length && medium.length <= max.length,
+                    key + " tiers grow from lite to maximum");
+            for (String url : max) {
+                check(Arrays.asList(Blocklists.allUrls(key)).contains(url),
+                        key + " maximum URL is in the category URL set");
+            }
+        }
+        check(Arrays.asList(Blocklists.ADS_MAX)
+                        .containsAll(Arrays.asList(Blocklists.byKey("ads"))),
+                "ads maximum tier includes the core ad lists");
+        String adsLite = Blocklists.applyLevel(Blocklists.presetText(), "ads", "lite");
+        check(Blocklists.detectLevel(adsLite, "ads").equals("lite"),
+                "ads lite level round-trips");
+        check(!Blocklists.hasAll(adsLite, Blocklists.ADS_MAX),
+                "ads lite level removes maximum URLs");
+        String adsMedium = Blocklists.applyLevel(Blocklists.presetText(), "ads", "medium");
+        check(Blocklists.detectLevel(adsMedium, "ads").equals("medium"),
+                "ads medium level round-trips");
+        String adsMax = Blocklists.applyLevel(adsLite, "ads", "max");
+        check(Blocklists.detectLevel(adsMax, "ads").equals("max"),
+                "ads maximum level round-trips");
+        String gamblingLite = Blocklists.applyLevel("", "gambling", "lite");
+        check(Blocklists.detectLevel(gamblingLite, "gambling").equals("lite"),
+                "gambling lite uses the mini list");
+        check(Blocklists.categoryOf(Blocklists.GAMBLING_LITE_TIER[0])
+                        == Blocklists.CATEGORY_GAMBLING,
+                "gambling mini list maps to the gambling category");
     }
 
     private static DnsPacket.Query parse(String name, int type) {

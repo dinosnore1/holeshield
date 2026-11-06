@@ -757,24 +757,24 @@ final class FilterEngine {
             }
         } catch (Exception ignored) { }
 
-        int budget = MAX_DOMAINS;
-        long[] malware = cap(Gravity.clean(buffers[2].toArray()), budget);
-        budget -= malware.length;
-        long[] trackers = cap(Gravity.clean(buffers[1].toArray()), budget);
-        budget -= trackers.length;
-        long[] adult = cap(Gravity.clean(buffers[3].toArray()), budget);
-        budget -= adult.length;
-        long[] piracy = cap(Gravity.clean(buffers[4].toArray()), budget);
-        budget -= piracy.length;
-        long[] gambling = cap(Gravity.clean(buffers[5].toArray()), budget);
-        budget -= gambling.length;
-        long[] dating = cap(Gravity.clean(buffers[6].toArray()), budget);
-        budget -= dating.length;
-        long[] social = cap(Gravity.clean(buffers[7].toArray()), budget);
-        budget -= social.length;
-        long[] ads = cap(Gravity.clean(buffers[0].toArray()), budget);
-        budget -= ads.length;
-        long[] other = cap(Gravity.clean(buffers[8].toArray()), budget);
+        long[] malware = cap(Gravity.clean(buffers[2].toArray()),
+                Gravity.capFor(Gravity.MALWARE));
+        long[] trackers = cap(Gravity.clean(buffers[1].toArray()),
+                Gravity.capFor(Gravity.TRACKERS));
+        long[] adult = cap(Gravity.clean(buffers[3].toArray()),
+                Gravity.capFor(Gravity.ADULT));
+        long[] piracy = cap(Gravity.clean(buffers[4].toArray()),
+                Gravity.capFor(Gravity.PIRACY));
+        long[] gambling = cap(Gravity.clean(buffers[5].toArray()),
+                Gravity.capFor(Gravity.GAMBLING));
+        long[] dating = cap(Gravity.clean(buffers[6].toArray()),
+                Gravity.capFor(Gravity.DATING));
+        long[] social = cap(Gravity.clean(buffers[7].toArray()),
+                Gravity.capFor(Gravity.SOCIAL));
+        long[] ads = cap(Gravity.clean(buffers[0].toArray()),
+                Gravity.capFor(Gravity.ADS));
+        long[] other = cap(Gravity.clean(buffers[8].toArray()),
+                Gravity.capFor(Gravity.OTHER));
 
         Gravity fresh = Gravity.build(
                 new long[][]{malware, trackers, adult, piracy, gambling,

@@ -685,50 +685,49 @@ final class WebDashboard {
     private void categories(HttpExchange exchange) throws Exception {
         if ("POST".equals(exchange.getRequestMethod())) {
             Map<String, Object> body = Json.parseObject(readBody(exchange));
-            if (body.containsKey("ads")) {
-                prefs.setBool("categoryAds", bool(body.get("ads")));
-            }
-            if (body.containsKey("trackers")) {
-                prefs.setBool("categoryTrackers", bool(body.get("trackers")));
-            }
-            if (body.containsKey("malware")) {
-                prefs.setBool("categoryMalware", bool(body.get("malware")));
-            }
-            if (body.containsKey("adult")) {
-                prefs.setBool("categoryAdult", bool(body.get("adult")));
-            }
-            if (body.containsKey("piracy")) {
-                prefs.setBool("categoryPiracy", bool(body.get("piracy")));
-            }
-            if (body.containsKey("gambling")) {
-                prefs.setBool("categoryGambling", bool(body.get("gambling")));
-            }
-            if (body.containsKey("dating")) {
-                prefs.setBool("categoryDating", bool(body.get("dating")));
-            }
-            if (body.containsKey("social")) {
-                prefs.setBool("categorySocial", bool(body.get("social")));
+            boolean needUpdate = false;
+            for (String key : Blocklists.CATEGORY_KEYS) {
+                if (!body.containsKey(key)) continue;
+                Object value = body.get(key);
+                String pref = categoryPref(key);
+                if (value instanceof String) {
+                    String level = String.valueOf(value).toLowerCase(Locale.ROOT);
+                    if ("maximum".equals(level)) level = "max";
+                    if (!"lite".equals(level) && !"medium".equals(level)
+                            && !"max".equals(level)) {
+                        continue;
+                    }
+                    prefs.setCategoryLevel(key, level);
+                    if (prefs.getBool(pref, false)) {
+                        prefs.set("blocklistUrls", Blocklists.applyLevel(
+                                prefs.blocklistUrls(), key, level));
+                        needUpdate = true;
+                    }
+                } else {
+                    boolean on = bool(value);
+                    prefs.setBool(pref, on);
+                    if (on) {
+                        String next = Blocklists.applyLevel(prefs.blocklistUrls(),
+                                key, prefs.categoryLevel(key));
+                        if (!next.equals(prefs.blocklistUrls())) {
+                            prefs.set("blocklistUrls", next);
+                            needUpdate = true;
+                        }
+                    }
+                }
             }
             if (body.containsKey("other")) {
                 prefs.setBool("categoryOther", bool(body.get("other")));
-            }
-            boolean needUpdate = false;
-            String[] keys = {"ads", "trackers", "malware", "adult",
-                    "piracy", "gambling", "dating", "social"};
-            for (String key : keys) {
-                if (!body.containsKey(key) || !bool(body.get(key))) continue;
-                for (String url : Blocklists.byKey(key)) {
-                    if (!filter.listUrls().contains(url)) {
-                        filter.addListUrl(url);
-                        needUpdate = true;
-                    }
-                }
             }
             prefs.save();
             filter.reloadRules();
             if (needUpdate && !filter.isUpdating()) {
                 filter.updateBlocklists(null, null);
             }
+        }
+        Json.Obj levels = new Json.Obj();
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            levels.put(key, prefs.categoryLevel(key));
         }
         sendJson(exchange, 200, new Json.Obj()
                 .put("ads", prefs.getBool("categoryAds", true))
@@ -740,8 +739,13 @@ final class WebDashboard {
                 .put("dating", prefs.getBool("categoryDating", false))
                 .put("social", prefs.getBool("categorySocial", false))
                 .put("other", prefs.getBool("categoryOther", true))
+                .put("category_levels", levels)
                 .put("safe_search", false)
                 .put("took", 0.001));
+    }
+
+    private static String categoryPref(String key) {
+        return "category" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
     }
 
     // --------------------------------------------------------------------- info
