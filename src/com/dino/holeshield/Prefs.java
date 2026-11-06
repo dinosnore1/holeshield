@@ -129,8 +129,8 @@ final class Prefs {
         s.forceDns = p.getBoolean("forceDns", s.forceDns);
         s.blockedResponse = p.getString("blockedResponse", s.blockedResponse);
         String legacyUrl = p.getString("blocklistUrl", null);
-        s.blocklistUrls = p.getString("blocklistUrls",
-                legacyUrl == null || legacyUrl.trim().isEmpty() ? s.blocklistUrls : legacyUrl);
+        s.blocklistUrls = Blocklists.migrate(p.getString("blocklistUrls",
+                legacyUrl == null || legacyUrl.trim().isEmpty() ? s.blocklistUrls : legacyUrl));
         s.blocklistPresetVersion = p.getInt("blocklistPresetVersion", 0);
         s.lastUpdate = p.getLong("lastUpdate", s.lastUpdate);
         s.adsDomains = p.getInt("adsDomains", s.adsDomains);
