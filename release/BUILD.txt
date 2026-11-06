@@ -1,35 +1,35 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.3.3
-versionCode:   10
+Version:       2.3.4
+versionCode:   11
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-11-06
+Built:         2026-11-07
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.apk
-  SHA-256 95f77c17cb5259f868f7c769817a89de85213cb5692d231c72f900b203a3c072
-  Size    184 KB
+  SHA-256 c3c4f2a43d9c5ae98e25356949b8988c691977c4b6c786e19b8f6623fa1241b5
+  Size    258 KB
   Signed with the direct-install key (~/.android/holeshield-sideload.keystore).
 
 Use build/holeshield.apk for direct GitHub installs.
 
-Desktop (2.3.3)
+Desktop (2.3.4)
 ---------------
-Built with JDK 17 + jpackage and published in the 2.3.3 release.
+Built with JDK 17 + jpackage and published in the 2.3.4 release.
 
-desktop/build/dist/Hole-Shield-2.3.3-universal.pkg
+desktop/build/dist/Hole-Shield-2.3.4-universal.pkg
   Universal macOS package for Intel and Apple Silicon (unsigned).
 Also published:
-  Hole-Shield-2.3.3-universal.pkg (macOS Intel + Apple Silicon)
-  Hole-Shield-2.3.3.msi / .exe (Windows)
-  holeshield_2.3.3-1_amd64.deb
-  holeshield-2.3.3-1.x86_64.rpm
-  holeshield-desktop-2.3.3-SHA256SUMS.txt
-123 headless desktop checks pass.
+  Hole-Shield-2.3.4-universal.pkg (macOS Intel + Apple Silicon)
+  Hole-Shield-2.3.4.msi / .exe (Windows)
+  holeshield_2.3.4-1_amd64.deb
+  holeshield-2.3.4-1.x86_64.rpm
+  holeshield-desktop-2.3.4-SHA256SUMS.txt
+168 desktop checks pass.
 VM smoke tests pass on GitHub-hosted macOS, Ubuntu and Windows VMs:
 macOS universal PKG, Ubuntu DEB, and Windows MSI. Each installed app is started
 headless and checked for a
@@ -50,8 +50,14 @@ Build command
 
 Verified
 --------
-- 143 desktop checks pass, including PBKDF2 login, compact gravity index,
-  blocked-response modes and blocklist category rules.
+- 298 Android JVM checks and 168 desktop checks pass, including the category
+  levels, fair-share gravity guard, PBKDF2 login and blocklist category rules.
+- 2.3.4 installed on the STB at 192.168.2.133 (versionCode 11 / versionName
+  2.3.4). Ads/Trackers/Malware Maximum, Adult Lite and Gambling/Social Medium
+  loaded through the 1.51M fair-share guard. `doubleclick.net`, `tinder.com`,
+  `facebook.com`, `1337x.to`, `betway.com`, `bet365.com`, `draftkings.com`,
+  `pornhub.com`, `redtube.com` and `xvideos.com` are blocked; `example.com`
+  resolves normally.
 - Fresh install on Android 15 (API 35) and Android 16 (API 36) emulators:
   notification permission prompt, in-app VPN disclosure, Android VPN prompt,
   protection on.
@@ -143,7 +149,7 @@ Verified
   Settings, with tinted selected/unselected states.
 - Added an update channel (Stable, Beta, Off) and a manual Check for updates
   action. It reads the public manifest at
-  https://dinosnore1.github.io/holeshield-privacy/latest.json, compares the
+  https://dinosnore1.github.io/holeshield/latest.json, compares the
   installed version code, and opens the release page when a newer build exists.
 - Redesigned the web dashboard shell: desktop gets a sticky section sidebar and
   scroll-spy navigation; phones get a fixed icon bottom bar. Unique section

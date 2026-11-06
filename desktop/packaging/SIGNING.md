@@ -53,8 +53,8 @@ notarization.
 ### Verify
 
 ```bash
-spctl --assess --type install --verbose=2 "desktop/build/dist/Hole-Shield-2.3.3-universal.pkg"
-xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.3-universal.pkg"
+spctl --assess --type install --verbose=2 "desktop/build/dist/Hole-Shield-2.3.4-universal.pkg"
+xcrun stapler validate "desktop/build/dist/Hole-Shield-2.3.4-universal.pkg"
 ```
 
 ## Windows
@@ -94,14 +94,14 @@ $env:WINDOWS_TIMESTAMP_URL = "http://timestamp.digicert.com"
 .\desktop\tools\sign-windows.ps1 -AppExe "C:\Program Files\Hole Shield\Hole Shield.exe"
 ```
 
-The script signs `Hole-Shield-2.3.3.msi` and `Hole-Shield-2.3.3.exe`, timestamps
+The script signs `Hole-Shield-2.3.4.msi` and `Hole-Shield-2.3.4.exe`, timestamps
 them with SHA-256, and runs `signtool verify /pa`.
 
 ### Verify
 
 ```powershell
-signtool verify /pa /v "desktop\build\dist\Hole-Shield-2.3.3.msi"
-signtool verify /pa /v "desktop\build\dist\Hole-Shield-2.3.3.exe"
+signtool verify /pa /v "desktop\build\dist\Hole-Shield-2.3.4.msi"
+signtool verify /pa /v "desktop\build\dist\Hole-Shield-2.3.4.exe"
 ```
 
 ## Linux
@@ -111,10 +111,10 @@ optional:
 
 ```bash
 # Debian/Ubuntu
-dpkg-sig --sign builder -k "$GPG_KEY" holeshield_2.3.3-1_amd64.deb
+dpkg-sig --sign builder -k "$GPG_KEY" holeshield_2.3.4-1_amd64.deb
 
 # Fedora/RHEL
-rpm --addsign --define "_gpg_name $GPG_KEY" holeshield-2.3.3-1.x86_64.rpm
+rpm --addsign --define "_gpg_name $GPG_KEY" holeshield-2.3.4-1.x86_64.rpm
 ```
 
 For repository delivery, sign the repository `Release`/`InRelease` metadata with

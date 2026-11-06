@@ -10,13 +10,13 @@
 #   APPLE_ID + APPLE_TEAM_ID + APPLE_APP_PASSWORD
 #
 # Optional:
-#   MAC_VERSION            default 2.3.3
+#   MAC_VERSION            default 2.3.4
 #   MAC_DIST               default desktop/build/dist
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DIST="${MAC_DIST:-$ROOT/desktop/build/dist}"
-VERSION="${MAC_VERSION:-2.3.3}"
+VERSION="${MAC_VERSION:-2.3.4}"
 APP="$DIST/Hole Shield.app"
 PKG="$DIST/Hole-Shield-$VERSION.pkg"
 ENTITLEMENTS="$ROOT/desktop/packaging/macos/entitlements.plist"

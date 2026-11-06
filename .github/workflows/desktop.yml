@@ -155,8 +155,8 @@ jobs:
             --arm "$ARM_APP" \
             --intel "$INTEL_APP" \
             --out desktop/build/dist \
-            --version 2.3.3
-          sudo installer -pkg desktop/build/dist/Hole-Shield-2.3.3-universal.pkg -target /
+            --version 2.3.4
+          sudo installer -pkg desktop/build/dist/Hole-Shield-2.3.4-universal.pkg -target /
           ./desktop/tools/smoke.sh "/Applications/Hole Shield.app/Contents/MacOS/Hole Shield"
 
       - uses: actions/upload-artifact@v4

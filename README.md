@@ -14,10 +14,10 @@ SDK command-line tools.
 
 The latest prebuilt APK is attached to the
 [GitHub release](https://github.com/dinosnore1/holeshield/releases/latest).
-The current source build is **2.3.3** and is published as a stable release.
+The current source build is **2.3.4** and is published as a stable release.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.3.3 (`versionCode 10`)
+- **Version:** 2.3.4 (`versionCode 11`)
 - **Desktop:** Java 17 Swing app with a bundled-runtime installer for Windows,
   Linux and macOS (see `desktop/README.md`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
@@ -36,7 +36,7 @@ panel and tray controls, and ships as native installers for Windows, Linux and m
 ./desktop/tools/package.sh    # app image + PKG, DEB/RPM or MSI/EXE
 ```
 
-The **2.3.3 release** includes one universal macOS package for Intel and Apple
+The **2.3.4 release** includes one universal macOS package for Intel and Apple
 Silicon, Windows MSI/EXE and Linux DEB/RPM. See
 [`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
 platform packaging notes. The GitHub Actions workflow
@@ -356,7 +356,7 @@ Gravity/rule changes are applied live.
 Hole Shield has no accounts, analytics, ads or crash reporting, and does not
 upload query data. The full policy is in
 [`docs/privacy.html`](docs/privacy.html) and is published at
-<https://dinosnore1.github.io/holeshield-privacy/privacy.html>.
+<https://dinosnore1.github.io/holeshield/privacy.html>.
 
 - DNS queries are resolved on the device against local lists, then forwarded to
   the configured DoH endpoint over HTTPS. If DoH is unavailable, or if plain

@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 final class UpdateChecker {
 
     static final String MANIFEST_URL =
-            "https://dinosnore1.github.io/holeshield-privacy/latest.json";
+            "https://dinosnore1.github.io/holeshield/latest.json";
 
     static final class Release {
         final String channel;
@@ -46,7 +46,7 @@ final class UpdateChecker {
         c.setReadTimeout(8000);
         c.setInstanceFollowRedirects(true);
         c.setRequestProperty("Accept", "application/json");
-        c.setRequestProperty("User-Agent", "Hole-Shield/" + "2.3.3");
+        c.setRequestProperty("User-Agent", "Hole-Shield/" + "2.3.4");
         try {
             int code = c.getResponseCode();
             if (code != 200) throw new Exception("Update server returned HTTP " + code);

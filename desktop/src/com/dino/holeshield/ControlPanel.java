@@ -1529,7 +1529,7 @@ final class ControlPanel extends JFrame {
             Widgets.PillButton privacy = new Widgets.PillButton("Privacy", "globe",
                     Widgets.GHOST);
             privacy.addActionListener(e -> AppDirs.browse(
-                    "https://dinosnore1.github.io/holeshield-privacy/"));
+                    "https://dinosnore1.github.io/holeshield/"));
             links.add(privacy);
             Widgets.PillButton releases = new Widgets.PillButton("Releases", "download",
                     Widgets.GHOST);

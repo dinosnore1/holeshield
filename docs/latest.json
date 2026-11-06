@@ -1,0 +1,22 @@
+{
+  "updated": "2026-11-07T00:00:00Z",
+  "stable": {
+    "version": "2.3.4",
+    "versionCode": 11,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.4-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.4.apk",
+    "notes": "Hole Shield 2.3.4 stable: per-category Lite/Medium/Maximum levels, 97 validated blocklist sources, combined category controls, and the 1.51M fair-share memory guard."
+  },
+  "beta": {
+    "version": "2.3.4",
+    "versionCode": 11,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.4-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.4.apk",
+    "notes": "Hole Shield 2.3.4 stable: per-category Lite/Medium/Maximum levels, 97 validated blocklist sources, combined category controls, and the 1.51M fair-share memory guard."
+  },
+  "desktop": {
+    "version": "2.3.4",
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.4-holeshield",
+    "notes": "Desktop 2.3.4: universal macOS PKG, Windows MSI/EXE and Linux DEB/RPM with the same category levels and expanded lists."
+  }
+}

@@ -5,7 +5,7 @@ installer includes a trimmed Java runtime, so the user does not need Java.
 
 ## macOS
 
-- `Hole-Shield-2.3.3-universal.pkg` — one installer containing both Apple
+- `Hole-Shield-2.3.4-universal.pkg` — one installer containing both Apple
   Silicon and Intel app bundles. The postinstall selects the native app.
 - `Hole Shield.app` — build output for one architecture; not released.
 
@@ -21,8 +21,8 @@ LaunchAgent in `SystemIntegration` for per-user tray startup only.
 
 ## Linux
 
-- `holeshield_2.3.3_amd64.deb` — Debian/Ubuntu package.
-- `holeshield-2.3.3-1.x86_64.rpm` — Fedora/RHEL package when `rpmbuild` exists.
+- `holeshield_2.3.4_amd64.deb` — Debian/Ubuntu package.
+- `holeshield-2.3.4-1.x86_64.rpm` — Fedora/RHEL package when `rpmbuild` exists.
 
 For system-wide filtering on port 53 without running as root:
 
@@ -50,7 +50,7 @@ WantedBy=multi-user.target
 
 ## Windows
 
-- `Hole Shield-2.3.3.msi` and `.exe` when WiX 3 is installed and `candle.exe`
+- `Hole Shield-2.3.4.msi` and `.exe` when WiX 3 is installed and `candle.exe`
   is on `PATH`.
 
 Windows does not require administrator rights to bind port 53. The app still

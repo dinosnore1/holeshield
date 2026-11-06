@@ -17,7 +17,7 @@ fi
 ./desktop/tools/build.sh
 
 NAME="Hole Shield"
-VERSION="2.3.3"
+VERSION="2.3.4"
 BUILD="$ROOT/desktop/build"
 DEST="$BUILD/dist"
 ICONS="$BUILD/icons"

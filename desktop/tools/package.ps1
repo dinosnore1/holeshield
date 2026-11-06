@@ -37,7 +37,7 @@ New-Item -ItemType Directory -Force $Stage | Out-Null
 Copy-Item "$Out\holeshield-desktop.jar" $Stage -Force
 
 $Name = "Hole Shield"
-$Version = "2.3.3"
+$Version = "2.3.4"
 $Base = @(
   "--name", $Name,
   "--app-version", $Version,
