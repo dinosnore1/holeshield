@@ -70,7 +70,8 @@ Verified
 - 2.2.0 adds explicit tracker/telemetry and malware/phishing list categories.
   The new URLs were downloaded and parsed: URLhaus hosts (1,906 domains) and
   Phishing Army (151,707 domains). Category merge/remove/hasAll is covered by
-  the 113 desktop checks. The maximum gravity cap is now 1M.
+  the 113 desktop checks. The blocking level selects the lists; a 1.51M-domain
+  memory guard bounds the merged index.
 - 2.2.0 installed on the STB at 192.168.2.133 (versionCode 6 / versionName
   2.2.0). Tracker and malware categories show Active; the final 25-list update
   produced 592,615 unique domains with category counts: ads 526,615, trackers

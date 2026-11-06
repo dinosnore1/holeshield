@@ -128,6 +128,11 @@ final class DesktopPrefs {
         return get("clientRules", "");
     }
 
+    synchronized boolean categoryEnabled(String key) {
+        String name = "category" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
+        return getBool(name, false);
+    }
+
     synchronized String categoryLevel(String key) {
         String name = "level" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
         return get(name, Blocklists.detectLevel(blocklistUrls(), key));

@@ -68,8 +68,8 @@ platform packaging notes. The GitHub Actions workflow
   Gambling, Dating and Social. Every category also has a **Lite, Medium or
   Maximum** blocking level that chooses how many curated lists it uses.
   Enabling a category adds its selected tier and starts an update. The compact
-  gravity index makes switches instant and keeps a 1M-domain list to about
-  12 MB.
+  gravity index makes switches instant and keeps large lists compact (about
+  18 MB per 1.51M domains).
 - **Blocking hours.** Optional daily window (overnight ranges supported) pauses
   blocking automatically outside the window and resumes at the start time.
 - **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,
@@ -178,8 +178,8 @@ installing Hole Shield; settings and statistics do not migrate.
    `http://DEVICE_IP:8080/admin/` (replace with the device's LAN IP).
 6. Optional but recommended: set a **Web username and password** in the app's
    Settings before exposing the dashboard to your LAN.
-7. Run **Update gravity now** to download the maximum preset (up to 1M
-   deduplicated domains). The first download can take a few minutes.
+7. Run **Update gravity now** to download the lists selected by each
+   category's blocking level. The first download can take a few minutes.
 8. Run **Test protection**. `doubleclick.net` should resolve to `0.0.0.0` (or
    return no address) while `example.com` resolves normally.
 

@@ -157,6 +157,20 @@ public final class DesktopTest {
         String max = Blocklists.applyLevel(lite, "trackers", "max");
         check(Blocklists.detectLevel(max, "trackers").equals("max"),
                 "tracker maximum level round-trips");
+        check(Blocklists.byKey("ads").length >= 13, "ads preset expanded");
+        check(Blocklists.TRACKERS.length >= 21, "tracker preset expanded");
+        check(Blocklists.MALWARE.length >= 18, "malware preset expanded");
+        check(Blocklists.ADULT.length >= 5, "adult preset expanded");
+        check(Blocklists.PIRACY.length >= 5, "piracy preset expanded");
+        check(Blocklists.GAMBLING.length >= 5, "gambling preset expanded");
+        check(Blocklists.DATING.length >= 3, "dating preset expanded");
+        check(Blocklists.SOCIAL.length >= 7, "social preset expanded");
+        String gamblingMedium = Blocklists.applyLevel("", "gambling", "medium");
+        check(Blocklists.detectLevel(gamblingMedium, "gambling").equals("medium"),
+                "gambling medium level round-trips");
+        check(Blocklists.categoryOf(Blocklists.GAMBLING_MEDIUM_TIER[0])
+                        == Blocklists.CATEGORY_GAMBLING,
+                "gambling medium list maps to the gambling category");
     }
 
     private static void filter() {
@@ -168,6 +182,8 @@ public final class DesktopTest {
         filter.load();
         check(filter.gravityCount() > 100, "seed gravity loaded");
         check(filter.check("doubleclick.net").blocked, "seed domain blocked");
+        eq("Ads", filter.check("doubleclick.net").category,
+                "seed domain keeps the ads category flag");
         check(filter.check("ads.doubleclick.net").blocked, "seed subdomain blocked");
         check(!filter.check("example.com").blocked, "unlisted domain allowed");
         check(filter.check("localhost").blocked == false, "single label ignored");

@@ -41,7 +41,7 @@ final class FilterEngine {
     static final int WILDCARD = 1;
     static final int REGEX = 2;
 
-    private static final int MAX_DOMAINS = 1000000;
+    private static final int MAX_DOMAINS = 1510000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
     private static final String GRAVITY_FILE = "gravity.bin";
@@ -700,6 +700,17 @@ final class FilterEngine {
 
     private void runUpdate(Progress progress) {
         lastError = "";
+        // Keep the configured tier authoritative so preset updates and new
+        // list sources are picked up by the next gravity refresh.
+        for (String key : Blocklists.CATEGORY_KEYS) {
+            if (prefs.categoryEnabled(key)
+                    && Blocklists.hasAny(prefs.blocklistUrls(),
+                            Blocklists.allUrls(key))) {
+                prefs.set("blocklistUrls", Blocklists.applyLevel(
+                        prefs.blocklistUrls(), key, prefs.categoryLevel(key)));
+            }
+        }
+        prefs.save();
         List<String> urls = listUrls();
         if (urls.isEmpty()) {
             lastError = "Add at least one blocklist source first.";
@@ -757,34 +768,31 @@ final class FilterEngine {
             }
         } catch (Exception ignored) { }
 
-        long[] malware = cap(Gravity.clean(buffers[2].toArray()),
-                Gravity.capFor(Gravity.MALWARE));
-        long[] trackers = cap(Gravity.clean(buffers[1].toArray()),
-                Gravity.capFor(Gravity.TRACKERS));
-        long[] adult = cap(Gravity.clean(buffers[3].toArray()),
-                Gravity.capFor(Gravity.ADULT));
-        long[] piracy = cap(Gravity.clean(buffers[4].toArray()),
-                Gravity.capFor(Gravity.PIRACY));
-        long[] gambling = cap(Gravity.clean(buffers[5].toArray()),
-                Gravity.capFor(Gravity.GAMBLING));
-        long[] dating = cap(Gravity.clean(buffers[6].toArray()),
-                Gravity.capFor(Gravity.DATING));
-        long[] social = cap(Gravity.clean(buffers[7].toArray()),
-                Gravity.capFor(Gravity.SOCIAL));
-        long[] ads = cap(Gravity.clean(buffers[0].toArray()),
-                Gravity.capFor(Gravity.ADS));
-        long[] other = cap(Gravity.clean(buffers[8].toArray()),
-                Gravity.capFor(Gravity.OTHER));
+        long[][] raw = {
+                buffers[0].toArray(), buffers[1].toArray(), buffers[2].toArray(),
+                buffers[3].toArray(), buffers[4].toArray(), buffers[5].toArray(),
+                buffers[6].toArray(), buffers[7].toArray(), buffers[8].toArray()
+        };
+        long[][] capped = Gravity.fairCap(raw, MAX_DOMAINS);
+        for (int i = 0; i < capped.length; i++) {
+            capped[i] = Gravity.clean(capped[i]);
+        }
+        long[] ads = capped[0];
+        long[] trackers = capped[1];
+        long[] malware = capped[2];
+        long[] adult = capped[3];
+        long[] piracy = capped[4];
+        long[] gambling = capped[5];
+        long[] dating = capped[6];
+        long[] social = capped[7];
+        long[] other = capped[8];
 
-        Gravity fresh = Gravity.build(
-                new long[][]{malware, trackers, adult, piracy, gambling,
-                        dating, social, ads, other},
-                CATEGORY_BITS, MAX_DOMAINS);
+        Gravity fresh = Gravity.build(capped, CATEGORY_BITS, MAX_DOMAINS);
 
-        long[][] merged = mergeForSave(malware, trackers, adult, piracy,
-                gambling, dating, social, ads, other);
-        saveGravity(merged[0], toFlags(merged[0], merged[1], malware, trackers,
-                adult, piracy, gambling, dating, social, ads, other));
+        long[][] merged = mergeForSave(ads, trackers, malware, adult, piracy,
+                gambling, dating, social, other);
+        saveGravity(merged[0], toFlags(merged[0], merged[1], ads, trackers,
+                malware, adult, piracy, gambling, dating, social, other));
 
         gravity = fresh;
         gravityCount = fresh.size();
@@ -815,17 +823,11 @@ final class FilterEngine {
         return 0;
     }
 
-    private static long[] cap(long[] values, int max) {
-        if (max <= 0) return new long[0];
-        if (values.length <= max) return values;
-        return Arrays.copyOf(values, max);
-    }
-
-    private static long[][] mergeForSave(long[] malware, long[] trackers, long[] adult,
-                                         long[] piracy, long[] gambling, long[] dating,
-                                         long[] social, long[] ads, long[] other) {
-        long[][] sources = {malware, trackers, adult, piracy, gambling,
-                dating, social, ads, other};
+    private static long[][] mergeForSave(long[] ads, long[] trackers, long[] malware,
+                                         long[] adult, long[] piracy, long[] gambling,
+                                         long[] dating, long[] social, long[] other) {
+        long[][] sources = {ads, trackers, malware, adult, piracy,
+                gambling, dating, social, other};
         int total = 0;
         for (long[] source : sources) total += source.length;
         long[] hashes = new long[total];
@@ -856,19 +858,20 @@ final class FilterEngine {
             categories[written] = merged;
             written++;
         }
-        if (written < total) {
-            hashes = Arrays.copyOf(hashes, written);
-            categories = Arrays.copyOf(categories, written);
+        if (written < total || written > MAX_DOMAINS) {
+            int size = Math.min(written, MAX_DOMAINS);
+            hashes = Arrays.copyOf(hashes, size);
+            categories = Arrays.copyOf(categories, size);
         }
         return new long[][]{hashes, categories};
     }
 
-    private static int[] toFlags(long[] hashes, long[] categories, long[] malware,
-                                 long[] trackers, long[] adult, long[] piracy,
-                                 long[] gambling, long[] dating, long[] social,
-                                 long[] ads, long[] other) {
-        long[][] sources = {malware, trackers, adult, piracy, gambling,
-                dating, social, ads, other};
+    private static int[] toFlags(long[] hashes, long[] categories, long[] ads,
+                                 long[] trackers, long[] malware, long[] adult,
+                                 long[] piracy, long[] gambling, long[] dating,
+                                 long[] social, long[] other) {
+        long[][] sources = {ads, trackers, malware, adult, piracy,
+                gambling, dating, social, other};
         int[] flags = new int[hashes.length];
         for (int i = 0; i < hashes.length; i++) {
             int mask = 0;

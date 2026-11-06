@@ -6,7 +6,7 @@ import java.util.Arrays;
  * Compact, read-only gravity index.
  *
  * Domains are reduced to 64-bit FNV-1a hashes and kept in a sorted array with
- * one category bitmask per entry. A 1M-domain list costs about 12 MB
+ * one category bitmask per entry. A 1.51M-domain list costs about 18 MB
  * instead of the tens of megabytes a HashSet of strings needs. Lookups are a
  * binary search, and the category mask lets the resolver switch categories off
  * at runtime without rebuilding the list.
@@ -27,21 +27,6 @@ final class Gravity {
 
     static final int ALL = ADS | TRACKERS | MALWARE | ADULT | PIRACY
             | GAMBLING | DATING | SOCIAL | OTHER;
-
-    /** Per-category caps sum to slightly under the 1M total cap. */
-    static int capFor(int bit) {
-        switch (bit) {
-            case ADS: return 250000;
-            case TRACKERS: return 90000;
-            case MALWARE: return 210000;
-            case ADULT: return 160000;
-            case PIRACY: return 60000;
-            case GAMBLING: return 150000;
-            case DATING: return 25000;
-            case SOCIAL: return 35000;
-            default: return 10000;
-        }
-    }
 
     private static final Gravity EMPTY = new Gravity(new long[0], new int[0]);
 
@@ -154,6 +139,51 @@ final class Gravity {
             outFlags = Arrays.copyOf(outFlags, written);
         }
         return new Gravity(outHashes, outFlags);
+    }
+
+    /**
+     * Shares a global memory guard across the non-empty category arrays.
+     * Each category keeps its first entries in list order, so the selected
+     * Lite/Medium/Maximum lists keep useful coverage instead of one large
+     * category consuming the whole guard.
+     */
+    static long[][] fairCap(long[][] sources, int max) {
+        int total = 0;
+        for (long[] source : sources) total += source.length;
+        if (total <= max) return sources;
+        int active = 0;
+        for (long[] source : sources) if (source.length > 0) active++;
+        if (active == 0) return sources;
+        int quota = max / active;
+        int remainder = max % active;
+        int[] original = new int[sources.length];
+        int[] take = new int[sources.length];
+        int used = 0;
+        for (int i = 0; i < sources.length; i++) {
+            original[i] = sources[i].length;
+            if (original[i] == 0) continue;
+            take[i] = Math.min(original[i], quota + (remainder > 0 ? 1 : 0));
+            if (remainder > 0) remainder--;
+            used += take[i];
+        }
+        int left = max - used;
+        while (left > 0) {
+            boolean progress = false;
+            for (int i = 0; i < sources.length && left > 0; i++) {
+                if (take[i] < original[i]) {
+                    take[i]++;
+                    left--;
+                    progress = true;
+                }
+            }
+            if (!progress) break;
+        }
+        for (int i = 0; i < sources.length; i++) {
+            if (take[i] < original[i]) {
+                sources[i] = Arrays.copyOf(sources[i], take[i]);
+            }
+        }
+        return sources;
     }
 
     /** Sorts and deduplicates one category array before merging. */

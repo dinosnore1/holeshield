@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,7 +31,7 @@ import java.util.regex.Pattern;
  * Gravity engine with compact hashed lists.
  *
  * Gravity lists are kept as compact 64-bit hashes with a category bitmask, so
- * a 1M-domain list uses about 12 MB and categories can be
+ * a 1.51M-domain list uses about 18 MB and categories can be
  * switched at runtime without rebuilding anything. Subdomains are matched too
  * when the "block subdomains" setting is on. Custom rules can be exact,
  * wildcard ("*.example.com") or regular expressions. Allow rules are checked
@@ -52,7 +53,7 @@ final class Blocklist {
     private static final String DATING_FILE = "blocklist_dating.txt";
     private static final String SOCIAL_FILE = "blocklist_social.txt";
     private static final String OTHER_FILE = "blocklist_other.txt";
-    private static final int MAX_DOMAINS = 1000000;
+    private static final int MAX_DOMAINS = 1510000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
 
@@ -250,41 +251,36 @@ final class Blocklist {
             if (legacy.length > 0) other = legacy;
         }
 
-        // Per-category budgets keep one huge list from starving the others.
-        malware = cap(malware, Gravity.capFor(Gravity.MALWARE));
-        trackers = cap(trackers, Gravity.capFor(Gravity.TRACKERS));
-        adult = cap(adult, Gravity.capFor(Gravity.ADULT));
-        piracy = cap(piracy, Gravity.capFor(Gravity.PIRACY));
-        gambling = cap(gambling, Gravity.capFor(Gravity.GAMBLING));
-        dating = cap(dating, Gravity.capFor(Gravity.DATING));
-        social = cap(social, Gravity.capFor(Gravity.SOCIAL));
-        ads = cap(ads, Gravity.capFor(Gravity.ADS));
-        other = cap(other, Gravity.capFor(Gravity.OTHER));
-        long[] seedHashes = cap(seed.toArray(), Gravity.capFor(Gravity.ADS));
+        long[] seedHashes = seed.toArray();
+        long[] adsWithSeed = new long[ads.length + seedHashes.length];
+        System.arraycopy(ads, 0, adsWithSeed, 0, ads.length);
+        System.arraycopy(seedHashes, 0, adsWithSeed, ads.length, seedHashes.length);
 
         long[][] sources = {
-                Gravity.clean(malware),
-                Gravity.clean(trackers),
-                Gravity.clean(adult),
-                Gravity.clean(piracy),
-                Gravity.clean(gambling),
-                Gravity.clean(dating),
-                Gravity.clean(social),
-                Gravity.clean(ads),
-                Gravity.clean(other),
-                Gravity.clean(seedHashes)
+                adsWithSeed, trackers, malware, adult, piracy,
+                gambling, dating, social, other
         };
+        ads = null;
+        adsWithSeed = null;
+        seedHashes = null;
+        trackers = null;
+        malware = null;
+        adult = null;
+        piracy = null;
+        gambling = null;
+        dating = null;
+        social = null;
+        other = null;
+        long[][] capped = Gravity.fairCap(sources, MAX_DOMAINS);
+        for (int i = 0; i < capped.length; i++) {
+            capped[i] = Gravity.clean(capped[i]);
+        }
         int[] bits = {
-                Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
+                Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE, Gravity.ADULT,
                 Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
-                Gravity.ADS, Gravity.OTHER, Gravity.ADS
+                Gravity.OTHER
         };
-        return Gravity.build(sources, bits, MAX_DOMAINS);
-    }
-
-    private static long[] cap(long[] values, int max) {
-        if (values == null || max <= 0) return new long[0];
-        return values.length <= max ? values : java.util.Arrays.copyOf(values, max);
+        return Gravity.build(capped, bits, MAX_DOMAINS);
     }
 
     private static long[] readCategory(Context c, String name) {
@@ -732,6 +728,16 @@ final class Blocklist {
             String message;
             try {
                 Prefs p = Prefs.load(app);
+                // Keep the configured tier authoritative so preset updates and
+                // new list sources are picked up by the next gravity refresh.
+                for (String key : Blocklists.CATEGORY_KEYS) {
+                    if (p.categoryEnabled(key)
+                            && Blocklists.hasAny(p.blocklistUrls,
+                                    Blocklists.allUrls(key))) {
+                        p.blocklistUrls = Blocklists.applyLevel(
+                                p.blocklistUrls, key, p.categoryLevel(key));
+                    }
+                }
                 List<String> urls = listUrls(p);
                 if (urls.isEmpty()) throw new Exception("No blocklist URL is set");
                 List<String> adsUrls = new ArrayList<>();
@@ -777,7 +783,7 @@ final class Blocklist {
                 ArrayList<Health> health = new ArrayList<>();
                 int[] tally = new int[2];
                 StringBuilder errors = new StringBuilder();
-                // Security lists first so they survive the 1M cap.
+                // Security lists first so they survive the memory guard.
                 int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors);
                 int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors);
                 int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors);
@@ -805,14 +811,14 @@ final class Blocklist {
                 if (legacy.exists()) legacy.delete();
 
                 p.lastUpdate = System.currentTimeMillis();
-                p.adsDomains = Math.min(adsCount, Gravity.capFor(Gravity.ADS));
-                p.trackerDomains = Math.min(trackerCount, Gravity.capFor(Gravity.TRACKERS));
-                p.malwareDomains = Math.min(malwareCount, Gravity.capFor(Gravity.MALWARE));
-                p.adultDomains = Math.min(adultCount, Gravity.capFor(Gravity.ADULT));
-                p.piracyDomains = Math.min(piracyCount, Gravity.capFor(Gravity.PIRACY));
-                p.gamblingDomains = Math.min(gamblingCount, Gravity.capFor(Gravity.GAMBLING));
-                p.datingDomains = Math.min(datingCount, Gravity.capFor(Gravity.DATING));
-                p.socialDomains = Math.min(socialCount, Gravity.capFor(Gravity.SOCIAL));
+                p.adsDomains = adsCount;
+                p.trackerDomains = trackerCount;
+                p.malwareDomains = malwareCount;
+                p.adultDomains = adultCount;
+                p.piracyDomains = piracyCount;
+                p.gamblingDomains = gamblingCount;
+                p.datingDomains = datingCount;
+                p.socialDomains = socialCount;
                 p.listHealth = joinHealth(health);
                 p.save(app);
                 reload(app);
@@ -836,7 +842,7 @@ final class Blocklist {
                                         StringBuilder errors) {
         File dst = new File(app.getFilesDir(), file);
         if (urls.isEmpty()) return deleteCategory(app, file);
-        HashSet<String> category = new HashSet<>(131072);
+        LinkedHashSet<String> category = new LinkedHashSet<>(131072);
         for (String url : urls) {
             if (category.size() >= MAX_DOMAINS) break;
             int before = category.size();

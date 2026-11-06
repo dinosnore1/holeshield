@@ -355,6 +355,11 @@ public final class TestDns {
         Gravity capped = Gravity.build(new long[][]{ads, malware},
                 new int[]{Gravity.ADS, Gravity.MALWARE}, 2);
         check(capped.size() == 2, "gravity respects the domain cap");
+        long[][] fair = Gravity.fairCap(new long[][]{
+                {1, 2, 3, 4, 5, 6}, {7, 8, 9, 10}, {11, 12}
+        }, 6);
+        check(fair[0].length == 2 && fair[1].length == 2 && fair[2].length == 2,
+                "fair cap shares the guard across categories");
         check(Gravity.hash("Example.COM") == Gravity.hash("example.com"),
                 "gravity hash is case-insensitive");
     }
@@ -460,6 +465,25 @@ public final class TestDns {
         check(Blocklists.categoryOf(Blocklists.GAMBLING_LITE_TIER[0])
                         == Blocklists.CATEGORY_GAMBLING,
                 "gambling mini list maps to the gambling category");
+        check(Blocklists.byKey("ads").length >= 13, "ads preset expanded");
+        check(Blocklists.TRACKERS.length >= 21, "tracker preset expanded");
+        check(Blocklists.MALWARE.length >= 18, "malware preset expanded");
+        check(Blocklists.ADULT.length >= 5, "adult preset expanded");
+        check(Blocklists.PIRACY.length >= 5, "piracy preset expanded");
+        check(Blocklists.GAMBLING.length >= 5, "gambling preset expanded");
+        check(Blocklists.DATING.length >= 3, "dating preset expanded");
+        check(Blocklists.SOCIAL.length >= 7, "social preset expanded");
+        String gamblingMedium = Blocklists.applyLevel("", "gambling", "medium");
+        check(Blocklists.detectLevel(gamblingMedium, "gambling").equals("medium"),
+                "gambling medium level round-trips");
+        check(Blocklists.categoryOf(Blocklists.GAMBLING_MEDIUM_TIER[0])
+                        == Blocklists.CATEGORY_GAMBLING,
+                "gambling medium list maps to the gambling category");
+        check(Blocklists.hasAny(Blocklists.presetText(), Blocklists.byKey("ads")),
+                "preset contains ads sources");
+        check(!Blocklists.hasAny("https://example.com/custom.txt",
+                        Blocklists.byKey("ads")),
+                "custom-only list has no preset sources");
     }
 
     private static DnsPacket.Query parse(String name, int type) {

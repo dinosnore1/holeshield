@@ -23,15 +23,25 @@ final class Blocklists {
             "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
 
     private static final String[] CORE = {
-            // Core ad, tracker and malware coverage.
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt",
-            "https://big.oisd.nl/",
-            "https://o0.pages.dev/Xtra/hosts.txt",
+            // Curated ad lists first so the level cap keeps useful coverage.
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Ads",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Wild_Ads",
+            "https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/ads.txt",
             "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_ads_justdomains.txt",
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/popupads-onlydomains.txt",
             "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt",
-            "https://raw.githubusercontent.com/blocklistproject/Lists/master/ads.txt",
-            "https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt"
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/basic.txt",
+            "https://big.oisd.nl/",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt",
+            "https://raw.githubusercontent.com/lightswitch05/hosts/master/docs/lists/ads-and-tracking-extended.txt",
+            "https://o0.pages.dev/Xtra/hosts.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/blocklist-referral-onlydomains.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/urlshortener-onlydomains.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adservers.txt"
     };
 
     /** Smart-TV, streaming-box and Android telemetry/tracker lists. */
@@ -50,7 +60,15 @@ final class Blocklists {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/native.xiaomi-onlydomains.txt",
             "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_trackers_justdomains.txt",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/tracking.txt",
-            "https://raw.githubusercontent.com/blocklistproject/Lists/master/smart-tv.txt"
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/smart-tv.txt",
+            "https://raw.githubusercontent.com/lightswitch05/hosts/master/docs/lists/tracking-aggressive-extended.txt",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Tracking",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Apple",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Microsoft",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Marketing",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/redirect.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/SpywareFilter/sections/tracking_servers.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/SpywareFilter/sections/tracking_servers_firstparty.txt"
     };
 
     /** Malware, phishing and malicious-download lists. */
@@ -60,45 +78,71 @@ final class Blocklists {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/malware.txt",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/phishing.txt",
-            "https://raw.githubusercontent.com/blocklistproject/Lists/master/ransomware.txt"
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/ransomware.txt",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.medium-onlydomains.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/malware/domains",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/phishing/domains",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/stalkerware/domains",
+            "https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/fraud.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/scam.txt",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/abuse.txt",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Malware",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Scam",
+            "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Risk",
+            "https://raw.githubusercontent.com/AssoEchap/stalkerware-indicators/master/generated/hosts",
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif-onlydomains.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/cryptojacking/domains",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/ddos/domains",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/crypto.txt"
     };
 
     /** Adult content. */
     static final String[] ADULT = {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
             "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/mixed_adult/domains",
             "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Adult",
-            "https://raw.githubusercontent.com/blocklistproject/Lists/master/porn.txt"
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/porn.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/adult/domains.0",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/adult/domains.1",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/adult/domains.2"
     };
 
     /** Copyright-infringing content and piracy services. */
     static final String[] PIRACY = {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/piracy.txt",
-            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/warez/domains"
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/warez/domains",
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/torrent.txt",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/download/domains"
     };
 
-    /** Gambling and betting sites. */
+    /** Gambling and betting sites, smallest curated lists first. */
     static final String[] GAMBLING = {
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt",
             "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Gambling",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains",
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/arjel/domains",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/gambling.txt",
-            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/gambling/domains"
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt"
     };
 
     /** Dating sites and apps. */
     static final String[] DATING = {
             "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/Lists/Dating",
-            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains"
+            "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains",
+            "https://raw.githubusercontent.com/lightswitch05/hosts/master/docs/lists/dating-services-extended.txt"
     };
 
     /** Classic social networks. Messaging and streaming apps are not included. */
     static final String[] SOCIAL = {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/social-onlydomains.txt",
             "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/social_networks/domains",
+            "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social-only/hosts",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/facebook.txt",
             "https://raw.githubusercontent.com/blocklistproject/Lists/master/twitter.txt",
-            "https://raw.githubusercontent.com/blocklistproject/Lists/master/tiktok.txt"
+            "https://raw.githubusercontent.com/blocklistproject/Lists/master/tiktok.txt",
+            "https://raw.githubusercontent.com/lightswitch05/hosts/master/docs/lists/facebook-extended.txt"
     };
 
     private static final String[] CLASSIC = {
@@ -109,20 +153,29 @@ final class Blocklists {
             LEGACY_DEFAULT
     };
 
+    private static final String[] GAMBLING_MEDIUM = {
+            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.medium-onlydomains.txt"
+    };
+
     private static final String[] GAMBLING_LITE = {
             "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.mini-onlydomains.txt"
     };
 
     static final String[] ADS_MAX = concat(CORE, CLASSIC);
-    static final String[] ADS_MEDIUM = {CORE[0], CORE[1], CORE[4], CORE[5]};
+    static final String[] ADS_MEDIUM = {CORE[0], CORE[1], CORE[4], CORE[5], CORE[8], CORE[9]};
     static final String[] ADS_LITE = {LEGACY_DEFAULT};
 
     static final String[] TRACKERS_MAX = TRACKERS;
-    static final String[] TRACKERS_MEDIUM = take(TRACKERS, 8);
+    static final String[] TRACKERS_MEDIUM = {
+            TRACKERS[0], TRACKERS[1], TRACKERS[2], TRACKERS[12], TRACKERS[13],
+            TRACKERS[14], TRACKERS[15], TRACKERS[16], TRACKERS[17]
+    };
     static final String[] TRACKERS_LITE = take(TRACKERS, 3);
 
     static final String[] MALWARE_MAX = MALWARE;
-    static final String[] MALWARE_MEDIUM = take(MALWARE, 3);
+    static final String[] MALWARE_MEDIUM = {
+            MALWARE[0], MALWARE[1], MALWARE[2], MALWARE[3], MALWARE[6], MALWARE[7]
+    };
     static final String[] MALWARE_LITE = take(MALWARE, 2);
 
     static final String[] ADULT_MAX = ADULT;
@@ -134,20 +187,20 @@ final class Blocklists {
     static final String[] PIRACY_LITE = take(PIRACY, 1);
 
     static final String[] GAMBLING_MAX = GAMBLING;
-    static final String[] GAMBLING_MEDIUM = take(GAMBLING, 2);
+    static final String[] GAMBLING_MEDIUM_TIER = GAMBLING_MEDIUM;
     static final String[] GAMBLING_LITE_TIER = GAMBLING_LITE;
 
     static final String[] DATING_MAX = DATING;
-    static final String[] DATING_MEDIUM = take(DATING, 1);
+    static final String[] DATING_MEDIUM = take(DATING, 2);
     static final String[] DATING_LITE = take(DATING, 1);
 
     static final String[] SOCIAL_MAX = SOCIAL;
-    static final String[] SOCIAL_MEDIUM = take(SOCIAL, 2);
+    static final String[] SOCIAL_MEDIUM = take(SOCIAL, 3);
     static final String[] SOCIAL_LITE = take(SOCIAL, 1);
 
     /**
-     * Kept within the app's gravity cap. The lists overlap heavily; the
-     * deduplicated total is capped at 1M domains rather than the sum of sizes.
+     * The Lite, Medium and Maximum levels choose how many of these lists are
+     * active. A high memory guard bounds the merged gravity index.
      */
     static final String[] MAXIMUM = concat(CORE, TRACKERS, MALWARE, CLASSIC);
 
@@ -200,7 +253,8 @@ final class Blocklists {
             return "lite".equals(value) ? PIRACY_LITE : "medium".equals(value) ? PIRACY_MEDIUM : PIRACY_MAX;
         }
         if ("gambling".equals(key)) {
-            return "lite".equals(value) ? GAMBLING_LITE_TIER : "medium".equals(value) ? GAMBLING_MEDIUM : GAMBLING_MAX;
+            return "lite".equals(value) ? GAMBLING_LITE_TIER
+                    : "medium".equals(value) ? GAMBLING_MEDIUM_TIER : GAMBLING_MAX;
         }
         if ("dating".equals(key)) {
             return "lite".equals(value) ? DATING_LITE : "medium".equals(value) ? DATING_MEDIUM : DATING_MAX;
@@ -215,7 +269,7 @@ final class Blocklists {
         String[] max = urlsFor(key, "max");
         String[] medium = urlsFor(key, "medium");
         String[] lite = urlsFor(key, "lite");
-        if ("gambling".equals(key)) return concat(max, GAMBLING_LITE);
+        if ("gambling".equals(key)) return concat(max, GAMBLING_MEDIUM, GAMBLING_LITE);
         return concat(max, medium, lite);
     }
 
@@ -255,6 +309,7 @@ final class Blocklists {
         if (contains(DATING, url)) return CATEGORY_DATING;
         if (contains(SOCIAL, url)) return CATEGORY_SOCIAL;
         if (contains(GAMBLING_LITE, url)) return CATEGORY_GAMBLING;
+        if (contains(GAMBLING_MEDIUM, url)) return CATEGORY_GAMBLING;
         if (contains(CORE, url) || contains(CLASSIC, url)) return CATEGORY_ADS;
         return CATEGORY_OTHER;
     }
@@ -319,6 +374,14 @@ final class Blocklists {
             if (!have.contains(url)) return false;
         }
         return true;
+    }
+
+    static boolean hasAny(String text, String[] category) {
+        Set<String> have = new LinkedHashSet<>(urls(text));
+        for (String url : category) {
+            if (have.contains(url)) return true;
+        }
+        return false;
     }
 
     /** Removes every URL from one category, preserving custom sources. */
