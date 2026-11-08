@@ -207,6 +207,7 @@ final class Blocklist {
         categoryMask = p.categoryMask();
         readCustom(p.customBlocked, false, eb, wb, rb);
         readCustom(p.customAllowed, true, ea, wa, ra);
+        for (String domain : Blocklists.SERVICE_ALLOW) ea.add(domain);
         Map<String, ClientRules> clients = parseClientRules(p.clientRules);
 
         Gravity fresh = loadGravity(c, p);

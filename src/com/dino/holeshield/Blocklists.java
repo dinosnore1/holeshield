@@ -204,6 +204,11 @@ final class Blocklists {
      */
     static final String[] MAXIMUM = concat(CORE, TRACKERS, MALWARE, CLASSIC);
 
+    /** Service endpoints that must stay reachable for app functionality. */
+    static final String[] SERVICE_ALLOW = {
+            "bifrost-api.hotstar.com"
+    };
+
     /** Category keys that support Lite / Medium / Maximum levels. */
     static final String[] CATEGORY_KEYS = {
             "ads", "trackers", "malware", "adult",

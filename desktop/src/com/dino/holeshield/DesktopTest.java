@@ -185,6 +185,8 @@ public final class DesktopTest {
         check(filter.check("doubleclick.net").blocked, "seed domain blocked");
         eq("Ads", filter.check("doubleclick.net").category,
                 "seed domain keeps the ads category flag");
+        check(filter.check("bifrost-api.hotstar.com").allowed,
+                "Hotstar tracking endpoint is allowed");
         check(filter.check("ads.doubleclick.net").blocked, "seed subdomain blocked");
         check(!filter.check("example.com").blocked, "unlisted domain allowed");
         check(filter.check("localhost").blocked == false, "single label ignored");

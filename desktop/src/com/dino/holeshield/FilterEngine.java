@@ -210,6 +210,7 @@ final class FilterEngine {
         ArrayList<Compiled> ra = new ArrayList<>();
         readCustom(prefs.customBlocked(), false, eb, wb, rb);
         readCustom(prefs.customAllowed(), true, ea, wa, ra);
+        for (String domain : Blocklists.SERVICE_ALLOW) ea.add(domain);
         clientRules = parseClientRules(prefs.clientRules());
         exactBlocked = eb;
         exactAllowed = ea;
