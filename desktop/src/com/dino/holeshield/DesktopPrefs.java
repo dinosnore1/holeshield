@@ -58,6 +58,7 @@ final class DesktopPrefs {
         if (!values.containsKey("categoryDating")) set("categoryDating", "false");
         if (!values.containsKey("categorySocial")) set("categorySocial", "false");
         if (!values.containsKey("categoryOther")) set("categoryOther", "true");
+        if (!values.containsKey("capEnabled")) set("capEnabled", "true");
         String urls = blocklistUrls();
         for (String key : Blocklists.CATEGORY_KEYS) {
             String name = "level" + Character.toUpperCase(key.charAt(0)) + key.substring(1);

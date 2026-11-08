@@ -2316,10 +2316,20 @@ public class MainActivity extends Activity {
                 this::updateBlocklist), rowLp(0));
         bl.addView(settingRow("Blocklist sources", "One hosts/adblock URL per line",
                 listUrlCount(prefs.blocklistUrls) + " lists", this::editListUrls), rowLp(1));
+        bl.addView(settingRowToggle("Limit gravity size",
+                "Keep the loaded index near 1.51M domains to save memory",
+                prefs.capEnabled, () -> {
+                    prefs.capEnabled = !prefs.capEnabled;
+                    prefs.save(this);
+                    show(Screen.SETTINGS);
+                    Ui.toast(this, prefs.capEnabled
+                            ? "Memory guard enabled; run Update gravity now to apply"
+                            : "Memory guard disabled; run Update gravity now to load every domain");
+                }), rowLp(2));
         bl.addView(settingRowToggle("SafeSearch / parental filter", safeSearchSubtitle(),
-                prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(2));
+                prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(3));
         bl.addView(settingRow("Test protection", "Resolve a known ad domain through the VPN",
-                "Run", this::testProtection), rowLp(3));
+                "Run", this::testProtection), rowLp(4));
         add(col, bl, 8);
 
         col.addView(section("APPEARANCE"));

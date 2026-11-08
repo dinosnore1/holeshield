@@ -782,7 +782,8 @@ final class FilterEngine {
                 buffers[3].toArray(), buffers[4].toArray(), buffers[5].toArray(),
                 buffers[6].toArray(), buffers[7].toArray(), buffers[8].toArray()
         };
-        long[][] capped = Gravity.fairCap(raw, MAX_DOMAINS);
+        boolean cap = prefs.getBool("capEnabled", true);
+        long[][] capped = cap ? Gravity.fairCap(raw, MAX_DOMAINS) : raw;
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }
@@ -796,10 +797,11 @@ final class FilterEngine {
         long[] social = capped[7];
         long[] other = capped[8];
 
-        Gravity fresh = Gravity.build(capped, CATEGORY_BITS, MAX_DOMAINS);
+        Gravity fresh = Gravity.build(capped, CATEGORY_BITS,
+                cap ? MAX_DOMAINS : Integer.MAX_VALUE);
 
         long[][] merged = mergeForSave(ads, trackers, malware, adult, piracy,
-                gambling, dating, social, other);
+                gambling, dating, social, other, cap ? MAX_DOMAINS : Integer.MAX_VALUE);
         saveGravity(merged[0], toFlags(merged[0], merged[1], ads, trackers,
                 malware, adult, piracy, gambling, dating, social, other));
 
@@ -834,7 +836,8 @@ final class FilterEngine {
 
     private static long[][] mergeForSave(long[] ads, long[] trackers, long[] malware,
                                          long[] adult, long[] piracy, long[] gambling,
-                                         long[] dating, long[] social, long[] other) {
+                                         long[] dating, long[] social, long[] other,
+                                         int max) {
         long[][] sources = {ads, trackers, malware, adult, piracy,
                 gambling, dating, social, other};
         int total = 0;
@@ -867,8 +870,8 @@ final class FilterEngine {
             categories[written] = merged;
             written++;
         }
-        if (written < total || written > MAX_DOMAINS) {
-            int size = Math.min(written, MAX_DOMAINS);
+        if (written < total || written > max) {
+            int size = Math.min(written, max);
             hashes = Arrays.copyOf(hashes, size);
             categories = Arrays.copyOf(categories, size);
         }

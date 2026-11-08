@@ -954,6 +954,31 @@ final class ControlPanel extends JFrame {
             page.add(updateCard);
             page.add(Box.createVerticalStrut(14));
 
+            Widgets.RoundedPanel capCard = card(16, 17, 14, 17);
+            JPanel capRow = new JPanel(new BorderLayout(10, 0));
+            capRow.setOpaque(false);
+            JPanel capText = new JPanel();
+            capText.setOpaque(false);
+            capText.setLayout(new BoxLayout(capText, BoxLayout.Y_AXIS));
+            capText.add(Widgets.label("Limit gravity size", 13.5f, Font.BOLD, 0));
+            capText.add(Widgets.hint("Keep the loaded index near 1.51M domains. Run Update now to apply."));
+            Widgets.ToggleSwitch capToggle = new Widgets.ToggleSwitch(
+                    prefs.getBool("capEnabled", true));
+            capToggle.setOnChange(value -> {
+                prefs.setBool("capEnabled", value);
+                prefs.save();
+                setStatus(value
+                        ? "Memory guard enabled. Run Update now to apply."
+                        : "Memory guard disabled. Run Update now to load every domain.");
+            });
+            capRow.add(capText, BorderLayout.CENTER);
+            capRow.add(capToggle, BorderLayout.EAST);
+            capCard.add(capRow, BorderLayout.CENTER);
+            capCard.setPreferredSize(new Dimension(100, 82));
+            capCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
+            page.add(capCard);
+            page.add(Box.createVerticalStrut(14));
+
             Widgets.RoundedPanel cats = card(16, 17, 14, 17);
             cats.add(Widgets.header("Categories",
                     "Turn a category off without rebuilding the database", null),

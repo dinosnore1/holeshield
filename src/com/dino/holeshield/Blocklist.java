@@ -221,22 +221,23 @@ final class Blocklist {
     }
 
     private static Gravity loadGravity(Context c, Prefs p) {
-        long[] malware = readCategory(c, MALWARE_FILE);
-        long[] trackers = readCategory(c, TRACKER_FILE);
-        long[] ads = readCategory(c, ADS_FILE);
-        long[] adult = readCategory(c, ADULT_FILE);
-        long[] piracy = readCategory(c, PIRACY_FILE);
-        long[] gambling = readCategory(c, GAMBLING_FILE);
-        long[] dating = readCategory(c, DATING_FILE);
-        long[] social = readCategory(c, SOCIAL_FILE);
-        long[] other = readCategory(c, OTHER_FILE);
+        int limit = p.capEnabled ? MAX_DOMAINS : Integer.MAX_VALUE;
+        long[] malware = readCategory(c, MALWARE_FILE, limit);
+        long[] trackers = readCategory(c, TRACKER_FILE, limit);
+        long[] ads = readCategory(c, ADS_FILE, limit);
+        long[] adult = readCategory(c, ADULT_FILE, limit);
+        long[] piracy = readCategory(c, PIRACY_FILE, limit);
+        long[] gambling = readCategory(c, GAMBLING_FILE, limit);
+        long[] dating = readCategory(c, DATING_FILE, limit);
+        long[] social = readCategory(c, SOCIAL_FILE, limit);
+        long[] other = readCategory(c, OTHER_FILE, limit);
 
         // Seed list shipped in the APK. It is ads-oriented.
         LongBuffer seed = new LongBuffer(131072);
         try (InputStream in = c.getAssets().open("blocklist.txt");
              BufferedReader r = new BufferedReader(
                      new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            readHostsHashed(r, seed);
+            readHostsHashed(r, seed, Integer.MAX_VALUE);
         } catch (Exception ignored) {
             // A missing seed list is not fatal.
         }
@@ -247,7 +248,7 @@ final class Blocklist {
             // Upgrade path: the old build kept one merged file. Treat it as
             // "other" so it keeps blocking, but category switches cannot
             // separate it until the next gravity update rewrites the files.
-            long[] legacy = readCategory(c, LEGACY_FILE);
+            long[] legacy = readCategory(c, LEGACY_FILE, limit);
             if (legacy.length > 0) other = legacy;
         }
 
@@ -273,7 +274,8 @@ final class Blocklist {
         dating = null;
         social = null;
         other = null;
-        long[][] capped = Gravity.fairCap(sources, MAX_DOMAINS);
+        long[][] capped = p.capEnabled
+                ? Gravity.fairCap(sources, MAX_DOMAINS) : sources;
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }
@@ -282,25 +284,25 @@ final class Blocklist {
                 Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
                 Gravity.OTHER
         };
-        return Gravity.build(capped, bits, MAX_DOMAINS);
+        return Gravity.build(capped, bits, limit);
     }
 
-    private static long[] readCategory(Context c, String name) {
+    private static long[] readCategory(Context c, String name, int limit) {
         LongBuffer out = new LongBuffer(131072);
         File file = new File(c.getFilesDir(), name);
         if (!file.exists()) return out.toArray();
         try (BufferedReader r = new BufferedReader(new InputStreamReader(
                 new FileInputStream(file), StandardCharsets.UTF_8))) {
-            readHostsHashed(r, out);
+            readHostsHashed(r, out, limit);
         } catch (Exception ignored) { }
         return out.toArray();
     }
 
-    private static void readHostsHashed(BufferedReader r, LongBuffer into) {
+    private static void readHostsHashed(BufferedReader r, LongBuffer into, int limit) {
         try {
             String line;
             int n = 0;
-            while ((line = r.readLine()) != null && n < MAX_DOMAINS) {
+            while ((line = r.readLine()) != null && n < limit) {
                 String d = HostsParser.parseLine(line);
                 if (!d.isEmpty()) {
                     into.add(Gravity.hash(d));
@@ -786,15 +788,16 @@ final class Blocklist {
                 int[] tally = new int[2];
                 StringBuilder errors = new StringBuilder();
                 // Security lists first so they survive the memory guard.
-                int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors);
-                int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors);
-                int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors);
-                int adultCount = downloadCategory(app, adultUrls, ADULT_FILE, health, tally, errors);
-                int piracyCount = downloadCategory(app, piracyUrls, PIRACY_FILE, health, tally, errors);
-                int gamblingCount = downloadCategory(app, gamblingUrls, GAMBLING_FILE, health, tally, errors);
-                int datingCount = downloadCategory(app, datingUrls, DATING_FILE, health, tally, errors);
-                int socialCount = downloadCategory(app, socialUrls, SOCIAL_FILE, health, tally, errors);
-                int otherCount = downloadCategory(app, otherUrls, OTHER_FILE, health, tally, errors);
+                int limit = p.capEnabled ? MAX_DOMAINS : Integer.MAX_VALUE;
+                int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors, limit);
+                int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors, limit);
+                int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors, limit);
+                int adultCount = downloadCategory(app, adultUrls, ADULT_FILE, health, tally, errors, limit);
+                int piracyCount = downloadCategory(app, piracyUrls, PIRACY_FILE, health, tally, errors, limit);
+                int gamblingCount = downloadCategory(app, gamblingUrls, GAMBLING_FILE, health, tally, errors, limit);
+                int datingCount = downloadCategory(app, datingUrls, DATING_FILE, health, tally, errors, limit);
+                int socialCount = downloadCategory(app, socialUrls, SOCIAL_FILE, health, tally, errors, limit);
+                int otherCount = downloadCategory(app, otherUrls, OTHER_FILE, health, tally, errors, limit);
                 int listsOk = tally[0];
                 int listsFailed = tally[1];
                 int domains = adsCount + trackerCount + malwareCount + adultCount
@@ -841,15 +844,15 @@ final class Blocklist {
 
     private static int downloadCategory(Context app, List<String> urls, String file,
                                         List<Health> health, int[] tally,
-                                        StringBuilder errors) {
+                                        StringBuilder errors, int limit) {
         File dst = new File(app.getFilesDir(), file);
         if (urls.isEmpty()) return deleteCategory(app, file);
         LinkedHashSet<String> category = new LinkedHashSet<>(131072);
         for (String url : urls) {
-            if (category.size() >= MAX_DOMAINS) break;
+            if (category.size() >= limit) break;
             int before = category.size();
             try {
-                downloadInto(url, category, MAX_DOMAINS);
+                downloadInto(url, category, limit);
                 int added = category.size() - before;
                 tally[0]++;
                 health.add(new Health(url, true, added, "",
