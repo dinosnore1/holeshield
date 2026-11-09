@@ -1713,19 +1713,6 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
         header.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView chevron = Ui.text(this, "›", isTv ? 26 : 23, Ui.DIM, false);
-        chevron.setGravity(Gravity.CENTER);
-        header.addView(chevron, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 12 : 8), 0, 0, 0));
-
-        View divider = new View(this);
-        divider.setBackgroundColor(Ui.STROKE);
-        LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
-                Ui.dp(this, 1), Ui.dp(this, isTv ? 32 : 28));
-        dividerLp.setMargins(Ui.dp(this, isTv ? 10 : 8), 0,
-                Ui.dp(this, isTv ? 10 : 8), 0);
-        header.addView(divider, dividerLp);
-
         LinearLayout toggleWrap = Ui.row(this);
         toggleWrap.setTag("Limit gravity size");
         toggleWrap.setFocusable(true);
