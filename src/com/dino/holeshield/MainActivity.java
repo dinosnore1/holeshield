@@ -1696,22 +1696,69 @@ public class MainActivity extends Activity {
             (GRAVITY_CAP_MAX - GRAVITY_CAP_MIN) / GRAVITY_CAP_STEP;
     private static final int GRAVITY_CAP_NO_LIMIT = GRAVITY_CAP_STEPS + 1;
 
-    private LinearLayout gravitySliderRow() {
+    private LinearLayout gravityCapRow() {
         LinearLayout card = Ui.column(this);
         card.setBackground(Ui.focusableBg(this, isTv ? 20 : 18));
-        card.setFocusable(true);
-        card.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         int h = Ui.dp(this, isTv ? 22 : 16);
         int v = Ui.dp(this, isTv ? 16 : 13);
         card.setPadding(h, v, h, v);
 
-        LinearLayout head = Ui.row(this);
-        head.addView(Ui.text(this, "Gravity limit", isTv ? 15 : 14, Ui.TEXT, true),
-                Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView value = Ui.text(this, gravityCapLabel(prefs.gravityCap),
-                isTv ? 13 : 12.5f, Ui.GREEN, true);
-        head.addView(value);
-        card.addView(head);
+        LinearLayout header = Ui.row(this);
+        LinearLayout text = Ui.column(this);
+        text.addView(Ui.text(this, "Limit gravity size", isTv ? 16 : 15, Ui.TEXT, true));
+        TextView detail = Ui.text(this, "Cap the loaded index · "
+                        + gravityCapLabel(prefs.gravityCap),
+                isTv ? 11.5f : 11, Ui.FAINT, false);
+        text.addView(detail, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
+        header.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView chevron = Ui.text(this, "›", isTv ? 26 : 23, Ui.DIM, false);
+        chevron.setGravity(Gravity.CENTER);
+        header.addView(chevron, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 12 : 8), 0, 0, 0));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Ui.STROKE);
+        LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
+                Ui.dp(this, 1), Ui.dp(this, isTv ? 32 : 28));
+        dividerLp.setMargins(Ui.dp(this, isTv ? 10 : 8), 0,
+                Ui.dp(this, isTv ? 10 : 8), 0);
+        header.addView(divider, dividerLp);
+
+        LinearLayout toggleWrap = Ui.row(this);
+        toggleWrap.setTag("Limit gravity size");
+        toggleWrap.setFocusable(true);
+        toggleWrap.setClickable(true);
+        StateListDrawable toggleBg = new StateListDrawable();
+        toggleBg.addState(new int[]{android.R.attr.state_focused},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        toggleBg.addState(new int[]{android.R.attr.state_pressed},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        toggleBg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
+        toggleWrap.setBackground(toggleBg);
+        int padH = Ui.dp(this, isTv ? 10 : 8);
+        int padV = Ui.dp(this, isTv ? 4 : 3);
+        toggleWrap.setPadding(padH, padV, padH, padV);
+        SwitchView toggle = new SwitchView(this);
+        toggle.setCheckedImmediate(prefs.gravityCapEnabled);
+        toggleWrap.addView(toggle);
+        toggleWrap.setOnClickListener(v2 -> {
+            prefs.gravityCapEnabled = !prefs.gravityCapEnabled;
+            if (prefs.gravityCapEnabled && prefs.gravityCap <= 0) {
+                prefs.gravityCap = Prefs.DEFAULT_GRAVITY_CAP;
+            }
+            prefs.save(MainActivity.this);
+            show(Screen.SETTINGS);
+            Ui.toast(MainActivity.this, prefs.gravityCapEnabled
+                    ? "Gravity limit enabled; run Update gravity now to apply"
+                    : "Gravity limit off; run Update gravity now to load every domain");
+        });
+        header.addView(toggleWrap, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, isTv ? 10 : 6), 0, 0, 0));
+        card.addView(header);
+
+        if (!prefs.gravityCapEnabled) return card;
 
         SeekBar slider = new SeekBar(this);
         slider.setMax(GRAVITY_CAP_NO_LIMIT);
@@ -1739,7 +1786,7 @@ public class MainActivity extends Activity {
                 int cap = gravityCapFromProgress(progress);
                 prefs.gravityCap = cap;
                 prefs.save(MainActivity.this);
-                value.setText(gravityCapLabel(cap));
+                detail.setText("Cap the loaded index · " + gravityCapLabel(cap));
             }
 
             @Override
@@ -1751,7 +1798,20 @@ public class MainActivity extends Activity {
                         "Run Update gravity now to apply the new limit");
             }
         });
-        card.setOnKeyListener((view, keyCode, event) -> {
+
+        LinearLayout sliderWrap = Ui.row(this);
+        sliderWrap.setTag("Gravity limit");
+        sliderWrap.setFocusable(true);
+        sliderWrap.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        StateListDrawable sliderBg = new StateListDrawable();
+        sliderBg.addState(new int[]{android.R.attr.state_focused},
+                Ui.rounded(this, Ui.PRIMARY_CONTAINER, 999));
+        sliderBg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
+        sliderWrap.setBackground(sliderBg);
+        sliderWrap.setPadding(Ui.dp(this, 6), Ui.dp(this, 4),
+                Ui.dp(this, 6), Ui.dp(this, 4));
+        sliderWrap.addView(slider, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        sliderWrap.setOnKeyListener((view, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN
                     && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT
                     || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
@@ -1762,7 +1822,7 @@ public class MainActivity extends Activity {
             }
             return false;
         });
-        card.addView(slider, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+        card.addView(sliderWrap, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
         return card;
     }
@@ -2418,23 +2478,8 @@ public class MainActivity extends Activity {
                 this::updateBlocklist), rowLp(0));
         bl.addView(settingRow("Blocklist sources", "One hosts/adblock URL per line",
                 listUrlCount(prefs.blocklistUrls) + " lists", this::editListUrls), rowLp(1));
-        bl.addView(settingRowToggle("Limit gravity size",
-                "Cap the loaded index to save memory",
-                prefs.gravityCapEnabled, () -> {
-                    prefs.gravityCapEnabled = !prefs.gravityCapEnabled;
-                    if (prefs.gravityCapEnabled && prefs.gravityCap <= 0) {
-                        prefs.gravityCap = Prefs.DEFAULT_GRAVITY_CAP;
-                    }
-                    prefs.save(this);
-                    show(Screen.SETTINGS);
-                    Ui.toast(this, prefs.gravityCapEnabled
-                            ? "Gravity limit enabled; run Update gravity now to apply"
-                            : "Gravity limit off; run Update gravity now to load every domain");
-                }), rowLp(2));
+        bl.addView(gravityCapRow(), rowLp(2));
         int nextRow = 3;
-        if (prefs.gravityCapEnabled) {
-            bl.addView(gravitySliderRow(), rowLp(nextRow++));
-        }
         bl.addView(settingRowToggle("SafeSearch / parental filter", safeSearchSubtitle(),
                 prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(nextRow++));
         bl.addView(settingRow("Test protection", "Resolve a known ad domain through the VPN",
