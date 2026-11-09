@@ -58,7 +58,15 @@ final class DesktopPrefs {
         if (!values.containsKey("categoryDating")) set("categoryDating", "false");
         if (!values.containsKey("categorySocial")) set("categorySocial", "false");
         if (!values.containsKey("categoryOther")) set("categoryOther", "true");
-        if (!values.containsKey("capEnabled")) set("capEnabled", "true");
+        if (!values.containsKey("gravityCapEnabled")) {
+            set("gravityCapEnabled", values.getProperty("capEnabled", "true"));
+        }
+        if (!values.containsKey("gravityCap")) {
+            set("gravityCap", "true".equalsIgnoreCase(
+                    values.getProperty("gravityCapEnabled", "true"))
+                    ? "1510000" : "-1");
+        }
+        values.remove("capEnabled");
         String urls = blocklistUrls();
         for (String key : Blocklists.CATEGORY_KEYS) {
             String name = "level" + Character.toUpperCase(key.charAt(0)) + key.substring(1);

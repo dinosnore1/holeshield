@@ -53,7 +53,6 @@ final class Blocklist {
     private static final String DATING_FILE = "blocklist_dating.txt";
     private static final String SOCIAL_FILE = "blocklist_social.txt";
     private static final String OTHER_FILE = "blocklist_other.txt";
-    private static final int MAX_DOMAINS = 1510000;
     private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
 
@@ -222,7 +221,8 @@ final class Blocklist {
     }
 
     private static Gravity loadGravity(Context c, Prefs p) {
-        int limit = p.capEnabled ? MAX_DOMAINS : Integer.MAX_VALUE;
+        int limit = p.gravityCapEnabled && p.gravityCap > 0
+                ? p.gravityCap : Integer.MAX_VALUE;
         long[] malware = readCategory(c, MALWARE_FILE, limit);
         long[] trackers = readCategory(c, TRACKER_FILE, limit);
         long[] ads = readCategory(c, ADS_FILE, limit);
@@ -275,8 +275,8 @@ final class Blocklist {
         dating = null;
         social = null;
         other = null;
-        long[][] capped = p.capEnabled
-                ? Gravity.fairCap(sources, MAX_DOMAINS) : sources;
+        long[][] capped = p.gravityCapEnabled && p.gravityCap > 0
+                ? Gravity.fairCap(sources, p.gravityCap) : sources;
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }
@@ -789,7 +789,8 @@ final class Blocklist {
                 int[] tally = new int[2];
                 StringBuilder errors = new StringBuilder();
                 // Security lists first so they survive the memory guard.
-                int limit = p.capEnabled ? MAX_DOMAINS : Integer.MAX_VALUE;
+                int limit = p.gravityCapEnabled && p.gravityCap > 0
+                ? p.gravityCap : Integer.MAX_VALUE;
                 int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors, limit);
                 int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors, limit);
                 int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors, limit);

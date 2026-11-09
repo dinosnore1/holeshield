@@ -783,8 +783,11 @@ final class FilterEngine {
                 buffers[3].toArray(), buffers[4].toArray(), buffers[5].toArray(),
                 buffers[6].toArray(), buffers[7].toArray(), buffers[8].toArray()
         };
-        boolean cap = prefs.getBool("capEnabled", true);
-        long[][] capped = cap ? Gravity.fairCap(raw, MAX_DOMAINS) : raw;
+        boolean capEnabled = prefs.getBool("gravityCapEnabled", true);
+        int cap = prefs.getInt("gravityCap", 1510000);
+        int limit = capEnabled && cap > 0 ? cap : Integer.MAX_VALUE;
+        long[][] capped = capEnabled && cap > 0
+                ? Gravity.fairCap(raw, cap) : raw;
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }
@@ -798,11 +801,10 @@ final class FilterEngine {
         long[] social = capped[7];
         long[] other = capped[8];
 
-        Gravity fresh = Gravity.build(capped, CATEGORY_BITS,
-                cap ? MAX_DOMAINS : Integer.MAX_VALUE);
+        Gravity fresh = Gravity.build(capped, CATEGORY_BITS, limit);
 
         long[][] merged = mergeForSave(ads, trackers, malware, adult, piracy,
-                gambling, dating, social, other, cap ? MAX_DOMAINS : Integer.MAX_VALUE);
+                gambling, dating, social, other, limit);
         saveGravity(merged[0], toFlags(merged[0], merged[1], ads, trackers,
                 malware, adult, piracy, gambling, dating, social, other));
 

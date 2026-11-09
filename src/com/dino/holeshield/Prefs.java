@@ -36,8 +36,10 @@ final class Prefs {
     boolean localBlocking = true;
     /** Also match subdomains of domains in gravity-style lists. */
     boolean blockSubdomains = true;
-    /** Keep the merged gravity index near 1.51M domains to save memory. */
-    boolean capEnabled = true;
+    /** Maximum merged gravity domains; -1 means no limit. */
+    static final int DEFAULT_GRAVITY_CAP = 1510000;
+    boolean gravityCapEnabled = true;
+    int gravityCap = DEFAULT_GRAVITY_CAP;
     /** Inspect CNAME targets in upstream answers as well as the question. */
     boolean blockCname = true;
     /** Route well-known public resolvers into the tunnel so hard-coded DNS
@@ -135,7 +137,10 @@ final class Prefs {
         s.dotPort = p.getInt("dotPort", s.dotPort);
         s.localBlocking = p.getBoolean("localBlocking", s.localBlocking);
         s.blockSubdomains = p.getBoolean("blockSubdomains", s.blockSubdomains);
-        s.capEnabled = p.getBoolean("capEnabled", s.capEnabled);
+        s.gravityCapEnabled = p.getBoolean("gravityCapEnabled",
+                p.getBoolean("capEnabled", true));
+        s.gravityCap = p.getInt("gravityCap", s.gravityCapEnabled
+                ? DEFAULT_GRAVITY_CAP : -1);
         s.blockCname = p.getBoolean("blockCname", s.blockCname);
         s.forceDns = p.getBoolean("forceDns", s.forceDns);
         s.blockedResponse = p.getString("blockedResponse", s.blockedResponse);
@@ -225,7 +230,9 @@ final class Prefs {
                 .putInt("dotPort", dotPort)
                 .putBoolean("localBlocking", localBlocking)
                 .putBoolean("blockSubdomains", blockSubdomains)
-                .putBoolean("capEnabled", capEnabled)
+                .putBoolean("gravityCapEnabled", gravityCapEnabled)
+                .putInt("gravityCap", gravityCap)
+                .remove("capEnabled")
                 .putBoolean("blockCname", blockCname)
                 .putBoolean("forceDns", forceDns)
                 .putString("blockedResponse", blockedResponse)

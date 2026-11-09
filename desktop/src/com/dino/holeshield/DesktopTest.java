@@ -178,7 +178,8 @@ public final class DesktopTest {
         home.mkdirs();
         DesktopPrefs prefs = new DesktopPrefs(home);
         prefs.load();
-        check(prefs.getBool("capEnabled", true), "gravity cap enabled by default");
+        check(prefs.getBool("gravityCapEnabled", true), "gravity cap enabled by default");
+        eq(1510000, prefs.getInt("gravityCap", 1510000), "gravity cap default");
         FilterEngine filter = new FilterEngine(prefs, home);
         filter.load();
         check(filter.gravityCount() > 100, "seed gravity loaded");

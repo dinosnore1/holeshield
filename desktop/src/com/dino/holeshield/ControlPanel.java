@@ -17,6 +17,7 @@ import javax.swing.JPasswordField;
 import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSlider;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
@@ -81,6 +82,31 @@ final class ControlPanel extends JFrame {
     private Widgets.RoundedPanel statusPill;
     private Timer timer;
     private int tick;
+
+    private static final int CAP_MIN = 100000;
+    private static final int CAP_STEP = 10000;
+    private static final int CAP_MAX = 5000000;
+    private static final int CAP_STEPS = (CAP_MAX - CAP_MIN) / CAP_STEP;
+    private static final int CAP_NO_LIMIT = CAP_STEPS + 1;
+
+    private static int capProgress(int cap) {
+        if (cap <= 0) return CAP_NO_LIMIT;
+        int step = (cap - CAP_MIN) / CAP_STEP;
+        return Math.max(0, Math.min(CAP_STEPS, step));
+    }
+
+    private static int capFromProgress(int progress) {
+        if (progress >= CAP_NO_LIMIT) return -1;
+        return CAP_MIN + Math.max(0, Math.min(CAP_STEPS, progress)) * CAP_STEP;
+    }
+
+    private static String capLabel(int cap) {
+        if (cap <= 0) return "No limit";
+        if (cap >= 1000000) {
+            return String.format(java.util.Locale.US, "%.2fM", cap / 1000000.0);
+        }
+        return (cap / 1000) + "K";
+    }
 
     ControlPanel(DesktopApp app) {
         super(DesktopApp.NAME);
@@ -955,27 +981,67 @@ final class ControlPanel extends JFrame {
             page.add(Box.createVerticalStrut(14));
 
             Widgets.RoundedPanel capCard = card(16, 17, 14, 17);
-            JPanel capRow = new JPanel(new BorderLayout(10, 0));
-            capRow.setOpaque(false);
+            JPanel capBox = new JPanel();
+            capBox.setOpaque(false);
+            capBox.setLayout(new BoxLayout(capBox, BoxLayout.Y_AXIS));
+
+            JPanel capHead = new JPanel(new BorderLayout(10, 0));
+            capHead.setOpaque(false);
             JPanel capText = new JPanel();
             capText.setOpaque(false);
             capText.setLayout(new BoxLayout(capText, BoxLayout.Y_AXIS));
             capText.add(Widgets.label("Limit gravity size", 13.5f, Font.BOLD, 0));
-            capText.add(Widgets.hint("Keep the loaded index near 1.51M domains. Run Update now to apply."));
+            capText.add(Widgets.hint("Cap the loaded index. Run Update now to apply."));
             Widgets.ToggleSwitch capToggle = new Widgets.ToggleSwitch(
-                    prefs.getBool("capEnabled", true));
+                    prefs.getBool("gravityCapEnabled", true));
+            capHead.add(capText, BorderLayout.CENTER);
+            capHead.add(capToggle, BorderLayout.EAST);
+            capBox.add(capHead);
+
+            JPanel sliderRow = new JPanel(new BorderLayout(10, 0));
+            sliderRow.setOpaque(false);
+            sliderRow.setBorder(new EmptyBorder(8, 0, 0, 0));
+            int capNow = prefs.getInt("gravityCap", 1510000);
+            JSlider capSlider = new JSlider(0, CAP_NO_LIMIT, capProgress(capNow));
+            capSlider.setOpaque(false);
+            capSlider.setPaintTicks(false);
+            capSlider.setPaintLabels(false);
+            JLabel capValue = Widgets.label(capLabel(capNow), 12, Font.BOLD, 0);
+            capValue.setPreferredSize(new Dimension(72, 20));
+            capValue.setHorizontalAlignment(SwingConstants.RIGHT);
+            sliderRow.add(capSlider, BorderLayout.CENTER);
+            sliderRow.add(capValue, BorderLayout.EAST);
+            boolean capOn = prefs.getBool("gravityCapEnabled", true);
+            sliderRow.setVisible(capOn);
+            capBox.add(sliderRow);
+            capCard.add(capBox, BorderLayout.CENTER);
+            capCard.setPreferredSize(new Dimension(100, capOn ? 128 : 82));
+            capCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, capOn ? 140 : 92));
+
             capToggle.setOnChange(value -> {
-                prefs.setBool("capEnabled", value);
+                prefs.setBool("gravityCapEnabled", value);
+                if (value && prefs.getInt("gravityCap", 1510000) <= 0) {
+                    prefs.setInt("gravityCap", 1510000);
+                    capSlider.setValue(capProgress(1510000));
+                    capValue.setText(capLabel(1510000));
+                }
                 prefs.save();
+                sliderRow.setVisible(value);
+                capCard.setPreferredSize(new Dimension(100, value ? 128 : 82));
+                capCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, value ? 140 : 92));
+                capCard.revalidate();
+                capCard.repaint();
                 setStatus(value
-                        ? "Memory guard enabled. Run Update now to apply."
-                        : "Memory guard disabled. Run Update now to load every domain.");
+                        ? "Gravity limit enabled. Run Update now to apply."
+                        : "Gravity limit off. Run Update now to load every domain.");
             });
-            capRow.add(capText, BorderLayout.CENTER);
-            capRow.add(capToggle, BorderLayout.EAST);
-            capCard.add(capRow, BorderLayout.CENTER);
-            capCard.setPreferredSize(new Dimension(100, 82));
-            capCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
+            capSlider.addChangeListener(e -> {
+                int cap = capFromProgress(capSlider.getValue());
+                prefs.setInt("gravityCap", cap);
+                prefs.save();
+                capValue.setText(capLabel(cap));
+            });
+
             page.add(capCard);
             page.add(Box.createVerticalStrut(14));
 

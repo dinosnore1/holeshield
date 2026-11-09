@@ -70,9 +70,9 @@ platform packaging notes. The GitHub Actions workflow
   Enabling a category adds its selected tier and starts an update. The compact
   gravity index makes switches instant and keeps large lists compact (about
   18 MB per 1.51M domains).
-- **Memory guard.** Settings → Gravity → **Limit gravity size** keeps the
-  loaded index near 1.51M domains. Disable it to load every selected domain;
-  this uses significantly more memory and is not recommended on TV boxes.
+- **Gravity size limit.** Settings → Gravity → **Limit gravity size** enables
+  the cap. The slider selects the limit from 100K up to 5M, or **No limit**.
+  No limit loads every selected domain and uses significantly more memory.
 - **Blocking hours.** Optional daily window (overnight ranges supported) pauses
   blocking automatically outside the window and resumes at the start time.
 - **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,

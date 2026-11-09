@@ -38,7 +38,8 @@ final class Backup {
         s.put("dotPort", p.dotPort);
         s.put("localBlocking", p.localBlocking);
         s.put("blockSubdomains", p.blockSubdomains);
-        s.put("capEnabled", p.capEnabled);
+        s.put("gravityCapEnabled", p.gravityCapEnabled);
+        s.put("gravityCap", p.gravityCap);
         s.put("blockCname", p.blockCname);
         s.put("forceDns", p.forceDns);
         s.put("blockedResponse", p.blockedResponse);
@@ -110,7 +111,10 @@ final class Backup {
         p.dotPort = s.optInt("dotPort", p.dotPort);
         p.localBlocking = s.optBoolean("localBlocking", p.localBlocking);
         p.blockSubdomains = s.optBoolean("blockSubdomains", p.blockSubdomains);
-        p.capEnabled = s.optBoolean("capEnabled", p.capEnabled);
+        p.gravityCapEnabled = s.optBoolean("gravityCapEnabled",
+                s.optBoolean("capEnabled", true));
+        p.gravityCap = s.optInt("gravityCap", p.gravityCapEnabled
+                ? Prefs.DEFAULT_GRAVITY_CAP : -1);
         p.blockCname = s.optBoolean("blockCname", p.blockCname);
         p.forceDns = s.optBoolean("forceDns", p.forceDns);
         p.blockedResponse = s.optString("blockedResponse", p.blockedResponse);

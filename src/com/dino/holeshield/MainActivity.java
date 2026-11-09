@@ -35,6 +35,7 @@ import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -46,6 +47,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import org.json.JSONObject;
@@ -352,6 +354,7 @@ public class MainActivity extends Activity {
         scroll.setClipToPadding(false);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         scroll.setVerticalFadingEdgeEnabled(useEdgeFade);
         scroll.setFadingEdgeLength(Ui.dp(this, 48));
         page = Ui.column(this);
@@ -1686,6 +1689,105 @@ public class MainActivity extends Activity {
         else Ui.toast(this, "Adult-content list removed");
     }
 
+    private static final int GRAVITY_CAP_MIN = 100000;
+    private static final int GRAVITY_CAP_STEP = 10000;
+    private static final int GRAVITY_CAP_MAX = 5000000;
+    private static final int GRAVITY_CAP_STEPS =
+            (GRAVITY_CAP_MAX - GRAVITY_CAP_MIN) / GRAVITY_CAP_STEP;
+    private static final int GRAVITY_CAP_NO_LIMIT = GRAVITY_CAP_STEPS + 1;
+
+    private LinearLayout gravitySliderRow() {
+        LinearLayout card = Ui.column(this);
+        card.setBackground(Ui.focusableBg(this, isTv ? 20 : 18));
+        card.setFocusable(true);
+        card.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        int h = Ui.dp(this, isTv ? 22 : 16);
+        int v = Ui.dp(this, isTv ? 16 : 13);
+        card.setPadding(h, v, h, v);
+
+        LinearLayout head = Ui.row(this);
+        head.addView(Ui.text(this, "Gravity limit", isTv ? 15 : 14, Ui.TEXT, true),
+                Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView value = Ui.text(this, gravityCapLabel(prefs.gravityCap),
+                isTv ? 13 : 12.5f, Ui.GREEN, true);
+        head.addView(value);
+        card.addView(head);
+
+        SeekBar slider = new SeekBar(this);
+        slider.setMax(GRAVITY_CAP_NO_LIMIT);
+        slider.setProgress(gravityCapProgress(prefs.gravityCap));
+        slider.setKeyProgressIncrement(1);
+        slider.setFocusable(false);
+        slider.setOnTouchListener((view, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                view.getParent().requestDisallowInterceptTouchEvent(true);
+            } else if (event.getAction() == MotionEvent.ACTION_UP
+                    || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                view.getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            return false;
+        });
+        slider.setProgressTintList(ColorStateList.valueOf(Ui.PRIMARY));
+        slider.setThumbTintList(ColorStateList.valueOf(Ui.PRIMARY));
+        slider.setProgressBackgroundTintList(
+                ColorStateList.valueOf(Ui.OUTLINE_VARIANT));
+        slider.setPadding(Ui.dp(this, 4), Ui.dp(this, 6),
+                Ui.dp(this, 4), Ui.dp(this, 4));
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int cap = gravityCapFromProgress(progress);
+                prefs.gravityCap = cap;
+                prefs.save(MainActivity.this);
+                value.setText(gravityCapLabel(cap));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) { }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                Ui.toast(MainActivity.this,
+                        "Run Update gravity now to apply the new limit");
+            }
+        });
+        card.setOnKeyListener((view, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN
+                    && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                    || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                int delta = keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1;
+                slider.setProgress(Math.max(0, Math.min(GRAVITY_CAP_NO_LIMIT,
+                        slider.getProgress() + delta)));
+                return true;
+            }
+            return false;
+        });
+        card.addView(slider, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 8), 0, 0));
+        return card;
+    }
+
+    private static int gravityCapProgress(int cap) {
+        if (cap <= 0) return GRAVITY_CAP_NO_LIMIT;
+        int step = (cap - GRAVITY_CAP_MIN) / GRAVITY_CAP_STEP;
+        return Math.max(0, Math.min(GRAVITY_CAP_STEPS, step));
+    }
+
+    private static int gravityCapFromProgress(int progress) {
+        if (progress >= GRAVITY_CAP_NO_LIMIT) return -1;
+        return GRAVITY_CAP_MIN
+                + Math.max(0, Math.min(GRAVITY_CAP_STEPS, progress))
+                * GRAVITY_CAP_STEP;
+    }
+
+    private static String gravityCapLabel(int cap) {
+        if (cap <= 0) return "No limit";
+        if (cap >= 1000000) {
+            return String.format(Locale.US, "%.2fM", cap / 1000000.0);
+        }
+        return (cap / 1000) + "K";
+    }
+
     private void addHealthPanel(LinearLayout col) {
         LinearLayout health = card(22);
         List<Blocklist.Health> lists = Blocklist.parseHealth(prefs.listHealth);
@@ -2317,19 +2419,26 @@ public class MainActivity extends Activity {
         bl.addView(settingRow("Blocklist sources", "One hosts/adblock URL per line",
                 listUrlCount(prefs.blocklistUrls) + " lists", this::editListUrls), rowLp(1));
         bl.addView(settingRowToggle("Limit gravity size",
-                "Keep the loaded index near 1.51M domains to save memory",
-                prefs.capEnabled, () -> {
-                    prefs.capEnabled = !prefs.capEnabled;
+                "Cap the loaded index to save memory",
+                prefs.gravityCapEnabled, () -> {
+                    prefs.gravityCapEnabled = !prefs.gravityCapEnabled;
+                    if (prefs.gravityCapEnabled && prefs.gravityCap <= 0) {
+                        prefs.gravityCap = Prefs.DEFAULT_GRAVITY_CAP;
+                    }
                     prefs.save(this);
                     show(Screen.SETTINGS);
-                    Ui.toast(this, prefs.capEnabled
-                            ? "Memory guard enabled; run Update gravity now to apply"
-                            : "Memory guard disabled; run Update gravity now to load every domain");
+                    Ui.toast(this, prefs.gravityCapEnabled
+                            ? "Gravity limit enabled; run Update gravity now to apply"
+                            : "Gravity limit off; run Update gravity now to load every domain");
                 }), rowLp(2));
+        int nextRow = 3;
+        if (prefs.gravityCapEnabled) {
+            bl.addView(gravitySliderRow(), rowLp(nextRow++));
+        }
         bl.addView(settingRowToggle("SafeSearch / parental filter", safeSearchSubtitle(),
-                prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(3));
+                prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(nextRow++));
         bl.addView(settingRow("Test protection", "Resolve a known ad domain through the VPN",
-                "Run", this::testProtection), rowLp(4));
+                "Run", this::testProtection), rowLp(nextRow));
         add(col, bl, 8);
 
         col.addView(section("APPEARANCE"));
