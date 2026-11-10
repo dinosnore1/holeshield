@@ -4,7 +4,6 @@ import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
-import java.awt.event.ActionListener;
 
 /** Menu-bar / notification-area controls. */
 final class TrayController {

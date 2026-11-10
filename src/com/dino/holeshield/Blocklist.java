@@ -790,7 +790,7 @@ final class Blocklist {
                 StringBuilder errors = new StringBuilder();
                 // Security lists first so they survive the memory guard.
                 int limit = p.gravityCapEnabled && p.gravityCap > 0
-                ? p.gravityCap : Integer.MAX_VALUE;
+                        ? p.gravityCap : Integer.MAX_VALUE;
                 int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors, limit);
                 int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors, limit);
                 int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors, limit);

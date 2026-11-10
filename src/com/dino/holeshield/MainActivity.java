@@ -19,11 +19,7 @@ import android.graphics.Insets;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
-import android.net.ConnectivityManager;
-import android.net.LinkProperties;
 import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.RouteInfo;
 import android.net.Uri;
 import android.net.VpnService;
 import android.os.Build;
@@ -57,13 +53,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.URL;
-import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
@@ -1748,8 +1742,7 @@ public class MainActivity extends Activity {
         LinearLayout header = Ui.row(this);
         LinearLayout text = Ui.column(this);
         text.addView(Ui.text(this, "Limit gravity size", isTv ? 16 : 15, Ui.TEXT, true));
-        TextView detail = Ui.text(this, "Cap the loaded index · "
-                        + gravityCapLabel(prefs.gravityCap),
+        TextView detail = Ui.text(this, gravityCapDetail(prefs.gravityCapEnabled, prefs.gravityCap),
                 isTv ? 11.5f : 11, Ui.FAINT, false);
         detail.setSingleLine(true);
         text.addView(detail, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -1816,7 +1809,7 @@ public class MainActivity extends Activity {
                 int cap = gravityCapFromProgress(progress);
                 prefs.gravityCap = cap;
                 if (!fromUser) prefs.save(MainActivity.this);
-                detail.setText("Cap the loaded index · " + gravityCapLabel(cap));
+                detail.setText(gravityCapDetail(true, cap));
             }
 
             @Override
@@ -1869,6 +1862,12 @@ public class MainActivity extends Activity {
         return GRAVITY_CAP_MIN
                 + Math.max(0, Math.min(GRAVITY_CAP_STEPS, progress))
                 * GRAVITY_CAP_STEP;
+    }
+
+    private static String gravityCapDetail(boolean enabled, int cap) {
+        return enabled
+                ? "Cap the loaded index · " + gravityCapLabel(cap)
+                : "Off · loads every domain";
     }
 
     private static String gravityCapLabel(int cap) {
