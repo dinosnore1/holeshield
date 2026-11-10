@@ -15,6 +15,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -407,12 +408,33 @@ final class Ui {
         return layer;
     }
 
-    /** Keeps the card size stable: a soft lift instead of a scale-up. */
+    /** A short hardware-layer lift and scale for focus changes. */
     static void focusScale(final View v) {
         v.setOnFocusChangeListener((view, focused) -> {
             float z = focused ? dp(view.getContext(), 4) : 0f;
-            view.animate().translationZ(z).setDuration(120).start();
+            float scale = focused ? 1.01f : 1f;
+            view.animate()
+                    .translationZ(z)
+                    .scaleX(scale)
+                    .scaleY(scale)
+                    .setDuration(110)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .withLayer()
+                    .start();
         });
+    }
+
+    /** Fades and lifts a newly shown screen into place. */
+    static void animateIn(View view) {
+        view.setAlpha(0f);
+        view.setTranslationY(dp(view.getContext(), 10));
+        view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(180)
+                .setInterpolator(new DecelerateInterpolator())
+                .withLayer()
+                .start();
     }
 
     /** A focusable card used for clickable rows and buttons. */
@@ -522,7 +544,21 @@ final class Ui {
     static void tintDialog(AlertDialog dialog) {
         if (dialog == null) return;
         Window window = dialog.getWindow();
-        if (window != null) window.setDimAmount(0.68f);
+        if (window != null) {
+            window.setDimAmount(0.68f);
+            View decor = window.getDecorView();
+            decor.setAlpha(0f);
+            decor.setScaleX(0.96f);
+            decor.setScaleY(0.96f);
+            decor.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(160)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .withLayer()
+                    .start();
+        }
         int titleId = dialog.getContext().getResources()
                 .getIdentifier("alertTitle", "id", "android");
         TextView title = titleId == 0 ? null : dialog.findViewById(titleId);

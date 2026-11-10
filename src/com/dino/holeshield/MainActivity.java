@@ -705,6 +705,7 @@ public class MainActivity extends Activity {
         }
         page.addView(content, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+        if (!sameScreen) Ui.animateIn(content);
         if (sameScreen) {
             // Rebuilding the same screen (a setting toggle, for example) must
             // not jump back to the top. Re-focus the row the user was on, or
@@ -1709,6 +1710,7 @@ public class MainActivity extends Activity {
         TextView detail = Ui.text(this, "Cap the loaded index · "
                         + gravityCapLabel(prefs.gravityCap),
                 isTv ? 11.5f : 11, Ui.FAINT, false);
+        detail.setSingleLine(true);
         text.addView(detail, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
         header.addView(text, Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -1772,7 +1774,7 @@ public class MainActivity extends Activity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 int cap = gravityCapFromProgress(progress);
                 prefs.gravityCap = cap;
-                prefs.save(MainActivity.this);
+                if (!fromUser) prefs.save(MainActivity.this);
                 detail.setText("Cap the loaded index · " + gravityCapLabel(cap));
             }
 
@@ -1781,6 +1783,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                prefs.save(MainActivity.this);
                 Ui.toast(MainActivity.this,
                         "Run Update gravity now to apply the new limit");
             }
