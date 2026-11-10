@@ -109,6 +109,7 @@ public class MainActivity extends Activity {
     private LinkedHashMap<Screen, TextView> phoneNavItems;
     private LinearLayout phoneNav;
     private TextView heroTitle;
+    private TextView heroStatus;
     private TextView heroSub;
     private TextView primaryLabel;
     private TextView statQueries;
@@ -744,6 +745,7 @@ public class MainActivity extends Activity {
         shield = null;
         chip = isTv ? railChip : null;
         heroTitle = null;
+        heroStatus = null;
         heroSub = null;
         primaryLabel = null;
         statQueries = null;
@@ -811,13 +813,15 @@ public class MainActivity extends Activity {
 
         shield = new ShieldView(this);
         shield.setContentDescription("Protection status");
-        int shieldSize = isTv ? 152 : 88;
+        int shieldSize = isTv ? 176 : 88;
         shield.setLayoutParams(Ui.lp(Ui.dp(this, shieldSize), Ui.dp(this, shieldSize)));
         hero.addView(shield);
 
         LinearLayout heroText = Ui.column(this);
-        heroText.addView(Ui.caption(this, "PROTECTION"));
-        heroTitle = Ui.text(this, "", isTv ? 32 : 26, Ui.TEXT, true);
+        heroStatus = Ui.text(this, "", isTv ? 14 : 12.5f, Ui.DIM, true);
+        heroStatus.setLetterSpacing(0.12f);
+        heroText.addView(heroStatus);
+        heroTitle = Ui.text(this, "", isTv ? 40 : 28, Ui.TEXT, true);
         heroTitle.setLetterSpacing(-0.01f);
         heroText.addView(heroTitle, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 6), 0, 0));
@@ -1038,6 +1042,29 @@ public class MainActivity extends Activity {
         }
 
         updateStatusChip();
+
+        if (heroStatus != null) {
+            int color;
+            String label;
+            if (running && prefs.blockingActive()) {
+                color = Ui.GREEN;
+                label = "● ACTIVE · " + Ui.count(Stats.blocked()) + " blocked today";
+            } else if (running) {
+                color = Ui.AMBER;
+                label = "● PAUSED";
+            } else if (!prefs.protectionWanted) {
+                color = Ui.DIM;
+                label = "○ OFF";
+            } else if (!DnsVpnService.lastError.isEmpty() || vpnConsentNeeded) {
+                color = Ui.AMBER;
+                label = "● NEEDS ATTENTION";
+            } else {
+                color = Ui.DIM;
+                label = "● STARTING";
+            }
+            heroStatus.setTextColor(color);
+            heroStatus.setText(label);
+        }
 
         if (heroTitle != null) {
             if (running && !prefs.blockingActive()) {
