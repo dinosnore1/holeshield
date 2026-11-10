@@ -56,7 +56,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -681,6 +683,32 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ screens
 
+    /** A built Settings or Gravity screen, reused until its inputs change. */
+    private static final class CachedScreen {
+        final Object key;
+        final View view;
+        final TextView listCount;
+        final TextView listUpdated;
+        final View initialFocus;
+
+        CachedScreen(Object key, View view, TextView listCount, TextView listUpdated,
+                View initialFocus) {
+            this.key = key;
+            this.view = view;
+            this.listCount = listCount;
+            this.listUpdated = listUpdated;
+            this.initialFocus = initialFocus;
+        }
+    }
+
+    private final Map<Screen, CachedScreen> screenCache = new HashMap<>();
+
+    /** Inputs that change what the cached screens show. Prefs and rule edits bump the revision. */
+    private static Object screenKey() {
+        return Arrays.asList(Blocklist.revision(), DnsVpnService.running,
+                DnsVpnService.starting, Blocklist.isUpdating(), Blocklist.blockedCount());
+    }
+
     private void show(Screen next) {
         boolean sameScreen = screen == next;
         int keepScroll = scroll == null ? 0 : scroll.getScrollY();
@@ -691,13 +719,26 @@ public class MainActivity extends Activity {
         clearRefs();
         page.removeAllViews();
         View content;
-        switch (next) {
-            case SETTINGS: content = settingsScreen(); break;
-            case LISTS: content = listsScreen(); break;
-            case SERVER: content = serverScreen(); break;
-            case LOG: content = logScreen(); break;
-            case NETWORK: content = networkScreen(); break;
-            default: content = homeScreen(); break;
+        Object key = screenKey();
+        CachedScreen hit = sameScreen ? null : screenCache.get(next);
+        if (hit != null && hit.key.equals(key)) {
+            content = hit.view;
+            listCount = hit.listCount;
+            listUpdated = hit.listUpdated;
+            initialFocus = hit.initialFocus;
+        } else {
+            switch (next) {
+                case SETTINGS: content = settingsScreen(); break;
+                case LISTS: content = listsScreen(); break;
+                case SERVER: content = serverScreen(); break;
+                case LOG: content = logScreen(); break;
+                case NETWORK: content = networkScreen(); break;
+                default: content = homeScreen(); break;
+            }
+            if (next == Screen.SETTINGS || next == Screen.LISTS) {
+                screenCache.put(next, new CachedScreen(key, content, listCount,
+                        listUpdated, initialFocus));
+            }
         }
         page.addView(content, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));

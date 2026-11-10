@@ -164,6 +164,7 @@ final class Blocklist {
     private static volatile int categoryMask = Gravity.ALL;
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
+    private static volatile int revision;
 
     private Blocklist() { }
 
@@ -190,7 +191,17 @@ final class Blocklist {
     static void reload(Context c) {
         synchronized (RELOAD_LOCK) {
             reloadLocked(c);
+            bumpRevision();
         }
+    }
+
+    /** Changes whenever lists, rules or settings change; screens cache against it. */
+    static int revision() {
+        return revision;
+    }
+
+    static synchronized void bumpRevision() {
+        revision++;
     }
 
     private static void reloadLocked(Context c) {
@@ -330,6 +341,7 @@ final class Blocklist {
     }
 
     static void clearCustomInMemory() {
+        bumpRevision();
         exactBlocked = Collections.emptySet();
         exactAllowed = Collections.emptySet();
         wildcardBlocked = Collections.emptySet();
@@ -340,6 +352,7 @@ final class Blocklist {
 
     /** Applies a just-saved custom rule without rereading the 500k gravity file. */
     static void applyRuleInMemory(boolean allow, int kind, String value, boolean add) {
+        bumpRevision();
         if (value == null || value.isEmpty()) return;
         if (kind == REGEX) {
             ArrayList<Compiled> copy = new ArrayList<>(allow ? regexAllowed : regexBlocked);

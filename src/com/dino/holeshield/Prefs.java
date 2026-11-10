@@ -215,6 +215,7 @@ final class Prefs {
     }
 
     void save(Context c) {
+        Blocklist.bumpRevision();
         c.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
                 .putBoolean("protectionWanted", protectionWanted)
                 .putBoolean("vpnDisclosureAccepted", vpnDisclosureAccepted)
