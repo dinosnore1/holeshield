@@ -424,16 +424,13 @@ final class Ui {
         });
     }
 
-    /** Fades and lifts a newly shown screen into place. */
+    /** Slides a newly shown screen into place. Translation only: a full-screen layer here dropped frames. */
     static void animateIn(View view) {
-        view.setAlpha(0f);
         view.setTranslationY(dp(view.getContext(), 10));
         view.animate()
-                .alpha(1f)
                 .translationY(0f)
                 .setDuration(180)
                 .setInterpolator(new DecelerateInterpolator())
-                .withLayer()
                 .start();
     }
 

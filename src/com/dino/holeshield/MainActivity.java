@@ -686,6 +686,7 @@ public class MainActivity extends Activity {
         int keepScroll = scroll == null ? 0 : scroll.getScrollY();
         String keepFocus = sameScreen ? focusTag(getCurrentFocus()) : null;
         screen = next;
+        if (next != Screen.LOG) logPage = LOG_PAGE;
         initialFocus = null;
         clearRefs();
         page.removeAllViews();
@@ -2101,6 +2102,10 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- log screen
 
+    /** Query-log rows are built per page: building all 200 at once stalled navigation. */
+    private static final int LOG_PAGE = 25;
+    private int logPage = LOG_PAGE;
+
     private LinearLayout logScreen() {
         LinearLayout col = Ui.column(this);
         add(col, subHeader("Query log", "Newest first · the last 2,000 lookups stay on the device"), 0);
@@ -2120,6 +2125,7 @@ public class MainActivity extends Activity {
         initialFocus = clear;
 
         List<Stats.Entry> entries = Stats.log(200);
+        int shown = Math.min(logPage, entries.size());
         LinearLayout list = card(22);
         if (entries.isEmpty()) {
             TextView empty = Ui.text(this, "No queries logged yet today. "
@@ -2129,7 +2135,7 @@ public class MainActivity extends Activity {
             list.addView(empty);
         } else {
             SimpleDateFormat fmt = new SimpleDateFormat("HH:mm:ss", Locale.US);
-            for (int i = 0; i < entries.size(); i++) {
+            for (int i = 0; i < shown; i++) {
                 Stats.Entry e = entries.get(i);
                 int color = e.blocked ? Ui.RED : "CACHED".equals(e.status) ? Ui.BLUE
                         : "ERROR".equals(e.status) ? Ui.AMBER : Ui.GREEN;
@@ -2201,6 +2207,17 @@ public class MainActivity extends Activity {
             }
         }
         add(col, list, isTv ? 20 : 14);
+
+        if (entries.size() > shown) {
+            TextView more = Ui.button(this, "Show " + Math.min(LOG_PAGE, entries.size() - shown)
+                    + " more", false);
+            more.setTag("log-more");
+            more.setOnClickListener(v -> {
+                logPage += LOG_PAGE;
+                show(Screen.LOG);
+            });
+            add(col, more, isTv ? 16 : 12);
+        }
 
         TextView note = Ui.text(this, "Counts reset at midnight. The dashboard keeps the same "
                 + "log on its Query log table and exposes it at /api/queries.",

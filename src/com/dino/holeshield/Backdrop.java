@@ -6,10 +6,13 @@ import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
-import android.os.SystemClock;
 import android.view.View;
 
-/** Tonal Material 3 background with three very slow colour glows. No bitmaps. */
+/**
+ * Tonal Material 3 background with three soft colour glows. It is drawn only
+ * when its size changes: a moving full-screen backdrop forces the whole window
+ * to redraw every frame, which made the TV drop frames on every screen.
+ */
 final class Backdrop extends View {
 
     private final Paint basePaint = new Paint();
@@ -20,14 +23,6 @@ final class Backdrop extends View {
     private RadialGradient tertiaryGlow;
     private int w;
     private int h;
-    private long start;
-
-    private final Runnable frame = new Runnable() {
-        @Override public void run() {
-            invalidate();
-            postDelayed(this, 90);
-        }
-    };
 
     Backdrop(Context c) {
         super(c);
@@ -61,46 +56,15 @@ final class Backdrop extends View {
                 new int[]{Ui.withAlpha(Ui.TERTIARY, 0x22),
                         Ui.withAlpha(Ui.TERTIARY, 0x0D), Ui.withAlpha(Ui.TERTIARY, 0x00)},
                 new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
-    }
-
-    @Override protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        start = SystemClock.uptimeMillis();
-        removeCallbacks(frame);
-        postDelayed(frame, 90);
-    }
-
-    @Override protected void onDetachedFromWindow() {
-        removeCallbacks(frame);
-        super.onDetachedFromWindow();
-    }
-
-    @Override protected void onWindowVisibilityChanged(int visibility) {
-        super.onWindowVisibilityChanged(visibility);
-        removeCallbacks(frame);
-        if (visibility == VISIBLE) postDelayed(frame, 90);
+        invalidate();
     }
 
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         canvas.drawRect(0, 0, w, h, basePaint);
-        long t = SystemClock.uptimeMillis() - start;
-        double a = t / 19000.0;
-        double b = t / 27000.0;
-        double c = t / 23000.0;
-
-        drawGlow(canvas, primaryGlow,
-                w * 0.20f + (float) Math.sin(a) * w * 0.05f,
-                h * 0.10f + (float) Math.cos(a * 1.3) * h * 0.04f,
-                Math.max(w, h) * 0.55f, 190);
-        drawGlow(canvas, secondaryGlow,
-                w * 0.82f + (float) Math.cos(b) * w * 0.05f,
-                h * 0.22f + (float) Math.sin(b * 1.1) * h * 0.05f,
-                Math.max(w, h) * 0.50f, 170);
-        drawGlow(canvas, tertiaryGlow,
-                w * 0.62f + (float) Math.sin(c * 1.2) * w * 0.06f,
-                h * 0.95f + (float) Math.cos(c) * h * 0.03f,
-                Math.max(w, h) * 0.45f, 150);
+        drawGlow(canvas, primaryGlow, w * 0.20f, h * 0.10f, Math.max(w, h) * 0.55f, 190);
+        drawGlow(canvas, secondaryGlow, w * 0.82f, h * 0.22f, Math.max(w, h) * 0.50f, 170);
+        drawGlow(canvas, tertiaryGlow, w * 0.62f, h * 0.95f, Math.max(w, h) * 0.45f, 150);
     }
 
     private void drawGlow(Canvas canvas, RadialGradient shader, float x, float y, float r, int alpha) {
