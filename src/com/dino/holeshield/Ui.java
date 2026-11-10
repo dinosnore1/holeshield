@@ -399,10 +399,10 @@ final class Ui {
 
     /** Focused card: tinted surface, bright outline and a left accent bar. */
     private static LayerDrawable focusLayer(Context c, float radiusDp) {
-        GradientDrawable base = rounded(c, CARD_FOCUS, radiusDp, 2, STROKE_FOCUS);
+        GradientDrawable base = rounded(c, mix(CARD, PRIMARY, 0.12f), radiusDp, 3, PRIMARY);
         GradientDrawable bar = rounded(c, PRIMARY, 99);
         LayerDrawable layer = new LayerDrawable(new Drawable[]{base, bar});
-        layer.setLayerWidth(1, dp(c, 4));
+        layer.setLayerWidth(1, dp(c, 6));
         layer.setLayerGravity(1, Gravity.LEFT | Gravity.CENTER_VERTICAL);
         layer.setLayerInset(1, 0, dp(c, 14), 0, dp(c, 14));
         return layer;
