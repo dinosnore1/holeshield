@@ -1000,7 +1000,7 @@ public class MainActivity extends Activity {
         c.setPadding(Ui.dp(this, isTv ? 20 : 16), Ui.dp(this, isTv ? 20 : 14),
                 Ui.dp(this, isTv ? 20 : 16), Ui.dp(this, isTv ? 18 : 12));
 
-        TextView cap = Ui.text(this, label, isTv ? 15 : 13, Ui.DIM, true);
+        TextView cap = Ui.text(this, label, isTv ? 15 : 11, Ui.DIM, true);
         cap.setLetterSpacing(0.12f);
         c.addView(cap);
         TextView value = Ui.text(this, "0", isTv ? 30 : 26, accent, true);
