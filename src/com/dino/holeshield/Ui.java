@@ -592,6 +592,13 @@ final class Ui {
         return String.format(java.util.Locale.US, "%,d", n);
     }
 
+    /** Short form for big counts that must fit a stat card, e.g. 1,357,708 to 1.36M. */
+    static String compactCount(long n) {
+        if (n >= 1000000) return String.format(java.util.Locale.US, "%.2fM", n / 1000000.0);
+        if (n >= 100000) return (n / 1000) + "K";
+        return count(n);
+    }
+
     static String percent(double p) {
         return String.format(java.util.Locale.US, "%.1f%%", p);
     }

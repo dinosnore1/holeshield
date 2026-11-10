@@ -865,6 +865,7 @@ public class MainActivity extends Activity {
                 "today, all clients", Ui.GREEN);
         statBlocked = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
         statRate = statCard(stats, "BLOCK RATE", "of all lookups", Ui.BLUE);
+        trimLastMargin(stats);
         add(col, stats, isTv ? 18 : 14);
 
         // Server card
@@ -956,21 +957,30 @@ public class MainActivity extends Activity {
         LinearLayout c = Ui.column(this);
         c.setBackground(Ui.rounded(this, Ui.mix(Ui.CARD, accent, 0.07f),
                 isTv ? 24 : 20, 1, Ui.STROKE));
-        c.setPadding(Ui.dp(this, isTv ? 24 : 16), Ui.dp(this, isTv ? 20 : 14),
-                Ui.dp(this, isTv ? 24 : 16), Ui.dp(this, isTv ? 18 : 12));
+        c.setPadding(Ui.dp(this, isTv ? 20 : 16), Ui.dp(this, isTv ? 20 : 14),
+                Ui.dp(this, isTv ? 20 : 16), Ui.dp(this, isTv ? 18 : 12));
 
         TextView cap = Ui.caption(this, label);
         c.addView(cap);
-        TextView value = Ui.text(this, "0", isTv ? 34 : 26, accent, true);
+        TextView value = Ui.text(this, "0", isTv ? 30 : 26, accent, true);
+        value.setSingleLine(true);
         c.addView(value, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, isTv ? 10 : 7), 0, 0));
         c.addView(Ui.text(this, sub, isTv ? 12 : 11, Ui.FAINT, false));
 
         LinearLayout.LayoutParams lp = Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp.rightMargin = Ui.dp(this, isTv ? 14 : 8);
-        if (parent.getChildCount() == 2) lp.rightMargin = 0;
         parent.addView(c, lp);
         return value;
+    }
+
+    /** Removes the trailing gap so a stat row lines up with the card edge below it. */
+    private static void trimLastMargin(LinearLayout row) {
+        View last = row.getChildAt(row.getChildCount() - 1);
+        if (last != null && last.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+            ((LinearLayout.LayoutParams) last.getLayoutParams()).rightMargin = 0;
+            last.setLayoutParams(last.getLayoutParams());
+        }
     }
 
     private LinearLayout card(int padding) {
@@ -1176,15 +1186,18 @@ public class MainActivity extends Activity {
             serverB = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
             serverPct = statCard(stats, "PERCENT", "of all queries", Ui.AMBER);
             serverGravity = statCard(stats, "ON LISTS", "domains", Ui.BLUE);
+            trimLastMargin(stats);
             add(col, stats, 18);
         } else {
             LinearLayout stats1 = Ui.row(this);
             serverQ = statCard(stats1, "QUERIES", "today, all clients", Ui.GREEN);
             serverB = statCard(stats1, "BLOCKED", "gravity & rules", Ui.RED);
+            trimLastMargin(stats1);
             add(col, stats1, 14);
             LinearLayout stats2 = Ui.row(this);
             serverPct = statCard(stats2, "PERCENT", "of all queries", Ui.AMBER);
             serverGravity = statCard(stats2, "ON LISTS", "domains", Ui.BLUE);
+            trimLastMargin(stats2);
             add(col, stats2, 8);
         }
 
@@ -1343,7 +1356,7 @@ public class MainActivity extends Activity {
         if (serverQ != null) serverQ.setText(Ui.count(Stats.queries()));
         if (serverB != null) serverB.setText(Ui.count(Stats.blocked()));
         if (serverPct != null) serverPct.setText(Ui.percent(Stats.rate()));
-        if (serverGravity != null) serverGravity.setText(Ui.count(Blocklist.blockedCount()));
+        if (serverGravity != null) serverGravity.setText(Ui.compactCount(Blocklist.blockedCount()));
 
         if (serverTopBox != null) {
             List<Stats.Top> tops = Stats.topDomains(true, 8);
