@@ -424,13 +424,15 @@ final class Ui {
         });
     }
 
-    /** Slides a newly shown screen into place. Translation only: a full-screen layer here dropped frames. */
+    /** Slides a newly shown screen into place. Translation only: a full-screen layer here 
+        dropped frames on slower devices. */
     static void animateIn(View view) {
         view.setTranslationY(dp(view.getContext(), 10));
         view.animate()
                 .translationY(0f)
-                .setDuration(180)
+                .setDuration(160)
                 .setInterpolator(new DecelerateInterpolator())
+                .withLayer()
                 .start();
     }
 
