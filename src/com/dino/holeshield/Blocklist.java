@@ -52,7 +52,7 @@ final class Blocklist {
     private static final String DATING_FILE = "blocklist_dating.txt";
     private static final String SOCIAL_FILE = "blocklist_social.txt";
     private static final String OTHER_FILE = "blocklist_other.txt";
-    private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
+    private static final int MAX_DOWNLOAD_BYTES = 128 * 1024 * 1024;
     private static final int MAX_REGEX = 500;
 
     interface Done {

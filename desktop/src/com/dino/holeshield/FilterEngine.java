@@ -42,7 +42,7 @@ final class FilterEngine {
     static final int REGEX = 2;
 
     private static final int MAX_DOMAINS = 1510000;
-    private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;    private static final int MAX_REGEX = 500;
+    private static final int MAX_DOWNLOAD_BYTES = 128 * 1024 * 1024;    private static final int MAX_REGEX = 500;
     private static final String GRAVITY_FILE = "gravity.bin";
     private static final String META_FILE = "gravity.properties";
     private static final String[] META_KEYS = {
