@@ -42,8 +42,7 @@ final class FilterEngine {
     static final int REGEX = 2;
 
     private static final int MAX_DOMAINS = 1510000;
-    private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
-    private static final int MAX_REGEX = 500;
+    private static final int MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;    private static final int MAX_REGEX = 500;
     private static final String GRAVITY_FILE = "gravity.bin";
     private static final String META_FILE = "gravity.properties";
     private static final String[] META_KEYS = {
@@ -644,6 +643,16 @@ final class FilterEngine {
 
     String lastError() { return lastError; }
 
+    /** Ceiling for the merged index when the user disables the size limit. */
+    private static int heapSafeLimit() {
+        long heap = Runtime.getRuntime().maxMemory();
+        long reserve = 256L * 1024 * 1024;
+        long budget = Math.max(heap - reserve, 256L * 1024 * 1024);
+        long limit = budget / 48;
+        if (limit > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (int) Math.max(1_000_000, limit);
+    }
+
     List<Health> health() { return health; }
 
     List<String> listUrls() {
@@ -785,9 +794,9 @@ final class FilterEngine {
         };
         boolean capEnabled = prefs.getBool("gravityCapEnabled", true);
         int cap = prefs.getInt("gravityCap", 1510000);
-        int limit = capEnabled && cap > 0 ? cap : Integer.MAX_VALUE;
+        int limit = capEnabled && cap > 0 ? cap : heapSafeLimit();
         long[][] capped = capEnabled && cap > 0
-                ? Gravity.fairCap(raw, cap) : raw;
+                ? Gravity.fairCap(raw, cap) : Gravity.fairCap(raw, limit);
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }

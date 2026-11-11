@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -152,6 +151,68 @@ final class Blocklist {
         }
     }
 
+    /** Open-addressing set of 64-bit hashes; far smaller than a HashSet of strings. */
+    private static final class LongSet {
+        private static final long EMPTY = 0L;
+        private long[] keys;
+        private int size;
+        private int mask;
+
+        LongSet(int expected) {
+            int cap = 8;
+            while (cap < expected * 2) cap <<= 1;
+            keys = new long[cap];
+            mask = cap - 1;
+        }
+
+        private static long mix(long h) {
+            h ^= (h >>> 33);
+            h *= 0xff51afd7ed558ccdL;
+            h ^= (h >>> 33);
+            h *= 0xc4ceb9fe1a85ec53L;
+            h ^= (h >>> 33);
+            return h;
+        }
+
+        /** @return true if value was newly added, false if already present. */
+        boolean add(long value) {
+            if (value == EMPTY) value = 0x9e3779b97f4a7c15L;
+            if (size * 2 >= keys.length) grow();
+            int i = (int) (mix(value) & mask);
+            while (true) {
+                long k = keys[i];
+                if (k == EMPTY) {
+                    keys[i] = value;
+                    size++;
+                    return true;
+                }
+                if (k == value) return false;
+                i = (i + 1) & mask;
+            }
+        }
+
+        int size() {
+            return size;
+        }
+
+        private void grow() {
+            long[] old = keys;
+            keys = new long[old.length << 1];
+            mask = keys.length - 1;
+            size = 0;
+            for (long v : old) {
+                if (v != EMPTY) insert(v);
+            }
+        }
+
+        private void insert(long value) {
+            int i = (int) (mix(value) & mask);
+            while (keys[i] != EMPTY) i = (i + 1) & mask;
+            keys[i] = value;
+            size++;
+        }
+    }
+
     private static volatile Gravity gravity = Gravity.empty();
     private static volatile Set<String> exactBlocked = Collections.emptySet();
     private static volatile Set<String> exactAllowed = Collections.emptySet();
@@ -165,6 +226,25 @@ final class Blocklist {
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
     private static volatile int revision;
+
+    /**
+     * Effective index size. The user can disable the cap ("No limit"), but the
+     * merged index must still fit in the process heap: when the cap is off we
+     * fall back to a ceiling derived from {@link Runtime#maxMemory()} so a huge
+     * list set cannot crash the app with an OutOfMemoryError.
+     */
+    private static int gravityLimit(Prefs p) {
+        if (p.gravityCapEnabled && p.gravityCap > 0) return p.gravityCap;
+        long heap = Runtime.getRuntime().maxMemory();
+        // Reserve room for the app, VPN buffers, UI and the previous index.
+        long reserve = 96L * 1024 * 1024;
+        long budget = Math.max(heap - reserve, 128L * 1024 * 1024);
+        // Peak cost is about 48 bytes per domain across the source arrays and
+        // the final index, so leave comfortable headroom.
+        long limit = budget / 48;
+        if (limit > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (int) Math.max(1_000_000, limit);
+    }
 
     private Blocklist() { }
 
@@ -232,8 +312,7 @@ final class Blocklist {
     }
 
     private static Gravity loadGravity(Context c, Prefs p) {
-        int limit = p.gravityCapEnabled && p.gravityCap > 0
-                ? p.gravityCap : Integer.MAX_VALUE;
+        int limit = gravityLimit(p);
         long[] malware = readCategory(c, MALWARE_FILE, limit);
         long[] trackers = readCategory(c, TRACKER_FILE, limit);
         long[] ads = readCategory(c, ADS_FILE, limit);
@@ -802,8 +881,7 @@ final class Blocklist {
                 int[] tally = new int[2];
                 StringBuilder errors = new StringBuilder();
                 // Security lists first so they survive the memory guard.
-                int limit = p.gravityCapEnabled && p.gravityCap > 0
-                        ? p.gravityCap : Integer.MAX_VALUE;
+                int limit = gravityLimit(p);
                 int malwareCount = downloadCategory(app, malwareUrls, MALWARE_FILE, health, tally, errors, limit);
                 int trackerCount = downloadCategory(app, trackerUrls, TRACKER_FILE, health, tally, errors, limit);
                 int adsCount = downloadCategory(app, adsUrls, ADS_FILE, health, tally, errors, limit);
@@ -862,41 +940,30 @@ final class Blocklist {
                                         StringBuilder errors, int limit) {
         File dst = new File(app.getFilesDir(), file);
         if (urls.isEmpty()) return deleteCategory(app, file);
-        LinkedHashSet<String> category = new LinkedHashSet<>(131072);
-        for (String url : urls) {
-            if (category.size() >= limit) break;
-            int before = category.size();
-            try {
-                downloadInto(url, category, limit);
-                int added = category.size() - before;
-                tally[0]++;
-                health.add(new Health(url, true, added, "",
-                        System.currentTimeMillis()));
-            } catch (Exception e) {
-                tally[1]++;
-                String error = e.getMessage() == null ? "failed" : e.getMessage();
-                health.add(new Health(url, false, 0, error,
-                        System.currentTimeMillis()));
-                if (errors.length() < 180) {
-                    if (errors.length() > 0) errors.append("; ");
-                    errors.append(Prefs.hostOf(url)).append(": ").append(error);
+        File tmp = new File(app.getFilesDir(), file + ".tmp");
+        LongSet seen = new LongSet(131072);
+        int[] count = new int[1];
+        try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
+            for (String url : urls) {
+                if (count[0] >= limit) break;
+                int before = count[0];
+                try {
+                    downloadInto(url, w, seen, count, limit);
+                    int added = count[0] - before;
+                    tally[0]++;
+                    health.add(new Health(url, true, added, "",
+                            System.currentTimeMillis()));
+                } catch (Exception e) {
+                    tally[1]++;
+                    String error = e.getMessage() == null ? "failed" : e.getMessage();
+                    health.add(new Health(url, false, 0, error,
+                            System.currentTimeMillis()));
+                    if (errors.length() < 180) {
+                        if (errors.length() > 0) errors.append("; ");
+                        errors.append(Prefs.hostOf(url)).append(": ").append(error);
+                    }
                 }
-            }
-        }
-        int count = category.size();
-        if (count == 0) return deleteCategory(app, file);
-        try {
-            File tmp = new File(app.getFilesDir(), file + ".tmp");
-            try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
-                    new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
-                for (String d : category) {
-                    w.write(d);
-                    w.write('\n');
-                }
-            }
-            if (!tmp.renameTo(dst)) {
-                if (dst.exists()) dst.delete();
-                if (!tmp.renameTo(dst)) throw new Exception("Could not save " + file);
             }
         } catch (Exception e) {
             if (errors.length() < 180) {
@@ -904,8 +971,19 @@ final class Blocklist {
                 errors.append(file).append(": ").append(e.getMessage());
             }
         }
-        category.clear();
-        return count;
+        int c = count[0];
+        if (c == 0) {
+            tmp.delete();
+            return deleteCategory(app, file);
+        }
+        if (!tmp.renameTo(dst)) {
+            if (dst.exists()) dst.delete();
+            if (!tmp.renameTo(dst)) {
+                tmp.delete();
+                return deleteCategory(app, file);
+            }
+        }
+        return c;
     }
 
     private static int deleteCategory(Context app, String file) {
@@ -927,7 +1005,8 @@ final class Blocklist {
         return out.toString();
     }
 
-    private static void downloadInto(String url, Set<String> into, int limit) throws Exception {
+    private static void downloadInto(String url, BufferedWriter w, LongSet seen,
+                                     int[] count, int limit) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(25000);
@@ -942,9 +1021,13 @@ final class Blocklist {
             while ((line = r.readLine()) != null) {
                 read += line.length() + 1;
                 if (read > MAX_DOWNLOAD_BYTES) throw new Exception("List is too large");
-                if (into.size() >= limit) break;
+                if (count[0] >= limit) break;
                 String d = HostsParser.parseLine(line);
-                if (!d.isEmpty()) into.add(d);
+                if (!d.isEmpty() && seen.add(Gravity.hash(d))) {
+                    w.write(d);
+                    w.write('\n');
+                    count[0]++;
+                }
             }
         }
     }
