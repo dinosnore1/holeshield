@@ -241,8 +241,6 @@ final class Blocklist {
             "ads", "malware", "trackers", "adult",
             "piracy", "gambling", "dating", "social", "other"
     };
-    /** User-facing categories; "other" is the fallback bucket and not a slot. */
-    private static final int CATEGORY_SLOTS = Blocklists.CATEGORY_KEYS.length;
     private static volatile int[] categoryCounts = new int[CATEGORY_PRIORITY.length];
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
@@ -397,8 +395,7 @@ final class Blocklist {
                 Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
                 Gravity.OTHER
         };
-        return Gravity.buildFair(sources, bits, limit, CATEGORY_SLOTS,
-                CATEGORY_PRIORITY);
+        return Gravity.buildFair(sources, bits, limit, CATEGORY_PRIORITY);
     }
 
     private static long[] readCategory(Context c, String name, int limit) {

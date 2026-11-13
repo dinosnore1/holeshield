@@ -192,16 +192,16 @@ final class Gravity {
      * in {@code priority}; the kept entry keeps every category bit it was
      * listed under.
      *
-     * <p>The guard is split over {@code slots} categories, so a switched-off
-     * category leaves its share unused and the total shrinks. Each enabled
-     * category owns one share; space that a smaller list cannot fill flows to
-     * the categories first in {@code priority}, so the caller can favour
-     * Ads without letting a large list take the whole guard.</p>
+     * <p>The guard is divided between the enabled categories only, so a
+     * switched-off category gives its share to the ones that are still on.
+     * Space that a smaller list cannot fill likewise flows to the categories
+     * first in {@code priority}, which lets the caller favour Ads without
+     * letting a large list take the whole guard.</p>
      *
      * <p>{@code sources} must be sorted and free of duplicates, as returned by
      * {@link #clean(long[])}.</p>
      */
-    static Gravity buildFair(long[][] sources, int[] bits, int max, int slots,
+    static Gravity buildFair(long[][] sources, int[] bits, int max,
                              int[] priority) {
         if (sources == null || sources.length == 0 || max <= 0) return EMPTY;
         if (priority == null || priority.length == 0) {
@@ -245,14 +245,7 @@ final class Gravity {
         // Nothing to trim: every unique domain fits, so the guard costs nothing.
         if (unique <= max) return build(sources, bits, unique);
 
-        // Only the user-facing category slots share the guard; "other" is a
-        // fallback bucket and is served from the leftover space.
-        int slotsInUse = 0;
-        for (int i = 0; i < slots && i < sources.length; i++) {
-            if (sources[i] != null && sources[i].length > 0) slotsInUse++;
-        }
-        if (slotsInUse == 0) slotsInUse = 1;
-        int[] share = budgetShares(demand, max, slots, slotsInUse);
+        int[] share = budgetShares(demand, max);
         int keep = 0;
         for (int value : share) keep += value;
 
@@ -305,13 +298,13 @@ final class Gravity {
     }
 
     /**
-     * Splits {@code max} over the categories that have domains, giving each an
-     * equal 1/{@code slots} share. Space that a small category cannot fill is
-     * passed on in priority order, so Ads - the first entry in the caller's
-     * priority list - takes the unused capacity before the others.
+     * Splits {@code max} equally between the categories that have domains, so
+     * a category that is switched off (and therefore empty) hands its share to
+     * the others. Space that a small category cannot fill is passed on in
+     * priority order, so Ads - the first entry in the caller's priority list -
+     * takes the unused capacity before the others.
      */
-    private static int[] budgetShares(int[] demand, int max, int slots,
-                                      int slotsInUse) {
+    private static int[] budgetShares(int[] demand, int max) {
         int[] share = new int[demand.length];
         int unique = 0;
         int groups = 0;
@@ -319,9 +312,8 @@ final class Gravity {
             unique += value;
             if (value > 0) groups++;
         }
-        if (groups == 0 || slots <= 0) return share;
-        int budget = (int) Math.min(max, (long) max * slotsInUse / slots);
-        budget = Math.min(budget, unique);
+        if (groups == 0) return share;
+        int budget = Math.min(max, unique);
         if (budget < groups) budget = groups;
         int quota = budget / groups;
         int remainder = budget % groups;

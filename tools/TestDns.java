@@ -371,14 +371,14 @@ public final class TestDns {
         int[] twoPriority = {Gravity.TRACKERS, Gravity.ADS};
         Gravity merged = Gravity.buildFair(
                 new long[][]{adsOnly.clone(), trackersOnly.clone()},
-                twoBits, 6, 2, twoPriority);
+                twoBits, 6, twoPriority);
         check(merged.size() == 6, "duplicates do not use the guard twice");
         check((merged.flagsOf(3) & Gravity.ADS) != 0
                         && (merged.flagsOf(3) & Gravity.TRACKERS) != 0,
                 "merged domain keeps every category");
         Gravity sharedCap = Gravity.buildFair(
                 new long[][]{adsOnly.clone(), trackersOnly.clone()},
-                twoBits, 4, 2, twoPriority);
+                twoBits, 4, twoPriority);
         check(sharedCap.size() == 4, "fair merge caps the merged index");
         check(sharedCap.contains(1) && sharedCap.contains(2),
                 "ads keeps its own share");
@@ -386,10 +386,11 @@ public final class TestDns {
         Gravity partial = Gravity.buildFair(new long[][]{
                 {1, 2, 3, 4, 5, 6}, {7, 8, 9, 10}, {11, 12}, {}
         }, new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE,
-                Gravity.ADULT}, 6, 4,
+                Gravity.ADULT}, 6,
                 new int[]{Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS,
                         Gravity.ADULT});
-        check(partial.size() == 4, "disabled category leaves its guard share unused");
+        check(partial.size() == 6,
+                "disabled category gives its guard share to the enabled ones");
 
         long[][] six = new long[9][];
         for (int i = 0; i < 6; i++) {
@@ -400,11 +401,11 @@ public final class TestDns {
                 new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE,
                         Gravity.ADULT, Gravity.PIRACY, Gravity.GAMBLING,
                         Gravity.DATING, Gravity.SOCIAL, Gravity.OTHER},
-                1500, 8, new int[]{Gravity.ADS, Gravity.MALWARE,
+                1500, new int[]{Gravity.ADS, Gravity.MALWARE,
                         Gravity.TRACKERS, Gravity.ADULT, Gravity.PIRACY,
                         Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
                         Gravity.OTHER});
-        check(eightSlot.size() == 1125, "eight category slots split the guard");
+        check(eightSlot.size() == 1500, "six enabled categories split the guard");
 
         long[] smallA = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
         long[] smallB = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
@@ -417,7 +418,7 @@ public final class TestDns {
         Gravity adFirst = Gravity.buildFair(
                 new long[][]{adsMany, trackerMany, smallA, smallB},
                 new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.ADULT,
-                        Gravity.GAMBLING}, 300, 4,
+                        Gravity.GAMBLING}, 300,
                 new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.ADULT,
                         Gravity.GAMBLING});
         check(kept(adsMany, adFirst) == 205 && kept(trackerMany, adFirst) == 75,

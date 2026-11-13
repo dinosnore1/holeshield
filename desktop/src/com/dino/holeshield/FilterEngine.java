@@ -854,7 +854,7 @@ final class FilterEngine {
             raw[i] = Gravity.clean(raw[i]);
         }
         Gravity fresh = Gravity.buildFair(raw, CATEGORY_BITS, limit,
-                Blocklists.CATEGORY_KEYS.length, CATEGORY_PRIORITY);
+                CATEGORY_PRIORITY);
         saveGravity(fresh.hashes(), fresh.flags());
 
         gravity = fresh;
