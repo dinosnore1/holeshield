@@ -363,7 +363,7 @@ final class WebDashboard {
                 .put("cached", stats.cached())
                 .put("errors", stats.errors()));
         Json.Obj gravity = new Json.Obj()
-                .put("domains_being_blocked", filter.blockedCount())
+                .put("domains_being_blocked", filter.gravityActiveCount())
                 .put("last_update", filter.lastUpdate() > 0
                         ? filter.lastUpdate() / 1000L : null);
         if (filter.lastUpdate() > 0) gravity.put("last_update_ms", filter.lastUpdate());

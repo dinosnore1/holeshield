@@ -55,6 +55,13 @@ final class FilterEngine {
             Gravity.OTHER
     };
 
+    /** Counting order, matching the labels returned by {@link #categoryName(int)}. */
+    private static final int[] CATEGORY_PRIORITY = {
+            Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS, Gravity.ADULT,
+            Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
+            Gravity.OTHER
+    };
+
     interface Progress {
         void progress(String message, int done, int total);
     }
@@ -188,15 +195,15 @@ final class FilterEngine {
         categoryMask = prefs.categoryMask();
         readRules();
         readGravity();
-        refreshActiveCount();
         readMeta();
+        refreshCounts();
     }
 
     synchronized void reloadRules() {
         blockSubdomains = prefs.getBool("blockSubdomains", true);
         categoryMask = prefs.categoryMask();
         readRules();
-        refreshActiveCount();
+        refreshCounts();
     }
 
     void reload() {
@@ -524,6 +531,10 @@ final class FilterEngine {
         if ((flags & Gravity.TRACKERS) != 0) return "Trackers";
         if ((flags & Gravity.ADS) != 0) return "Ads";
         if ((flags & Gravity.ADULT) != 0) return "Adult";
+        if ((flags & Gravity.PIRACY) != 0) return "Piracy";
+        if ((flags & Gravity.GAMBLING) != 0) return "Gambling";
+        if ((flags & Gravity.DATING) != 0) return "Dating";
+        if ((flags & Gravity.SOCIAL) != 0) return "Social";
         if ((flags & Gravity.OTHER) != 0) return "Other";
         return "Gravity";
     }
@@ -622,8 +633,25 @@ final class FilterEngine {
                 + regexBlocked.size();
     }
 
-    private void refreshActiveCount() {
-        activeGravityCount = gravity.activeSize(categoryMask);
+    /** Active gravity index size; custom rules are counted separately. */
+    int gravityActiveCount() {
+        return activeGravityCount;
+    }
+
+    private void refreshCounts() {
+        Gravity g = gravity;
+        int mask = categoryMask;
+        activeGravityCount = g.activeSize(mask);
+        int[] c = g.primaryCounts(CATEGORY_PRIORITY, mask);
+        malwareCount = c[0];
+        trackerCount = c[1];
+        adsCount = c[2];
+        adultCount = c[3];
+        piracyCount = c[4];
+        gamblingCount = c[5];
+        datingCount = c[6];
+        socialCount = c[7];
+        otherCount = c[8];
     }
 
     /** False when a configured source belongs to a category switched off. */
@@ -845,16 +873,7 @@ final class FilterEngine {
 
         gravity = fresh;
         gravityCount = fresh.size();
-        refreshActiveCount();
-        adsCount = ads.length;
-        trackerCount = trackers.length;
-        malwareCount = malware.length;
-        adultCount = adult.length;
-        piracyCount = piracy.length;
-        gamblingCount = gambling.length;
-        datingCount = dating.length;
-        socialCount = social.length;
-        otherCount = other.length;
+        refreshCounts();
         lastUpdate = System.currentTimeMillis();
         lastError = "";
         health = results;

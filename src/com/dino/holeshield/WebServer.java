@@ -320,7 +320,7 @@ final class WebServer {
         q.put("errors", Stats.errors());
 
         JSONObject gravity = new JSONObject();
-        gravity.put("domains_being_blocked", Blocklist.blockedCount());
+        gravity.put("domains_being_blocked", Blocklist.activeGravityDomains());
         // The API uses Unix seconds. Keep a millisecond copy for our
         // own dashboard, which formats relative times.
         gravity.put("last_update", p.lastUpdate > 0 ? p.lastUpdate / 1000L : JSONObject.NULL);
@@ -331,14 +331,14 @@ final class WebServer {
         clients.put("total", Stats.clientCount());
 
         JSONObject categories = new JSONObject();
-        categories.put("ads", p.adsDomains);
-        categories.put("trackers", p.trackerDomains);
-        categories.put("malware", p.malwareDomains);
-        categories.put("adult", p.adultDomains);
-        categories.put("piracy", p.piracyDomains);
-        categories.put("gambling", p.gamblingDomains);
-        categories.put("dating", p.datingDomains);
-        categories.put("social", p.socialDomains);
+        categories.put("ads", Blocklist.categoryCount("ads"));
+        categories.put("trackers", Blocklist.categoryCount("trackers"));
+        categories.put("malware", Blocklist.categoryCount("malware"));
+        categories.put("adult", Blocklist.categoryCount("adult"));
+        categories.put("piracy", Blocklist.categoryCount("piracy"));
+        categories.put("gambling", Blocklist.categoryCount("gambling"));
+        categories.put("dating", Blocklist.categoryCount("dating"));
+        categories.put("social", Blocklist.categoryCount("social"));
 
         root.put("queries", q);
         root.put("gravity", gravity);
@@ -952,7 +952,7 @@ final class WebServer {
             return;
         }
         JSONObject o = new JSONObject();
-        o.put("domains_being_blocked", Blocklist.blockedCount());
+        o.put("domains_being_blocked", Blocklist.activeGravityDomains());
         o.put("dns_queries_today", Stats.queries());
         o.put("ads_blocked_today", Stats.blocked());
         o.put("ads_percentage_today", Stats.rate());

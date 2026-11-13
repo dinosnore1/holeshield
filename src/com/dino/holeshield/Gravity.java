@@ -71,6 +71,27 @@ final class Gravity {
         return n;
     }
 
+    /**
+     * Counts active entries once each under the first matching bit in
+     * {@code priority}. The result follows {@code priority} order and its
+     * entries add up to {@link #activeSize(int)} for the same mask, so the
+     * per-category numbers on the dashboard match the gravity total.
+     */
+    int[] primaryCounts(int[] priority, int mask) {
+        int[] out = new int[priority.length];
+        for (int flag : flags) {
+            int active = flag & mask;
+            if (active == 0) continue;
+            for (int i = 0; i < priority.length; i++) {
+                if ((active & priority[i]) != 0) {
+                    out[i]++;
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
     /** FNV-1a over the lowercased domain bytes. */
     static long hash(String domain) {
         if (domain == null || domain.isEmpty()) return 0L;

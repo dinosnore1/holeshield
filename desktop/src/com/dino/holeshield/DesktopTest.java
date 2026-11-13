@@ -129,6 +129,11 @@ public final class DesktopTest {
         eq(4, g.activeSize(Gravity.ADS | Gravity.TRACKERS),
                 "shared domain counts once");
         eq(0, g.activeSize(Gravity.PIRACY), "disabled categories count nothing");
+        int[] primary = g.primaryCounts(
+                new int[]{Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS}, Gravity.ALL);
+        eq(0, primary[0], "no malware domains");
+        eq(2, primary[1], "shared domains count under the higher category");
+        eq(2, primary[2], "ads-only domains count for ads");
         eq(Gravity.ADS, g.flagsOf(1) & Gravity.ADS, "ads flag");
         eq(Gravity.ADS | Gravity.TRACKERS, g.flagsOf(3),
                 "overlapping category flags");

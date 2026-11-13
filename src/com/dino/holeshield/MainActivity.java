@@ -1176,11 +1176,11 @@ public class MainActivity extends Activity {
 
         if (netHint != null) {
             if (!running) {
-                netHint.setText(Ui.count(Blocklist.blockedCount()) + " domains on gravity");
+                netHint.setText(Ui.count(Blocklist.activeGravityDomains()) + " domains on gravity");
             } else {
                 String dns = NetInfo.lanDnsUrl(this, prefs);
                 String hint = (dns.isEmpty() ? "LAN DNS off" : "LAN DNS " + dns)
-                        + " · " + Ui.count(Blocklist.blockedCount()) + " domains";
+                        + " · " + Ui.count(Blocklist.activeGravityDomains()) + " domains";
                 if (!DnsVpnService.webError.isEmpty()) hint += " · web: " + DnsVpnService.webError;
                 if (!DnsVpnService.lanDnsError.isEmpty()) hint += " · dns: " + DnsVpnService.lanDnsError;
                 netHint.setText(hint);
@@ -1420,7 +1420,7 @@ public class MainActivity extends Activity {
         if (serverQ != null) serverQ.setText(Ui.count(Stats.queries()));
         if (serverB != null) serverB.setText(Ui.count(Stats.blocked()));
         if (serverPct != null) serverPct.setText(Ui.percent(Stats.rate()));
-        if (serverGravity != null) serverGravity.setText(Ui.compactCount(Blocklist.blockedCount()));
+        if (serverGravity != null) serverGravity.setText(Ui.compactCount(Blocklist.activeGravityDomains()));
 
         if (serverTopBox != null) {
             List<Stats.Top> tops = Stats.topDomains(true, 8);
@@ -1505,7 +1505,7 @@ public class MainActivity extends Activity {
         LinearLayout top = Ui.row(this);
         LinearLayout left = Ui.column(this);
         left.addView(Ui.caption(this, "GRAVITY"));
-        listCount = Ui.text(this, Ui.count(Blocklist.blockedCount()) + " domains",
+        listCount = Ui.text(this, Ui.count(Blocklist.activeGravityDomains()) + " domains",
                 isTv ? 30 : 26, Ui.TEXT, true);
         left.addView(listCount, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 6), 0, 0));
@@ -1999,7 +1999,7 @@ public class MainActivity extends Activity {
     }
 
     private void updateListsLive() {
-        if (listCount != null) listCount.setText(Ui.count(Blocklist.blockedCount()) + " domains");
+        if (listCount != null) listCount.setText(Ui.count(Blocklist.activeGravityDomains()) + " domains");
         if (listUpdated != null) {
             listUpdated.setText(Blocklist.isUpdating() ? "updating…"
                     : "updated " + Ui.ago(prefs.lastUpdate));

@@ -352,6 +352,10 @@ public final class TestDns {
         check((g.flagsOf(shared) & Gravity.MALWARE) != 0, "shared domain keeps malware flag");
         check(g.contains(Gravity.hash("ads.example.com")), "gravity lookup finds a domain");
         check(!g.contains(Gravity.hash("missing.example.com")), "gravity lookup misses");
+        int[] primary = g.primaryCounts(
+                new int[]{Gravity.MALWARE, Gravity.ADS}, Gravity.ALL);
+        check(primary[0] == 2 && primary[1] == 1,
+                "primary category counts reconcile with the total");
         Gravity capped = Gravity.build(new long[][]{ads, malware},
                 new int[]{Gravity.ADS, Gravity.MALWARE}, 2);
         check(capped.size() == 2, "gravity respects the domain cap");

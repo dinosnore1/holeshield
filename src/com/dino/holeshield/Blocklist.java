@@ -225,6 +225,21 @@ final class Blocklist {
     private static volatile int categoryMask = Gravity.ALL;
     /** Entries in {@link #gravity} that pass {@link #categoryMask}. */
     private static volatile int activeGravityCount;
+    /**
+     * Active entries counted once each under their primary category. The order
+     * matches {@link #categoryName(int)} so a domain is counted under the same
+     * category the query log shows.
+     */
+    private static final int[] CATEGORY_PRIORITY = {
+            Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS, Gravity.ADULT,
+            Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
+            Gravity.OTHER
+    };
+    private static final String[] CATEGORY_PRIORITY_KEYS = {
+            "malware", "trackers", "ads", "adult",
+            "piracy", "gambling", "dating", "social", "other"
+    };
+    private static volatile int[] categoryCounts = new int[CATEGORY_PRIORITY.length];
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
     private static volatile int revision;
@@ -304,7 +319,7 @@ final class Blocklist {
 
         Gravity fresh = loadGravity(c, p);
         gravity = fresh;
-        activeGravityCount = fresh.activeSize(categoryMask);
+        refreshCounts();
         exactBlocked = eb;
         exactAllowed = ea;
         wildcardBlocked = wb;
@@ -437,15 +452,22 @@ final class Blocklist {
 
     static void setCategoryMask(int mask) {
         categoryMask = mask;
-        activeGravityCount = gravity.activeSize(mask);
+        refreshCounts();
     }
 
     static void applyPrefs(Prefs p) {
         if (p == null) return;
         blockSubdomains = p.blockSubdomains;
         categoryMask = p.categoryMask();
-        activeGravityCount = gravity.activeSize(categoryMask);
+        refreshCounts();
         clientRules = parseClientRules(p.clientRules);
+    }
+
+    private static void refreshCounts() {
+        Gravity g = gravity;
+        int mask = categoryMask;
+        activeGravityCount = g.activeSize(mask);
+        categoryCounts = g.primaryCounts(CATEGORY_PRIORITY, mask);
     }
 
     static void clearCustomInMemory() {
@@ -806,6 +828,22 @@ final class Blocklist {
                 + regexBlocked.size();
     }
 
+    /** Active gravity index size; custom rules are counted separately. */
+    static int activeGravityDomains() {
+        return activeGravityCount;
+    }
+
+    /** Active gravity domains for one category key (ads, trackers, ...). */
+    static int categoryCount(String key) {
+        int[] counts = categoryCounts;
+        for (int i = 0; i < CATEGORY_PRIORITY_KEYS.length; i++) {
+            if (CATEGORY_PRIORITY_KEYS[i].equals(key)) {
+                return i < counts.length ? counts[i] : 0;
+            }
+        }
+        return 0;
+    }
+
     static int gravityCount() {
         return gravity.size();
     }
@@ -953,7 +991,7 @@ final class Blocklist {
                 p.save(app);
                 reload(app);
                 ok = true;
-                message = "Blocking " + Blocklist.blockedCount() + " domains from " + listsOk
+                message = "Blocking " + Blocklist.activeGravityDomains() + " domains from " + listsOk
                         + (listsOk == 1 ? " list" : " lists")
                         + (listsFailed > 0 ? " (" + listsFailed + " failed)" : "");
             } catch (Exception e) {
