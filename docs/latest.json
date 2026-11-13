@@ -1,18 +1,18 @@
 {
-  "updated": "2026-11-07T00:00:00Z",
+  "updated": "2026-11-13T00:00:00Z",
   "stable": {
-    "version": "2.3.4",
-    "versionCode": 11,
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.4-holeshield",
-    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.4.apk",
-    "notes": "Hole Shield 2.3.4 stable: per-category Lite/Medium/Maximum levels, 97 validated blocklist sources, combined category controls, and the 1.51M fair-share memory guard."
+    "version": "2.3.5",
+    "versionCode": 12,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5.apk",
+    "notes": "Hole Shield 2.3.5 stable: gravity lists merge before the cap so every domain is charged once, Ads gets first claim on the shared budget (its whole list when the limit is off), disabled categories hand their share to the enabled ones, SafeSearch is part of the Adult category, and the dashboard chart defaults to Live with a one-second refresh."
   },
   "beta": {
-    "version": "2.3.4",
-    "versionCode": 11,
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.4-holeshield",
-    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.4.apk",
-    "notes": "Hole Shield 2.3.4 stable: per-category Lite/Medium/Maximum levels, 97 validated blocklist sources, combined category controls, and the 1.51M fair-share memory guard."
+    "version": "2.3.5",
+    "versionCode": 12,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5.apk",
+    "notes": "Hole Shield 2.3.5 stable: gravity lists merge before the cap so every domain is charged once, Ads gets first claim on the shared budget (its whole list when the limit is off), disabled categories hand their share to the enabled ones, SafeSearch is part of the Adult category, and the dashboard chart defaults to Live with a one-second refresh."
   },
   "desktop": {
     "version": "2.3.4",

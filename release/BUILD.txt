@@ -1,25 +1,26 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.3.4
-versionCode:   11
+Version:       2.3.5
+versionCode:   12
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-11-07
+Built:         2026-11-13
 
 Artifacts (local, not committed)
 --------------------------------
 build/holeshield.apk
-  SHA-256 c3c4f2a43d9c5ae98e25356949b8988c691977c4b6c786e19b8f6623fa1241b5
-  Size    258 KB
+  SHA-256 52aee79c85106144d094f810d1e013d80e80424ee81a136df4fb755ce393c741
+  Size    262 KB
   Signed with the direct-install key (~/.android/holeshield-sideload.keystore).
 
 Use build/holeshield.apk for direct GitHub installs.
 
 Desktop (2.3.4)
 ---------------
-Built with JDK 17 + jpackage and published in the 2.3.4 release.
+Unchanged for this release; no desktop installers were rebuilt. The last
+published desktop build remains the 2.3.4 set listed below.
 
 desktop/build/dist/Hole-Shield-2.3.4-universal.pkg
   Universal macOS package for Intel and Apple Silicon (unsigned).
@@ -50,6 +51,25 @@ Build command
 
 Verified
 --------
+- 2.3.5: gravity lists are merged and deduplicated before the cap, each domain
+  is charged once to the first matching category (Ads, malware, trackers, adult,
+  piracy, gambling, dating, social, other), and the budget is split across the
+  eight user-facing categories that are switched on. A disabled category hands
+  its share to the enabled ones; unfilled space goes to Ads first.
+- 2.3.5: SafeSearch is folded into the Adult category. The separate toggle is
+  gone from Lists and Settings; Prefs.load ORs the old flag into categoryAdult
+  so existing installs keep adult filtering.
+- 2.3.5: dashboard chart defaults to Live and refreshes every second while the
+  live range is selected. Verified by reading the page served from the STB.
+- 2.3.5: with the gravity limit off the STB loaded 3,495,253 domains (ads
+  1,252,516, malware 1,429,865, trackers 560,962, adult 133,807, gambling
+  86,578, dating 31,525). Category counts sum to the total. PSS ~179 MB,
+  Dalvik heap ~61 MB of 256 MB, MemAvailable ~994 MB, no OOM. `example.com`
+  resolves and `doubleclick.net` returns 0.0.0.0.
+- 2.3.5: cap on with six categories enabled gives 1,510,000 domains (ads
+  748,337, malware 251,667, trackers 251,667, adult 135,909, gambling 90,778,
+  dating 31,642).
+- 306 Android JVM checks and 179 desktop checks pass.
 - 298 Android JVM checks and 168 desktop checks pass, including the category
   levels, fair-share gravity guard, PBKDF2 login and blocklist category rules.
 - 2.3.4 installed on the STB at 192.168.2.133 (versionCode 11 / versionName
