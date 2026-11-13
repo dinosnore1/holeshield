@@ -848,28 +848,14 @@ final class FilterEngine {
         boolean capEnabled = prefs.getBool("gravityCapEnabled", true);
         int cap = prefs.getInt("gravityCap", 1510000);
         int limit = capEnabled && cap > 0 ? cap : heapSafeLimit();
-        long[][] capped = capEnabled && cap > 0
-                ? Gravity.fairCap(raw, cap, raw.length)
-                : Gravity.fairCap(raw, limit, raw.length);
-        for (int i = 0; i < capped.length; i++) {
-            capped[i] = Gravity.clean(capped[i]);
+        // Deduplicate each list before the guard is applied, then let the merge
+        // charge a domain that appears in several categories only once.
+        for (int i = 0; i < raw.length; i++) {
+            raw[i] = Gravity.clean(raw[i]);
         }
-        long[] ads = capped[0];
-        long[] trackers = capped[1];
-        long[] malware = capped[2];
-        long[] adult = capped[3];
-        long[] piracy = capped[4];
-        long[] gambling = capped[5];
-        long[] dating = capped[6];
-        long[] social = capped[7];
-        long[] other = capped[8];
-
-        Gravity fresh = Gravity.build(capped, CATEGORY_BITS, limit);
-
-        long[][] merged = mergeForSave(ads, trackers, malware, adult, piracy,
-                gambling, dating, social, other, limit);
-        saveGravity(merged[0], toFlags(merged[0], merged[1], ads, trackers,
-                malware, adult, piracy, gambling, dating, social, other));
+        Gravity fresh = Gravity.buildFair(raw, CATEGORY_BITS, limit, raw.length,
+                CATEGORY_PRIORITY);
+        saveGravity(fresh.hashes(), fresh.flags());
 
         gravity = fresh;
         gravityCount = fresh.size();
@@ -890,68 +876,6 @@ final class FilterEngine {
         if (category == Blocklists.CATEGORY_SOCIAL) return 7;
         if (category == Blocklists.CATEGORY_OTHER) return 8;
         return 0;
-    }
-
-    private static long[][] mergeForSave(long[] ads, long[] trackers, long[] malware,
-                                         long[] adult, long[] piracy, long[] gambling,
-                                         long[] dating, long[] social, long[] other,
-                                         int max) {
-        long[][] sources = {ads, trackers, malware, adult, piracy,
-                gambling, dating, social, other};
-        int total = 0;
-        for (long[] source : sources) total += source.length;
-        long[] hashes = new long[total];
-        long[] categories = new long[total];
-        int[] at = new int[sources.length];
-        int written = 0;
-        while (written < total) {
-            long smallest = 0L;
-            boolean found = false;
-            for (int i = 0; i < sources.length; i++) {
-                if (at[i] >= sources[i].length) continue;
-                long value = sources[i][at[i]];
-                if (!found || value < smallest) {
-                    smallest = value;
-                    found = true;
-                }
-            }
-            if (!found) break;
-            long merged = 0;
-            for (int i = 0; i < sources.length; i++) {
-                if (at[i] >= sources[i].length) continue;
-                if (sources[i][at[i]] != smallest) continue;
-                merged |= (1L << i);
-                at[i]++;
-                while (at[i] < sources[i].length && sources[i][at[i]] == smallest) at[i]++;
-            }
-            hashes[written] = smallest;
-            categories[written] = merged;
-            written++;
-        }
-        if (written < total || written > max) {
-            int size = Math.min(written, max);
-            hashes = Arrays.copyOf(hashes, size);
-            categories = Arrays.copyOf(categories, size);
-        }
-        return new long[][]{hashes, categories};
-    }
-
-    private static int[] toFlags(long[] hashes, long[] categories, long[] ads,
-                                 long[] trackers, long[] malware, long[] adult,
-                                 long[] piracy, long[] gambling, long[] dating,
-                                 long[] social, long[] other) {
-        long[][] sources = {ads, trackers, malware, adult, piracy,
-                gambling, dating, social, other};
-        int[] flags = new int[hashes.length];
-        for (int i = 0; i < hashes.length; i++) {
-            int mask = 0;
-            long category = categories[i];
-            for (int c = 0; c < sources.length; c++) {
-                if ((category & (1L << c)) != 0) mask |= CATEGORY_BITS[c];
-            }
-            flags[i] = mask;
-        }
-        return flags;
     }
 
     private static final class SourceResult {

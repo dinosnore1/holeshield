@@ -58,6 +58,16 @@ final class Gravity {
         return hashes.length;
     }
 
+    /** Hashes of the merged index, ascending. Treat as read-only. */
+    long[] hashes() {
+        return hashes;
+    }
+
+    /** Category bits matching {@link #hashes()}. Treat as read-only. */
+    int[] flags() {
+        return flags;
+    }
+
     /**
      * Number of entries that can actually block under {@code mask}. A domain
      * listed in several categories still counts once while any of its
@@ -175,57 +185,159 @@ final class Gravity {
         return new Gravity(outHashes, outFlags);
     }
 
-    static long[][] fairCap(long[][] sources, int max) {
-        return fairCap(sources, max, sources.length);
+    /**
+     * Merges the category arrays first and only then applies the memory guard,
+     * so a domain that appears in several lists is charged once instead of
+     * once per list. Each unique domain is charged to the first matching bit
+     * in {@code priority}; the kept entry keeps every category bit it was
+     * listed under.
+     *
+     * <p>The guard is still split over {@code slots} categories, so a
+     * switched-off category leaves its share unused and the total shrinks,
+     * while shares that a small category cannot fill flow to the categories
+     * that have more domains. Keeping the categories balanced stops the
+     * largest list from pushing the security lists out of memory.</p>
+     *
+     * <p>{@code sources} must be sorted and free of duplicates, as returned by
+     * {@link #clean(long[])}.</p>
+     */
+    static Gravity buildFair(long[][] sources, int[] bits, int max, int slots,
+                             int[] priority) {
+        if (sources == null || sources.length == 0 || max <= 0) return EMPTY;
+        if (priority == null || priority.length == 0) {
+            return build(sources, bits, max);
+        }
+        int total = 0;
+        for (long[] source : sources) {
+            if (source != null) total += source.length;
+        }
+        if (total == 0) return EMPTY;
+
+        int[] at = new int[sources.length];
+        int[] demand = new int[priority.length];
+        int unique = 0;
+        while (true) {
+            long smallest = 0L;
+            boolean found = false;
+            for (int i = 0; i < sources.length; i++) {
+                long[] source = sources[i];
+                if (source == null || at[i] >= source.length) continue;
+                long value = source[at[i]];
+                if (!found || value < smallest) {
+                    smallest = value;
+                    found = true;
+                }
+            }
+            if (!found) break;
+            int merged = 0;
+            for (int i = 0; i < sources.length; i++) {
+                long[] source = sources[i];
+                if (source == null || at[i] >= source.length) continue;
+                if (source[at[i]] != smallest) continue;
+                merged |= bits == null || i >= bits.length ? ALL : bits[i];
+                at[i]++;
+            }
+            unique++;
+            int primary = primaryIndex(merged, priority);
+            if (primary >= 0) demand[primary]++;
+        }
+        if (unique == 0) return EMPTY;
+        // Nothing to trim: every unique domain fits, so the guard costs nothing.
+        if (unique <= max) return build(sources, bits, unique);
+
+        int slotsInUse = 0;
+        for (long[] source : sources) if (source != null && source.length > 0) slotsInUse++;
+        int[] share = budgetShares(demand, max, slots, slotsInUse);
+        int keep = 0;
+        for (int value : share) keep += value;
+
+        long[] outHashes = new long[keep];
+        int[] outFlags = new int[keep];
+        Arrays.fill(at, 0);
+        int written = 0;
+        while (written < keep) {
+            long smallest = 0L;
+            boolean found = false;
+            for (int i = 0; i < sources.length; i++) {
+                long[] source = sources[i];
+                if (source == null || at[i] >= source.length) continue;
+                long value = source[at[i]];
+                if (!found || value < smallest) {
+                    smallest = value;
+                    found = true;
+                }
+            }
+            if (!found) break;
+            int merged = 0;
+            for (int i = 0; i < sources.length; i++) {
+                long[] source = sources[i];
+                if (source == null || at[i] >= source.length) continue;
+                if (source[at[i]] != smallest) continue;
+                merged |= bits == null || i >= bits.length ? ALL : bits[i];
+                at[i]++;
+            }
+            int primary = primaryIndex(merged, priority);
+            if (primary < 0 || share[primary] <= 0) continue;
+            share[primary]--;
+            outHashes[written] = smallest;
+            outFlags[written] = merged;
+            written++;
+        }
+        if (written == 0) return EMPTY;
+        if (written < outHashes.length) {
+            outHashes = Arrays.copyOf(outHashes, written);
+            outFlags = Arrays.copyOf(outFlags, written);
+        }
+        return new Gravity(outHashes, outFlags);
+    }
+
+    /** Index of the highest-priority bit set in {@code flags}, or -1. */
+    private static int primaryIndex(int flags, int[] priority) {
+        for (int i = 0; i < priority.length; i++) {
+            if ((flags & priority[i]) != 0) return i;
+        }
+        return -1;
     }
 
     /**
-     * Shares a global memory guard across the category arrays. Each category
-     * keeps its first entries in list order, so the selected Lite/Medium/
-     * Maximum lists keep useful coverage instead of one large category
-     * consuming the whole guard. The guard is split over {@code slots}
-     * categories, so a switched-off category leaves its share unused and the
-     * domain count drops instead of flowing into the other lists.
+     * Splits {@code max} over the categories that have domains, giving each an
+     * equal share of the {@code slots} total and passing shares that a small
+     * category cannot use to the others.
      */
-    static long[][] fairCap(long[][] sources, int max, int slots) {
-        int total = 0;
-        for (long[] source : sources) total += source.length;
-        if (total <= max) return sources;
-        int active = 0;
-        for (long[] source : sources) if (source.length > 0) active++;
-        if (active == 0 || slots <= 0) return sources;
-        int budget = (int) Math.min(max, (long) max * active / slots);
-        if (budget < active) budget = active;
-        int quota = budget / active;
-        int remainder = budget % active;
-        int[] original = new int[sources.length];
-        int[] take = new int[sources.length];
-        int used = 0;
-        for (int i = 0; i < sources.length; i++) {
-            original[i] = sources[i].length;
-            if (original[i] == 0) continue;
-            take[i] = Math.min(original[i], quota + (remainder > 0 ? 1 : 0));
-            if (remainder > 0) remainder--;
-            used += take[i];
+    private static int[] budgetShares(int[] demand, int max, int slots,
+                                      int slotsInUse) {
+        int[] share = new int[demand.length];
+        int unique = 0;
+        int groups = 0;
+        for (int value : demand) {
+            unique += value;
+            if (value > 0) groups++;
         }
-        int left = budget - used;
+        if (groups == 0 || slots <= 0) return share;
+        int budget = (int) Math.min(max, (long) max * slotsInUse / slots);
+        budget = Math.min(budget, unique);
+        if (budget < groups) budget = groups;
+        int quota = budget / groups;
+        int remainder = budget % groups;
+        int left = budget;
+        for (int i = 0; i < demand.length; i++) {
+            if (demand[i] == 0) continue;
+            share[i] = Math.min(demand[i], quota + (remainder > 0 ? 1 : 0));
+            if (remainder > 0) remainder--;
+            left -= share[i];
+        }
         while (left > 0) {
             boolean progress = false;
-            for (int i = 0; i < sources.length && left > 0; i++) {
-                if (take[i] < original[i]) {
-                    take[i]++;
+            for (int i = 0; i < demand.length && left > 0; i++) {
+                if (share[i] < demand[i]) {
+                    share[i]++;
                     left--;
                     progress = true;
                 }
             }
             if (!progress) break;
         }
-        for (int i = 0; i < sources.length; i++) {
-            if (take[i] < original[i]) {
-                sources[i] = Arrays.copyOf(sources[i], take[i]);
-            }
-        }
-        return sources;
+        return share;
     }
 
     /** Sorts and deduplicates one category array before merging. */

@@ -383,17 +383,18 @@ final class Blocklist {
         dating = null;
         social = null;
         other = null;
-        long[][] capped = p.gravityCapEnabled && p.gravityCap > 0
-                ? Gravity.fairCap(sources, p.gravityCap, sources.length) : sources;
-        for (int i = 0; i < capped.length; i++) {
-            capped[i] = Gravity.clean(capped[i]);
+        // Deduplicate each list before the guard is applied, then let the merge
+        // charge a domain that appears in several categories only once.
+        for (int i = 0; i < sources.length; i++) {
+            sources[i] = Gravity.clean(sources[i]);
         }
         int[] bits = {
                 Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE, Gravity.ADULT,
                 Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
                 Gravity.OTHER
         };
-        return Gravity.build(capped, bits, limit);
+        return Gravity.buildFair(sources, bits, limit, sources.length,
+                CATEGORY_PRIORITY);
     }
 
     private static long[] readCategory(Context c, String name, int limit) {
@@ -467,7 +468,15 @@ final class Blocklist {
         Gravity g = gravity;
         int mask = categoryMask;
         activeGravityCount = g.activeSize(mask);
-        categoryCounts = g.primaryCounts(CATEGORY_PRIORITY, mask);
+        int[] counts = g.primaryCounts(CATEGORY_PRIORITY, mask);
+        categoryCounts = counts;
+        StringBuilder log = new StringBuilder("gravity loaded total=")
+                .append(activeGravityCount);
+        for (int i = 0; i < CATEGORY_PRIORITY_KEYS.length && i < counts.length; i++) {
+            log.append(' ').append(CATEGORY_PRIORITY_KEYS[i]).append('=')
+                    .append(counts[i]);
+        }
+        Log.i("HoleShield", log.toString());
     }
 
     static void clearCustomInMemory() {

@@ -359,18 +359,31 @@ public final class TestDns {
         Gravity capped = Gravity.build(new long[][]{ads, malware},
                 new int[]{Gravity.ADS, Gravity.MALWARE}, 2);
         check(capped.size() == 2, "gravity respects the domain cap");
-        long[][] fair = Gravity.fairCap(new long[][]{
-                {1, 2, 3, 4, 5, 6}, {7, 8, 9, 10}, {11, 12}
-        }, 6);
-        check(fair[0].length == 2 && fair[1].length == 2 && fair[2].length == 2,
-                "fair cap shares the guard across categories");
-        long[][] partial = Gravity.fairCap(new long[][]{
+        long[] adsOnly = {1, 2, 3, 4};
+        long[] trackersOnly = {3, 4, 5, 6};
+        int[] twoBits = {Gravity.ADS, Gravity.TRACKERS};
+        int[] twoPriority = {Gravity.TRACKERS, Gravity.ADS};
+        Gravity merged = Gravity.buildFair(
+                new long[][]{adsOnly.clone(), trackersOnly.clone()},
+                twoBits, 6, 2, twoPriority);
+        check(merged.size() == 6, "duplicates do not use the guard twice");
+        check((merged.flagsOf(3) & Gravity.ADS) != 0
+                        && (merged.flagsOf(3) & Gravity.TRACKERS) != 0,
+                "merged domain keeps every category");
+        Gravity sharedCap = Gravity.buildFair(
+                new long[][]{adsOnly.clone(), trackersOnly.clone()},
+                twoBits, 4, 2, twoPriority);
+        check(sharedCap.size() == 4, "fair merge caps the merged index");
+        check(sharedCap.contains(1) && sharedCap.contains(2),
+                "ads keeps its own share");
+        check(!sharedCap.contains(5), "trackers share is spent on its own log");
+        Gravity partial = Gravity.buildFair(new long[][]{
                 {1, 2, 3, 4, 5, 6}, {7, 8, 9, 10}, {11, 12}, {}
-        }, 6, 4);
-        int kept = partial[0].length + partial[1].length
-                + partial[2].length + partial[3].length;
-        check(kept == 4 && partial[3].length == 0,
-                "disabled category leaves its guard share unused");
+        }, new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE,
+                Gravity.ADULT}, 6, 4,
+                new int[]{Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS,
+                        Gravity.ADULT});
+        check(partial.size() == 4, "disabled category leaves its guard share unused");
         check(Gravity.hash("Example.COM") == Gravity.hash("example.com"),
                 "gravity hash is case-insensitive");
     }
