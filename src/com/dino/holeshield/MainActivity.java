@@ -1733,15 +1733,17 @@ public class MainActivity extends Activity {
         else if ("gambling".equals(key)) prefs.categoryGambling = on;
         else if ("dating".equals(key)) prefs.categoryDating = on;
         else prefs.categorySocial = on;
-        boolean needUpdate = false;
-        if (on) {
-            String next = Blocklists.applyLevel(prefs.blocklistUrls, key,
-                    prefs.categoryLevel(key));
-            needUpdate = !next.equals(prefs.blocklistUrls);
-            prefs.blocklistUrls = next;
-        }
+        // Switching a category off also drops its preset sources so the next
+        // update deletes the file and stops downloading it. Switching it back
+        // on re-adds its tier and fetches the list again.
+        String next = Blocklists.applyLevel(prefs.blocklistUrls, key,
+                on ? prefs.categoryLevel(key) : "off");
+        boolean changed = !next.equals(prefs.blocklistUrls);
+        prefs.blocklistUrls = next;
+        boolean needUpdate = on && (changed || Blocklist.categoryFileMissing(this, key));
         prefs.save(this);
         Blocklist.setCategoryMask(prefs.categoryMask());
+        Blocklist.bumpRevision();
         show(Screen.LISTS);
         if (needUpdate) updateBlocklist();
         else Ui.toast(this, on ? "Category enabled" : "Category disabled");
@@ -1762,6 +1764,7 @@ public class MainActivity extends Activity {
                 : Blocklists.removeAll(prefs.blocklistUrls, Blocklists.ADULT);
         prefs.save(this);
         Blocklist.setCategoryMask(prefs.categoryMask());
+        Blocklist.bumpRevision();
         show(returnTo);
         if (prefs.safeSearch) updateBlocklist();
         else Ui.toast(this, "Adult-content list removed");
@@ -1909,6 +1912,7 @@ public class MainActivity extends Activity {
     private static String gravityCapDetail(boolean enabled, int cap) {
         return enabled
                 ? "Cap the loaded index · " + gravityCapLabel(cap)
+                        + " split across categories"
                 : "Off · loads every domain";
     }
 

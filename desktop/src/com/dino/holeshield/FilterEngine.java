@@ -166,6 +166,7 @@ final class FilterEngine {
     private volatile String lastError = "";
     private volatile long lastUpdate;
     private volatile int gravityCount;
+    private volatile int activeGravityCount;
     private volatile int adsCount;
     private volatile int trackerCount;
     private volatile int malwareCount;
@@ -187,6 +188,7 @@ final class FilterEngine {
         categoryMask = prefs.categoryMask();
         readRules();
         readGravity();
+        refreshActiveCount();
         readMeta();
     }
 
@@ -194,6 +196,7 @@ final class FilterEngine {
         blockSubdomains = prefs.getBool("blockSubdomains", true);
         categoryMask = prefs.categoryMask();
         readRules();
+        refreshActiveCount();
     }
 
     void reload() {
@@ -615,8 +618,27 @@ final class FilterEngine {
     // ---------------------------------------------------------------- counts
 
     int blockedCount() {
-        return gravity.size() + exactBlocked.size() + wildcardBlocked.size()
+        return activeGravityCount + exactBlocked.size() + wildcardBlocked.size()
                 + regexBlocked.size();
+    }
+
+    private void refreshActiveCount() {
+        activeGravityCount = gravity.activeSize(categoryMask);
+    }
+
+    /** False when a configured source belongs to a category switched off. */
+    private boolean sourceEnabled(String url) {
+        switch (Blocklists.categoryOf(url)) {
+            case Blocklists.CATEGORY_ADS: return prefs.categoryEnabled("ads");
+            case Blocklists.CATEGORY_TRACKERS: return prefs.categoryEnabled("trackers");
+            case Blocklists.CATEGORY_MALWARE: return prefs.categoryEnabled("malware");
+            case Blocklists.CATEGORY_ADULT: return prefs.categoryEnabled("adult");
+            case Blocklists.CATEGORY_PIRACY: return prefs.categoryEnabled("piracy");
+            case Blocklists.CATEGORY_GAMBLING: return prefs.categoryEnabled("gambling");
+            case Blocklists.CATEGORY_DATING: return prefs.categoryEnabled("dating");
+            case Blocklists.CATEGORY_SOCIAL: return prefs.categoryEnabled("social");
+            default: return true;
+        }
     }
 
     int gravityCount() {
@@ -721,7 +743,10 @@ final class FilterEngine {
             }
         }
         prefs.save();
-        List<String> urls = listUrls();
+        List<String> urls = new ArrayList<>();
+        for (String url : listUrls()) {
+            if (sourceEnabled(url)) urls.add(url);
+        }
         if (urls.isEmpty()) {
             lastError = "Add at least one blocklist source first.";
             return;
@@ -796,7 +821,8 @@ final class FilterEngine {
         int cap = prefs.getInt("gravityCap", 1510000);
         int limit = capEnabled && cap > 0 ? cap : heapSafeLimit();
         long[][] capped = capEnabled && cap > 0
-                ? Gravity.fairCap(raw, cap) : Gravity.fairCap(raw, limit);
+                ? Gravity.fairCap(raw, cap, raw.length)
+                : Gravity.fairCap(raw, limit, raw.length);
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }
@@ -819,6 +845,7 @@ final class FilterEngine {
 
         gravity = fresh;
         gravityCount = fresh.size();
+        refreshActiveCount();
         adsCount = ads.length;
         trackerCount = trackers.length;
         malwareCount = malware.length;

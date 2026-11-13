@@ -360,6 +360,13 @@ public final class TestDns {
         }, 6);
         check(fair[0].length == 2 && fair[1].length == 2 && fair[2].length == 2,
                 "fair cap shares the guard across categories");
+        long[][] partial = Gravity.fairCap(new long[][]{
+                {1, 2, 3, 4, 5, 6}, {7, 8, 9, 10}, {11, 12}, {}
+        }, 6, 4);
+        int kept = partial[0].length + partial[1].length
+                + partial[2].length + partial[3].length;
+        check(kept == 4 && partial[3].length == 0,
+                "disabled category leaves its guard share unused");
         check(Gravity.hash("Example.COM") == Gravity.hash("example.com"),
                 "gravity hash is case-insensitive");
     }

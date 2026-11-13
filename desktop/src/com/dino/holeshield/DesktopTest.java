@@ -123,6 +123,12 @@ public final class DesktopTest {
         Gravity g = Gravity.build(new long[][]{{1, 3, 5}, {3, 7}},
                 new int[]{Gravity.ADS, Gravity.TRACKERS}, 100);
         eq(4, g.size(), "gravity merges");
+        eq(4, g.activeSize(Gravity.ALL), "all categories count");
+        eq(3, g.activeSize(Gravity.ADS), "ads-only count");
+        eq(2, g.activeSize(Gravity.TRACKERS), "trackers-only count");
+        eq(4, g.activeSize(Gravity.ADS | Gravity.TRACKERS),
+                "shared domain counts once");
+        eq(0, g.activeSize(Gravity.PIRACY), "disabled categories count nothing");
         eq(Gravity.ADS, g.flagsOf(1) & Gravity.ADS, "ads flag");
         eq(Gravity.ADS | Gravity.TRACKERS, g.flagsOf(3),
                 "overlapping category flags");

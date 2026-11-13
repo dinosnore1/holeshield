@@ -58,6 +58,19 @@ final class Gravity {
         return hashes.length;
     }
 
+    /**
+     * Number of entries that can actually block under {@code mask}. A domain
+     * listed in several categories still counts once while any of its
+     * categories is enabled.
+     */
+    int activeSize(int mask) {
+        int n = 0;
+        for (int flag : flags) {
+            if ((flag & mask) != 0) n++;
+        }
+        return n;
+    }
+
     /** FNV-1a over the lowercased domain bytes. */
     static long hash(String domain) {
         if (domain == null || domain.isEmpty()) return 0L;
@@ -141,21 +154,29 @@ final class Gravity {
         return new Gravity(outHashes, outFlags);
     }
 
-    /**
-     * Shares a global memory guard across the non-empty category arrays.
-     * Each category keeps its first entries in list order, so the selected
-     * Lite/Medium/Maximum lists keep useful coverage instead of one large
-     * category consuming the whole guard.
-     */
     static long[][] fairCap(long[][] sources, int max) {
+        return fairCap(sources, max, sources.length);
+    }
+
+    /**
+     * Shares a global memory guard across the category arrays. Each category
+     * keeps its first entries in list order, so the selected Lite/Medium/
+     * Maximum lists keep useful coverage instead of one large category
+     * consuming the whole guard. The guard is split over {@code slots}
+     * categories, so a switched-off category leaves its share unused and the
+     * domain count drops instead of flowing into the other lists.
+     */
+    static long[][] fairCap(long[][] sources, int max, int slots) {
         int total = 0;
         for (long[] source : sources) total += source.length;
         if (total <= max) return sources;
         int active = 0;
         for (long[] source : sources) if (source.length > 0) active++;
-        if (active == 0) return sources;
-        int quota = max / active;
-        int remainder = max % active;
+        if (active == 0 || slots <= 0) return sources;
+        int budget = (int) Math.min(max, (long) max * active / slots);
+        if (budget < active) budget = active;
+        int quota = budget / active;
+        int remainder = budget % active;
         int[] original = new int[sources.length];
         int[] take = new int[sources.length];
         int used = 0;
@@ -166,7 +187,7 @@ final class Gravity {
             if (remainder > 0) remainder--;
             used += take[i];
         }
-        int left = max - used;
+        int left = budget - used;
         while (left > 0) {
             boolean progress = false;
             for (int i = 0; i < sources.length && left > 0; i++) {

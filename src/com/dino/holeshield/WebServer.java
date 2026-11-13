@@ -432,14 +432,21 @@ final class WebServer {
                 if (on) {
                     String next = Blocklists.applyLevel(p.blocklistUrls, key,
                             p.categoryLevel(key));
-                    if (!next.equals(p.blocklistUrls)) {
-                        p.blocklistUrls = next;
+                    boolean changed = !next.equals(p.blocklistUrls);
+                    p.blocklistUrls = next;
+                    if (changed || Blocklist.categoryFileMissing(context, key)) {
                         needUpdate = true;
                     }
+                } else {
+                    // Drop the preset sources too, so the next update removes
+                    // the list and the domain count reflects the switch.
+                    p.blocklistUrls = Blocklists.applyLevel(
+                            p.blocklistUrls, key, "off");
                 }
             }
             p.save(context);
             Blocklist.setCategoryMask(p.categoryMask());
+            Blocklist.bumpRevision();
             if (host != null) host.settingsChanged();
             if (needUpdate && !Blocklist.isUpdating()) Blocklist.updateAsync(context, null);
         }

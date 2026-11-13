@@ -223,6 +223,8 @@ final class Blocklist {
     private static volatile Map<String, ClientRules> clientRules = Collections.emptyMap();
     private static volatile boolean blockSubdomains = true;
     private static volatile int categoryMask = Gravity.ALL;
+    /** Entries in {@link #gravity} that pass {@link #categoryMask}. */
+    private static volatile int activeGravityCount;
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
     private static volatile int revision;
@@ -302,6 +304,7 @@ final class Blocklist {
 
         Gravity fresh = loadGravity(c, p);
         gravity = fresh;
+        activeGravityCount = fresh.activeSize(categoryMask);
         exactBlocked = eb;
         exactAllowed = ea;
         wildcardBlocked = wb;
@@ -366,7 +369,7 @@ final class Blocklist {
         social = null;
         other = null;
         long[][] capped = p.gravityCapEnabled && p.gravityCap > 0
-                ? Gravity.fairCap(sources, p.gravityCap) : sources;
+                ? Gravity.fairCap(sources, p.gravityCap, sources.length) : sources;
         for (int i = 0; i < capped.length; i++) {
             capped[i] = Gravity.clean(capped[i]);
         }
@@ -387,6 +390,30 @@ final class Blocklist {
             readHostsHashed(r, out, limit);
         } catch (Exception ignored) { }
         return out.toArray();
+    }
+
+    /**
+     * True when a list for this category has not been stored yet. Used when a
+     * category is switched back on and its sources are already configured, so
+     * the download starts instead of waiting for the next manual update.
+     */
+    static boolean categoryFileMissing(Context c, String key) {
+        String file = categoryFile(key);
+        if (file == null) return false;
+        File f = new File(c.getFilesDir(), file);
+        return !f.exists() || f.length() == 0;
+    }
+
+    private static String categoryFile(String key) {
+        if ("ads".equals(key)) return ADS_FILE;
+        if ("trackers".equals(key)) return TRACKER_FILE;
+        if ("malware".equals(key)) return MALWARE_FILE;
+        if ("adult".equals(key)) return ADULT_FILE;
+        if ("piracy".equals(key)) return PIRACY_FILE;
+        if ("gambling".equals(key)) return GAMBLING_FILE;
+        if ("dating".equals(key)) return DATING_FILE;
+        if ("social".equals(key)) return SOCIAL_FILE;
+        return null;
     }
 
     private static void readHostsHashed(BufferedReader r, LongBuffer into, int limit) {
@@ -410,12 +437,14 @@ final class Blocklist {
 
     static void setCategoryMask(int mask) {
         categoryMask = mask;
+        activeGravityCount = gravity.activeSize(mask);
     }
 
     static void applyPrefs(Prefs p) {
         if (p == null) return;
         blockSubdomains = p.blockSubdomains;
         categoryMask = p.categoryMask();
+        activeGravityCount = gravity.activeSize(categoryMask);
         clientRules = parseClientRules(p.clientRules);
     }
 
@@ -773,7 +802,7 @@ final class Blocklist {
     // ---------------------------------------------------------------- counts
 
     static int blockedCount() {
-        return gravity.size() + exactBlocked.size() + wildcardBlocked.size()
+        return activeGravityCount + exactBlocked.size() + wildcardBlocked.size()
                 + regexBlocked.size();
     }
 
@@ -847,6 +876,9 @@ final class Blocklist {
                 List<String> socialUrls = new ArrayList<>();
                 List<String> otherUrls = new ArrayList<>();
                 for (String url : urls) {
+                    // A category the user switched off keeps its sources in the
+                    // settings, but its list is neither downloaded nor counted.
+                    if (!categoryOn(p, url)) continue;
                     switch (Blocklists.categoryOf(url)) {
                         case Blocklists.CATEGORY_TRACKERS:
                             trackerUrls.add(url);
@@ -921,7 +953,7 @@ final class Blocklist {
                 p.save(app);
                 reload(app);
                 ok = true;
-                message = "Blocking " + Blocklist.gravityCount() + " domains from " + listsOk
+                message = "Blocking " + Blocklist.blockedCount() + " domains from " + listsOk
                         + (listsOk == 1 ? " list" : " lists")
                         + (listsFailed > 0 ? " (" + listsFailed + " failed)" : "");
             } catch (Exception e) {
@@ -1034,6 +1066,21 @@ final class Blocklist {
 
     private static List<String> listUrls(Prefs p) {
         return Blocklists.urls(p.blocklistUrls);
+    }
+
+    /** False when a configured source belongs to a category switched off. */
+    private static boolean categoryOn(Prefs p, String url) {
+        switch (Blocklists.categoryOf(url)) {
+            case Blocklists.CATEGORY_ADS: return p.categoryEnabled("ads");
+            case Blocklists.CATEGORY_TRACKERS: return p.categoryEnabled("trackers");
+            case Blocklists.CATEGORY_MALWARE: return p.categoryEnabled("malware");
+            case Blocklists.CATEGORY_ADULT: return p.categoryEnabled("adult");
+            case Blocklists.CATEGORY_PIRACY: return p.categoryEnabled("piracy");
+            case Blocklists.CATEGORY_GAMBLING: return p.categoryEnabled("gambling");
+            case Blocklists.CATEGORY_DATING: return p.categoryEnabled("dating");
+            case Blocklists.CATEGORY_SOCIAL: return p.categoryEnabled("social");
+            default: return true;
+        }
     }
 
     private static void post(Done done, boolean ok, String message) {
