@@ -175,6 +175,10 @@ final class Prefs {
         s.categoryDating = p.getBoolean("categoryDating", s.categoryDating);
         s.categorySocial = p.getBoolean("categorySocial", s.categorySocial);
         s.safeSearch = p.getBoolean("safeSearch", s.safeSearch);
+        // SafeSearch used to be a separate switch. It is part of the Adult
+        // category now, so the two flags can never disagree.
+        s.categoryAdult = s.categoryAdult || s.safeSearch;
+        s.safeSearch = s.categoryAdult;
         s.webEnabled = p.getBoolean("webEnabled", s.webEnabled);
         s.webPort = p.getInt("webPort", s.webPort);
         s.webUsername = p.getString("webUsername", s.webUsername);

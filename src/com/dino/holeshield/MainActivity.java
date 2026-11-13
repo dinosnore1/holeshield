@@ -1574,7 +1574,7 @@ public class MainActivity extends Activity {
         cats.addView(categoryControlRow("Malware", "malware",
                 "URLhaus, phishing and malicious downloads"), rowLp(2));
         cats.addView(categoryControlRow("Adult", "adult",
-                "Adult sites and services"), rowLp(3));
+                "Adult sites, plus SafeSearch"), rowLp(3));
         cats.addView(categoryControlRow("Piracy", "piracy",
                 "Illegal distribution and piracy sites"), rowLp(4));
         cats.addView(categoryControlRow("Gambling", "gambling",
@@ -1583,9 +1583,6 @@ public class MainActivity extends Activity {
                 "Dating sites and apps"), rowLp(6));
         cats.addView(categoryControlRow("Social media", "social",
                 "Classic social networks; messaging apps stay available"), rowLp(7));
-        cats.addView(settingRowToggle("SafeSearch / parental filter",
-                safeSearchSubtitle(), prefs.safeSearch,
-                () -> toggleSafeSearch(Screen.LISTS)), rowLp(8));
         add(col, cats, 8);
 
         addHealthPanel(col);
@@ -1747,27 +1744,6 @@ public class MainActivity extends Activity {
         show(Screen.LISTS);
         if (needUpdate) updateBlocklist();
         else Ui.toast(this, on ? "Category enabled" : "Category disabled");
-    }
-
-    private String safeSearchSubtitle() {
-        return prefs.safeSearch
-                ? "Adult-content list is active; update gravity after changing"
-                : "Adds an adult-content list; update gravity to apply";
-    }
-
-    private void toggleSafeSearch(Screen returnTo) {
-        prefs = Prefs.load(this);
-        prefs.safeSearch = !prefs.safeSearch;
-        prefs.categoryAdult = prefs.safeSearch;
-        prefs.blocklistUrls = prefs.safeSearch
-                ? Blocklists.mergeMissing(prefs.blocklistUrls, Blocklists.ADULT)
-                : Blocklists.removeAll(prefs.blocklistUrls, Blocklists.ADULT);
-        prefs.save(this);
-        Blocklist.setCategoryMask(prefs.categoryMask());
-        Blocklist.bumpRevision();
-        show(returnTo);
-        if (prefs.safeSearch) updateBlocklist();
-        else Ui.toast(this, "Adult-content list removed");
     }
 
     private static final int GRAVITY_CAP_MIN = 100000;
@@ -2571,11 +2547,8 @@ public class MainActivity extends Activity {
         bl.addView(settingRow("Blocklist sources", "One hosts/adblock URL per line",
                 listUrlCount(prefs.blocklistUrls) + " lists", this::editListUrls), rowLp(1));
         bl.addView(gravityCapRow(), rowLp(2));
-        int nextRow = 3;
-        bl.addView(settingRowToggle("SafeSearch / parental filter", safeSearchSubtitle(),
-                prefs.safeSearch, () -> toggleSafeSearch(Screen.SETTINGS)), rowLp(nextRow++));
         bl.addView(settingRow("Test protection", "Resolve a known ad domain through the VPN",
-                "Run", this::testProtection), rowLp(nextRow));
+                "Run", this::testProtection), rowLp(3));
         add(col, bl, 8);
 
         col.addView(section("APPEARANCE"));
