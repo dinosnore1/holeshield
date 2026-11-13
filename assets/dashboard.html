@@ -573,10 +573,10 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   <section class="grid2">
     <div class="panel">
       <div class="panel-head">
-        <h3 id="chartTitle">Last 24 hours</h3>
+        <h3 id="chartTitle">Live · last 30 minutes</h3>
         <div class="rangeTabs" id="chartRanges" role="group" aria-label="Chart range">
-          <button class="small" data-range="live">Live</button>
-          <button class="small active" data-range="24h">24h</button>
+          <button class="small active" data-range="live">Live</button>
+          <button class="small" data-range="24h">24h</button>
           <button class="small" data-range="week">Week</button>
           <button class="small" data-range="month">Month</button>
         </div>
@@ -755,7 +755,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     blocking: true,
     pauseUntil: 0,
     pauseIndefinite: false,
-    chartRange: "24h"
+    chartRange: "live"
   };
   var $ = function(s){ return document.querySelector(s); };
   var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -1066,7 +1066,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   }
 
   function renderHistory(data){
-    var range = (data && data.range) || state.chartRange || "24h";
+    var range = (data && data.range) || state.chartRange || "live";
     var rows = (data && (data.points || data.hours)) || [];
     var el = $("#chart");
     $("#chartTitle").textContent = range === "live" ? "Live · last 30 minutes"
