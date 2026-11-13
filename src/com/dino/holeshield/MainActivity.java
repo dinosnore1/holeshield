@@ -1912,7 +1912,7 @@ public class MainActivity extends Activity {
     private static String gravityCapDetail(boolean enabled, int cap) {
         return enabled
                 ? "Cap the loaded index · " + gravityCapLabel(cap)
-                        + " split across categories"
+                        + " across 8 categories, Ads first"
                 : "Off · loads every domain";
     }
 

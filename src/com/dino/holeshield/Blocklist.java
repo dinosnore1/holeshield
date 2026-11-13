@@ -226,19 +226,23 @@ final class Blocklist {
     /** Entries in {@link #gravity} that pass {@link #categoryMask}. */
     private static volatile int activeGravityCount;
     /**
-     * Active entries counted once each under their primary category. The order
-     * matches {@link #categoryName(int)} so a domain is counted under the same
-     * category the query log shows.
+     * Active entries counted once each under their primary category. Ads comes
+     * first so a domain that appears on an ad list is credited to Ads even when
+     * a tracker list also carries it; malware-only domains still count under
+     * Malware. The order matches {@link #categoryName(int)} so a domain is
+     * counted under the same category the query log shows.
      */
     private static final int[] CATEGORY_PRIORITY = {
-            Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS, Gravity.ADULT,
+            Gravity.ADS, Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
             Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
             Gravity.OTHER
     };
     private static final String[] CATEGORY_PRIORITY_KEYS = {
-            "malware", "trackers", "ads", "adult",
+            "ads", "malware", "trackers", "adult",
             "piracy", "gambling", "dating", "social", "other"
     };
+    /** User-facing categories; "other" is the fallback bucket and not a slot. */
+    private static final int CATEGORY_SLOTS = Blocklists.CATEGORY_KEYS.length;
     private static volatile int[] categoryCounts = new int[CATEGORY_PRIORITY.length];
     private static volatile boolean updating = false;
     private static final Object RELOAD_LOCK = new Object();
@@ -393,7 +397,7 @@ final class Blocklist {
                 Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
                 Gravity.OTHER
         };
-        return Gravity.buildFair(sources, bits, limit, sources.length,
+        return Gravity.buildFair(sources, bits, limit, CATEGORY_SLOTS,
                 CATEGORY_PRIORITY);
     }
 
@@ -708,9 +712,9 @@ final class Blocklist {
     }
 
     static String categoryName(int flags) {
+        if ((flags & Gravity.ADS) != 0) return "Ads";
         if ((flags & Gravity.MALWARE) != 0) return "Malware";
         if ((flags & Gravity.TRACKERS) != 0) return "Trackers";
-        if ((flags & Gravity.ADS) != 0) return "Ads";
         if ((flags & Gravity.ADULT) != 0) return "Adult";
         if ((flags & Gravity.PIRACY) != 0) return "Piracy";
         if ((flags & Gravity.GAMBLING) != 0) return "Gambling";

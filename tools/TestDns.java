@@ -35,6 +35,12 @@ public final class TestDns {
         passed++;
     }
 
+    private static int kept(long[] source, Gravity g) {
+        int n = 0;
+        for (long hash : source) if (g.contains(hash)) n++;
+        return n;
+    }
+
     private static void queryParsing() {
         byte[] q = DnsPacket.buildQuery(0x1234, "Ads.DoubleClick.NET", DnsPacket.TYPE_A);
         DnsPacket.Query parsed = DnsPacket.parseQuery(q, q.length);
@@ -384,6 +390,38 @@ public final class TestDns {
                 new int[]{Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS,
                         Gravity.ADULT});
         check(partial.size() == 4, "disabled category leaves its guard share unused");
+
+        long[][] six = new long[9][];
+        for (int i = 0; i < 6; i++) {
+            six[i] = new long[400];
+            for (int j = 0; j < 400; j++) six[i][j] = (i + 1) * 1_000_000L + j;
+        }
+        Gravity eightSlot = Gravity.buildFair(six,
+                new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.MALWARE,
+                        Gravity.ADULT, Gravity.PIRACY, Gravity.GAMBLING,
+                        Gravity.DATING, Gravity.SOCIAL, Gravity.OTHER},
+                1500, 8, new int[]{Gravity.ADS, Gravity.MALWARE,
+                        Gravity.TRACKERS, Gravity.ADULT, Gravity.PIRACY,
+                        Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
+                        Gravity.OTHER});
+        check(eightSlot.size() == 1125, "eight category slots split the guard");
+
+        long[] smallA = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        long[] smallB = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        long[] adsMany = new long[500];
+        long[] trackerMany = new long[500];
+        for (int i = 0; i < 500; i++) {
+            adsMany[i] = 1000L + i * 2;
+            trackerMany[i] = 1001L + i * 2;
+        }
+        Gravity adFirst = Gravity.buildFair(
+                new long[][]{adsMany, trackerMany, smallA, smallB},
+                new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.ADULT,
+                        Gravity.GAMBLING}, 300, 4,
+                new int[]{Gravity.ADS, Gravity.TRACKERS, Gravity.ADULT,
+                        Gravity.GAMBLING});
+        check(kept(adsMany, adFirst) == 205 && kept(trackerMany, adFirst) == 75,
+                "ads takes the unused share before the other categories");
         check(Gravity.hash("Example.COM") == Gravity.hash("example.com"),
                 "gravity hash is case-insensitive");
     }

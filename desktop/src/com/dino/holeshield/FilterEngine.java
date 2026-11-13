@@ -57,7 +57,7 @@ final class FilterEngine {
 
     /** Counting order, matching the labels returned by {@link #categoryName(int)}. */
     private static final int[] CATEGORY_PRIORITY = {
-            Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADS, Gravity.ADULT,
+            Gravity.ADS, Gravity.MALWARE, Gravity.TRACKERS, Gravity.ADULT,
             Gravity.PIRACY, Gravity.GAMBLING, Gravity.DATING, Gravity.SOCIAL,
             Gravity.OTHER
     };
@@ -527,9 +527,9 @@ final class FilterEngine {
     }
 
     static String categoryName(int flags) {
+        if ((flags & Gravity.ADS) != 0) return "Ads";
         if ((flags & Gravity.MALWARE) != 0) return "Malware";
         if ((flags & Gravity.TRACKERS) != 0) return "Trackers";
-        if ((flags & Gravity.ADS) != 0) return "Ads";
         if ((flags & Gravity.ADULT) != 0) return "Adult";
         if ((flags & Gravity.PIRACY) != 0) return "Piracy";
         if ((flags & Gravity.GAMBLING) != 0) return "Gambling";
@@ -643,9 +643,9 @@ final class FilterEngine {
         int mask = categoryMask;
         activeGravityCount = g.activeSize(mask);
         int[] c = g.primaryCounts(CATEGORY_PRIORITY, mask);
-        malwareCount = c[0];
-        trackerCount = c[1];
-        adsCount = c[2];
+        adsCount = c[0];
+        malwareCount = c[1];
+        trackerCount = c[2];
         adultCount = c[3];
         piracyCount = c[4];
         gamblingCount = c[5];
@@ -853,8 +853,8 @@ final class FilterEngine {
         for (int i = 0; i < raw.length; i++) {
             raw[i] = Gravity.clean(raw[i]);
         }
-        Gravity fresh = Gravity.buildFair(raw, CATEGORY_BITS, limit, raw.length,
-                CATEGORY_PRIORITY);
+        Gravity fresh = Gravity.buildFair(raw, CATEGORY_BITS, limit,
+                Blocklists.CATEGORY_KEYS.length, CATEGORY_PRIORITY);
         saveGravity(fresh.hashes(), fresh.flags());
 
         gravity = fresh;
