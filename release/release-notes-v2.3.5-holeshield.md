@@ -31,6 +31,9 @@ installed separately.
 The macOS package was rebuilt on 2026-11-14 with an installer fix: it now
 always installs into `/Applications`, even when another copy of
 `Hole Shield.app` (for example a local build) is registered elsewhere on disk.
+The desktop installers were rebuilt again with clearer companion-mode settings:
+the **Apply settings** button now sits in the Companion card, and the status
+line says when a change is waiting to be applied.
 
 ## Android changes
 
@@ -143,11 +146,11 @@ Android:
 Desktop:
 
 ```
-8e2933ed9a4eebfc16dd5afc8617c447a33f71dff3a50b0f42f918bc9e7cf20c  Hole-Shield-2.3.5-universal.pkg
-8f586fe3f327e206461781ed07b9653321e72a29da3af0a7807173fd7dad2fcd  Hole-Shield-2.3.5.msi
-16580537007c2ccc42ac7c2960bb8bc803f12f3f13d60d0aeb21b112f41a8259  Hole-Shield-2.3.5.exe
-791030a2c3fe68499364ebd786d404ea5dbfbf83b81650d37be34a5825b7bdc1  holeshield_2.3.5-1_amd64.deb
-b4f18614f1574d409d0fdb07a77229e161e86ff7e4e16fdc6845a671ad2631db  holeshield-2.3.5-1.x86_64.rpm
+d2ee2ce21ab2fd1fda538b6b1a2fb3bfbc28ec82a923c1ee9920d6c54b46c1a6  Hole-Shield-2.3.5-universal.pkg
+acd993c86abb97e0a6a1c35412bb9e1e468bf54fda78e3db5c8fa79e50388e40  Hole-Shield-2.3.5.msi
+c40a84c15204e39ffeca38ff853ea2beb56803f2ed745f8565b413e6e103d61d  Hole-Shield-2.3.5.exe
+1932b1b8f8d5de2566ae479a3497546e5ff4e37596736d8d479eecb8c5e7dc14  holeshield_2.3.5-1_amd64.deb
+3ccf04d0d2b655452dc2e759cb1cf862592fde29c8625b6bf73d7ceed8be35b2  holeshield-2.3.5-1.x86_64.rpm
 ```
 
 The same desktop checksums are attached as
