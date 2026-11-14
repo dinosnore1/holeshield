@@ -16,7 +16,7 @@
   },
   "desktop": {
     "version": "2.3.5",
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-desktop",
-    "notes": "Desktop 2.3.5: companion mode logs in to a Hole Shield system already running on the LAN, mirrors its live summary and remote controls, and opens its dashboard; universal macOS PKG, Windows MSI/EXE and Linux DEB/RPM."
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-holeshield",
+    "notes": "Desktop 2.3.5: companion mode logs in to a Hole Shield system already running on the LAN, mirrors its live summary and remote controls, and opens its dashboard; installers are attached to the combined 2.3.5 release."
   }
 }

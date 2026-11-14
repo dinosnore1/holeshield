@@ -19,9 +19,9 @@ Use build/holeshield.apk for direct GitHub installs.
 
 Desktop (2.3.5)
 ---------------
-Published separately as the v2.3.5-desktop release, built by GitHub Actions on
-macOS, Ubuntu and Windows. Adds companion mode for logging in to a Hole Shield
-system already running on the LAN.
+Published with the v2.3.5-holeshield release, built by GitHub Actions on macOS,
+Ubuntu and Windows. Adds companion mode for logging in to a Hole Shield system
+already running on the LAN.
 
 Hole-Shield-2.3.5-universal.pkg
   Universal macOS package for Intel and Apple Silicon (unsigned).
