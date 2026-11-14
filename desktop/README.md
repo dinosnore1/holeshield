@@ -16,6 +16,7 @@ the same allow/deny rules and the same web dashboard.
 - Embedded web dashboard with optional username/password login.
 - Native Swing control panel with System, Dark and Light themes.
 - Tray / menu-bar controls, pause timers and launch-at-login.
+- Companion mode that logs in to a Hole Shield system already running on the LAN.
 - Native installers that bundle a Java runtime.
 
 ## Run from source
@@ -44,6 +45,7 @@ Options:
 --minimized         Start hidden in the tray
 --open-dashboard    Open the web dashboard on launch
 --page NAME         Start on Overview, Query log, Blocklists, Rules or Settings
+--companion HOST    Log in to a Hole Shield dashboard on the network
 --replace           Start even if another instance is running
 --version           Print the version
 ```
@@ -56,6 +58,31 @@ Options:
 3. Add or remove blocklist sources on **Blocklists**, then choose **Update now**.
    The bundled seed list works immediately, before the first download.
 4. On **Settings**, choose the upstream and the blocked response style.
+
+### Companion mode
+
+Companion mode turns this app into a console for a Hole Shield system that is
+already running on the network — an Android TV, a phone or another desktop
+running the same embedded dashboard. It does **not** start a local resolver or
+a local web dashboard, so no administrator rights and no port 53 are needed.
+
+1. Open **Settings** and find **Companion mode**.
+2. On the other system, make sure its web dashboard is reachable on the LAN
+   (**Bind address** `0.0.0.0`) and note its port (usually `8080`).
+3. Enter the address of the other system, for example `192.168.2.133` and port
+   `8080`.
+4. Enter the dashboard username and password if that system has a login.
+5. Choose **Test connection**, then **Apply settings**.
+
+The control panel now shows the remote summary, categories and connection
+state. **Open dashboard** (in the header, the Companion page, Settings or the
+tray menu) opens the remote web dashboard in your browser. Remote controls on
+the Companion page pause or resume filtering, flush the DNS cache and ask the
+other system to update its blocklists.
+
+The password is kept in this computer's local
+`settings.properties` file so the app can reconnect at launch. Turn companion
+mode off and apply to return to running a resolver on this computer.
 
 ### Point this computer at Hole Shield
 

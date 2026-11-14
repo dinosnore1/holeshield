@@ -19,6 +19,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
@@ -51,9 +52,9 @@ final class ControlPanel extends JFrame {
 
     private final DesktopApp app;
     private final DesktopPrefs prefs;
-    private final FilterEngine filter;
-    private final StatsStore stats;
-    private final DnsService dns;
+    private FilterEngine filter;
+    private StatsStore stats;
+    private DnsService dns;
 
     private final Map<String, Widgets.NavItem> navItems = new LinkedHashMap<>();
     private final Map<String, Page> pages = new LinkedHashMap<>();
@@ -135,6 +136,11 @@ final class ControlPanel extends JFrame {
     // ------------------------------------------------------------------- shell
 
     private void build() {
+        filter = app.filter();
+        stats = app.stats();
+        dns = app.dns();
+        pages.clear();
+        navItems.clear();
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(Theme.get().bg);
         setContentPane(root);
@@ -147,16 +153,25 @@ final class ControlPanel extends JFrame {
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(0, 0, 0, 0));
 
-        OverviewPage overview = new OverviewPage();
-        QueriesPage queries = new QueriesPage();
-        ListsPage lists = new ListsPage();
-        RulesPage rules = new RulesPage();
-        SettingsPage settings = new SettingsPage();
-        addPage("Overview", overview);
-        addPage("Query log", queries);
-        addPage("Blocklists", lists);
-        addPage("Rules", rules);
-        addPage("Settings", settings);
+        if (app.isCompanion()) {
+            addPage("Companion", new CompanionPage());
+            addPage("Settings", new SettingsPage());
+        } else {
+            OverviewPage overview = new OverviewPage();
+            QueriesPage queries = new QueriesPage();
+            ListsPage lists = new ListsPage();
+            RulesPage rules = new RulesPage();
+            SettingsPage settings = new SettingsPage();
+            addPage("Overview", overview);
+            addPage("Query log", queries);
+            addPage("Blocklists", lists);
+            addPage("Rules", rules);
+            addPage("Settings", settings);
+        }
+        if (!pages.containsKey(currentPage)) {
+            currentPage = pages.isEmpty() ? "Overview"
+                    : pages.keySet().iterator().next();
+        }
         root.add(content, BorderLayout.CENTER);
         root.add(buildFooter(), BorderLayout.SOUTH);
         selectPage(currentPage);
@@ -192,7 +207,8 @@ final class ControlPanel extends JFrame {
         copy.setAlignmentX(Component.LEFT_ALIGNMENT);
         copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
         copy.add(Widgets.label(DesktopApp.NAME, 17, Font.BOLD, 0));
-        copy.add(Widgets.label("Desktop DNS filter", 11.5f, Font.PLAIN, 1));
+        copy.add(Widgets.label(app.isCompanion() ? "Companion console"
+                : "Desktop DNS filter", 11.5f, Font.PLAIN, 1));
         brand.add(copy);
         header.add(brand, BorderLayout.WEST);
 
@@ -237,13 +253,16 @@ final class ControlPanel extends JFrame {
         items.setOpaque(false);
         items.setLayout(new BoxLayout(items, BoxLayout.Y_AXIS));
         items.add(Widgets.section("WORKSPACE"));
-        String[][] entries = {
-                {"Overview", "dashboard"},
-                {"Query log", "list"},
-                {"Blocklists", "shield"},
-                {"Rules", "rules"},
-                {"Settings", "settings"}
-        };
+        String[][] entries = app.isCompanion()
+                ? new String[][]{
+                        {"Companion", "server"},
+                        {"Settings", "settings"}}
+                : new String[][]{
+                        {"Overview", "dashboard"},
+                        {"Query log", "list"},
+                        {"Blocklists", "shield"},
+                        {"Rules", "rules"},
+                        {"Settings", "settings"}};
         for (String[] entry : entries) {
             Widgets.NavItem item = new Widgets.NavItem(entry[0], entry[1]);
             item.setOnClick(() -> selectPage(entry[0]));
@@ -263,7 +282,8 @@ final class ControlPanel extends JFrame {
         versionLabel = Widgets.label("Version " + DesktopApp.VERSION, 10.5f,
                 Font.PLAIN, 1);
         foot.add(versionLabel);
-        foot.add(Widgets.label("Local DNS · no cloud", 10.5f, Font.PLAIN, 2));
+        foot.add(Widgets.label(app.isCompanion() ? "Remote dashboard"
+                : "Local DNS · no cloud", 10.5f, Font.PLAIN, 2));
         nav.add(foot, BorderLayout.SOUTH);
         wrapper.add(nav, BorderLayout.CENTER);
         return wrapper;
@@ -297,9 +317,39 @@ final class ControlPanel extends JFrame {
     // ----------------------------------------------------------------- refresh
 
     void refreshHeader() {
+        Theme t = Theme.get();
+        if (app.isCompanion()) {
+            boolean connected = app.companionConnected();
+            boolean healthy = connected && app.companionError().isEmpty();
+            boolean blocking = app.isBlocking();
+            if (startStop != null) {
+                startStop.setText(blocking ? "Pause blocking" : "Resume blocking");
+                startStop.setEnabled(connected);
+            }
+            if (statusPill != null) {
+                statusPill.setFill(healthy ? t.accentSoft : t.dangerSoft);
+                statusPill.setBorderColor(healthy ? t.accentSoft : t.dangerSoft);
+            }
+            if (statusDot != null) {
+                statusDot.setForeground(!healthy ? t.danger
+                        : blocking ? t.accent : t.warn);
+            }
+            if (statusText != null) {
+                statusText.setText(!connected ? "Companion offline"
+                        : !healthy ? "Companion error"
+                        : blocking ? "Companion connected" : "Remote blocking paused");
+            }
+            if (footerRight != null) {
+                footerRight.setText("Remote " + app.bindSummary()
+                        + "   ·   Companion mode   ·   v" + DesktopApp.VERSION);
+            }
+            if (versionLabel != null) {
+                versionLabel.setText("Version " + DesktopApp.VERSION);
+            }
+            return;
+        }
         boolean running = app.isDnsRunning();
         boolean blocking = app.isBlocking();
-        Theme t = Theme.get();
         if (startStop != null) {
             startStop.setText(running ? "Stop DNS" : "Start DNS");
         }
@@ -331,7 +381,8 @@ final class ControlPanel extends JFrame {
         Page page = pages.get(currentPage);
         if (page != null) page.refresh();
         if (footerLeft != null && footerLeft.getText().isEmpty()) {
-            footerLeft.setText(app.isDnsRunning()
+            footerLeft.setText(app.isCompanion() ? app.companionStatus()
+                    : app.isDnsRunning()
                     ? "DNS listening on " + app.bindSummary()
                     : app.dnsError());
         }
@@ -681,6 +732,269 @@ final class ControlPanel extends JFrame {
                     + DesktopApp.formatNumber(blocked) + " blocked · "
                     + String.format(Locale.US, "%.1f%%",
                     total == 0 ? 0 : blocked * 100.0 / total));
+        }
+    }
+
+    // ---------------------------------------------------------------- companion
+
+    private final class CompanionPage extends Page {
+        private final JScrollPane scroll;
+        private final JLabel heroTitle = Widgets.label("Companion console", 22, Font.BOLD, 0);
+        private final JLabel heroSub = Widgets.label("", 12, Font.PLAIN, 1);
+        private final JLabel serverChip = Widgets.label("", 10.5f, Font.BOLD, 1);
+        private final JLabel accountChip = Widgets.label("", 10.5f, Font.BOLD, 1);
+        private final JLabel modeChip = Widgets.label("Remote dashboard", 10.5f, Font.BOLD, 1);
+        private final Widgets.StatCard totalCard =
+                new Widgets.StatCard("Queries", "chart", 0);
+        private final Widgets.StatCard blockedCard =
+                new Widgets.StatCard("Blocked", "shield-check", 1);
+        private final Widgets.StatCard rateCard =
+                new Widgets.StatCard("Blocked rate", "filter", 2);
+        private final Widgets.StatCard gravityCard =
+                new Widgets.StatCard("Domains blocked", "server", 0);
+        private final Widgets.PillButton blockingButton =
+                new Widgets.PillButton("Pause blocking", "pause", Widgets.TONAL);
+        private final Widgets.PillButton updateButton =
+                new Widgets.PillButton("Update blocklists", "refresh", Widgets.OUTLINE);
+        private final Widgets.BarList categories = new Widgets.BarList();
+        private final JLabel details = Widgets.label("", 12, Font.PLAIN, 1);
+        private final JLabel state = Widgets.label("", 11.5f, Font.PLAIN, 2);
+
+        CompanionPage() {
+            VerticalPanel page = new VerticalPanel();
+            page.add(hero());
+            page.add(Box.createVerticalStrut(14));
+            page.add(stats());
+            page.add(Box.createVerticalStrut(14));
+            page.add(controls());
+            page.add(Box.createVerticalStrut(14));
+            page.add(categoryCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(detailsCard());
+            scroll = pageScroll(page);
+        }
+
+        private JComponent hero() {
+            Widgets.RoundedPanel card = card(20, 22, 20, 22);
+            card.setShadow(true);
+            JPanel left = new JPanel();
+            left.setOpaque(false);
+            left.setAlignmentX(Component.LEFT_ALIGNMENT);
+            left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+            heroTitle.setHorizontalAlignment(SwingConstants.LEFT);
+            heroSub.setHorizontalAlignment(SwingConstants.LEFT);
+            left.add(flowLeft(heroTitle));
+            heroSub.setBorder(new EmptyBorder(4, 0, 12, 0));
+            left.add(flowLeft(heroSub));
+            JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
+            chips.setOpaque(false);
+            chips.add(chip("server", serverChip));
+            chips.add(chip("lock", accountChip));
+            chips.add(chip("external", modeChip));
+            left.add(chips);
+            card.add(left, BorderLayout.CENTER);
+
+            JPanel actions = new JPanel();
+            actions.setOpaque(false);
+            actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
+            Widgets.PillButton open = new Widgets.PillButton("Open dashboard",
+                    "external", Widgets.PRIMARY);
+            open.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            open.addActionListener(e -> app.openDashboard());
+            actions.add(open);
+            actions.add(Box.createVerticalStrut(8));
+            Widgets.PillButton reconnect = new Widgets.PillButton("Reconnect",
+                    "refresh", Widgets.OUTLINE);
+            reconnect.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            reconnect.addActionListener(e -> app.reconnectCompanion());
+            actions.add(reconnect);
+            card.add(actions, BorderLayout.EAST);
+            return card;
+        }
+
+        private JComponent flowLeft(JComponent component) {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            row.setOpaque(false);
+            row.add(component);
+            return row;
+        }
+
+        private JComponent chip(String icon, JLabel label) {
+            Widgets.RoundedPanel chip = new Widgets.RoundedPanel(
+                    new FlowLayout(FlowLayout.LEFT, 6, 0));
+            chip.setRadius(14);
+            chip.setFill(Theme.get().surfaceAlt);
+            chip.setBorderColor(Theme.get().border);
+            chip.setBorder(new EmptyBorder(5, 10, 5, 10));
+            chip.add(new JLabel(Icons.icon(icon, 13, 2)));
+            chip.add(label);
+            return chip;
+        }
+
+        private JComponent stats() {
+            JPanel row = new JPanel(new GridLayout(1, 4, 12, 0));
+            row.setOpaque(false);
+            row.setAlignmentX(Component.LEFT_ALIGNMENT);
+            row.add(totalCard);
+            row.add(blockedCard);
+            row.add(rateCard);
+            row.add(gravityCard);
+            row.setPreferredSize(new Dimension(100, 108));
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 108));
+            return row;
+        }
+
+        private JComponent controls() {
+            Widgets.RoundedPanel card = card(17, 18, 16, 18);
+            card.add(Widgets.header("Remote controls",
+                    "Changes are sent to the connected system, not to this computer",
+                    null), BorderLayout.NORTH);
+            JPanel body = new JPanel();
+            body.setOpaque(false);
+            body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+            body.setBorder(new EmptyBorder(12, 0, 0, 0));
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            row.setOpaque(false);
+            blockingButton.addActionListener(e -> {
+                if (app.isBlocking()) app.pause(0);
+                else app.resume();
+            });
+            row.add(blockingButton);
+            Widgets.PillButton flush = new Widgets.PillButton("Flush DNS cache",
+                    "trash", Widgets.OUTLINE);
+            flush.addActionListener(e -> app.flushCache());
+            row.add(flush);
+            updateButton.addActionListener(e -> app.updateLists());
+            row.add(updateButton);
+            body.add(row);
+            state.setBorder(new EmptyBorder(10, 4, 0, 0));
+            body.add(state);
+            card.add(body, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 156));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 176));
+            return card;
+        }
+
+        private JComponent categoryCard() {
+            Widgets.RoundedPanel card = card(16, 17, 14, 17);
+            card.add(Widgets.header("Blocked by category",
+                    "Category counts reported by the remote dashboard", null),
+                    BorderLayout.NORTH);
+            categories.setDanger(true);
+            categories.setBorder(new EmptyBorder(10, 0, 0, 0));
+            card.add(categories, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 210));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
+            return card;
+        }
+
+        private JComponent detailsCard() {
+            Widgets.RoundedPanel card = card(16, 17, 16, 17);
+            card.add(Widgets.header("Connected system",
+                    "Live details from the remote Hole Shield", null),
+                    BorderLayout.NORTH);
+            details.setBorder(new EmptyBorder(10, 2, 0, 0));
+            card.add(details, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 128));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+            return card;
+        }
+
+        @Override
+        JScrollPane scroll() {
+            return scroll;
+        }
+
+        @Override
+        void refresh() {
+            CompanionClient client = app.companion();
+            CompanionClient.Snapshot snapshot = app.companionSnapshot();
+            boolean connected = app.companionConnected();
+            String address = client == null ? "not configured"
+                    : client.display().isEmpty() ? "not configured" : client.display();
+            serverChip.setText(address);
+            accountChip.setText(connected ? "signed in" : "not signed in");
+            modeChip.setText("Remote dashboard");
+            boolean blocking = app.isBlocking();
+            blockingButton.setText(blocking ? "Pause blocking" : "Resume blocking");
+            blockingButton.setEnabled(connected);
+            updateButton.setEnabled(connected && !app.isUpdating());
+
+            if (snapshot == null) {
+                heroTitle.setText(connected ? "Companion console" : "Companion offline");
+                String error = app.companionError();
+                heroSub.setText(error.isEmpty()
+                        ? "Connecting to the Hole Shield system on your network…"
+                        : error);
+                totalCard.setValue("—");
+                blockedCard.setValue("—");
+                rateCard.setValue("—");
+                gravityCard.setValue("—");
+                totalCard.setHint("");
+                blockedCard.setHint("");
+                rateCard.setHint("");
+                gravityCard.setHint("");
+                categories.setData(new ArrayList<>(), "Waiting for the remote dashboard…");
+                details.setText("No summary yet.");
+                state.setText(connected ? "Connected, waiting for the first summary."
+                        : error.isEmpty() ? "Connecting…" : error);
+                return;
+            }
+
+            heroTitle.setText(blocking ? "Companion is connected"
+                    : "Remote blocking is paused");
+            String liveError = app.companionError();
+            heroSub.setText(liveError.isEmpty()
+                    ? "This console mirrors " + address
+                    + ". Local DNS and the local dashboard stay off in companion mode."
+                    : liveError);
+            totalCard.setValue(DesktopApp.formatNumber(snapshot.queries));
+            blockedCard.setValue(DesktopApp.formatNumber(snapshot.blocked));
+            rateCard.setValue(String.format(Locale.US, "%.1f%%", snapshot.rate));
+            gravityCard.setValue(DesktopApp.formatNumber(snapshot.gravityDomains));
+            totalCard.setHint(snapshot.uniqueDomains + " domains");
+            blockedCard.setHint(snapshot.cached + " cached");
+            rateCard.setHint(snapshot.errors + " errors");
+            gravityCard.setHint(snapshot.categories.size() + " categories");
+
+            List<StatsStore.Top> rows = new ArrayList<>();
+            String[] order = {"ads", "malware", "trackers", "adult",
+                    "piracy", "gambling", "dating", "social", "other"};
+            for (String key : order) {
+                Long count = snapshot.categories.get(key);
+                if (count == null) continue;
+                rows.add(new StatsStore.Top(categoryLabel(key),
+                        (int) Math.min(Integer.MAX_VALUE, count)));
+            }
+            categories.setData(rows, "No category counts reported.");
+
+            String updated = snapshot.lastUpdate > 0
+                    ? relative(snapshot.lastUpdate) : "never";
+            details.setText("<html><body style='width:520px'>"
+                    + "Server: <b>" + html(address) + "</b><br>"
+                    + "Software: " + html(snapshot.name.isEmpty()
+                    ? "Hole Shield" : snapshot.name)
+                    + (snapshot.version.isEmpty() ? "" : " " + html(snapshot.version))
+                    + "<br>"
+                    + "Clients seen: " + snapshot.clients
+                    + " · Gravity updated: " + updated + "<br>"
+                    + "Schedule: " + (snapshot.scheduleEnabled
+                    ? html(snapshot.scheduleLabel) : "Always on")
+                    + " · Blocking: " + (blocking ? "enabled" : "paused")
+                    + "</body></html>");
+            state.setText(app.isUpdating() ? "Remote blocklist update in progress…"
+                    : !liveError.isEmpty() ? liveError
+                    : "Live view · refreshes every two seconds.");
+        }
+
+        private String categoryLabel(String key) {
+            if (key.isEmpty()) return "Other";
+            return Character.toUpperCase(key.charAt(0)) + key.substring(1);
+        }
+
+        private String html(String value) {
+            return value == null ? "" : value.replace("&", "&amp;")
+                    .replace("<", "&lt;").replace(">", "&gt;");
         }
     }
 
@@ -1444,6 +1758,14 @@ final class ControlPanel extends JFrame {
         private final JTextField webUser = Widgets.field("optional username", 16);
         private final JPasswordField webPassword = Widgets.passwordField(16);
         private final JLabel loginState = Widgets.label("", 11, Font.PLAIN, 1);
+        private final Widgets.ToggleSwitch companionMode =
+                new Widgets.ToggleSwitch(prefs.getBool("companionMode", false));
+        private final JTextField companionServer = Widgets.field("192.168.2.133", 18);
+        private final JTextField companionPort = Widgets.field("8080", 7);
+        private final JTextField companionUser = Widgets.field("optional username", 16);
+        private final JPasswordField companionPassword = Widgets.passwordField(16);
+        private final JLabel companionState = Widgets.label("", 11, Font.PLAIN, 1);
+        private volatile long companionMessageAt;
         private final Widgets.ToggleSwitch launchAtLogin =
                 new Widgets.ToggleSwitch(prefs.getBool("launchAtLogin", false));
         private final Widgets.ToggleSwitch closeToTray =
@@ -1451,6 +1773,44 @@ final class ControlPanel extends JFrame {
 
         SettingsPage() {
             VerticalPanel page = new VerticalPanel();
+
+            // Companion
+            Widgets.RoundedPanel companionCard = card(18, 18, 18, 18);
+            companionCard.add(Widgets.header("Companion mode",
+                    "Log in to a Hole Shield system that is already running on your network",
+                    null), BorderLayout.NORTH);
+            JPanel companionForm = new JPanel();
+            companionForm.setOpaque(false);
+            companionForm.setLayout(new BoxLayout(companionForm, BoxLayout.Y_AXIS));
+            companionForm.setBorder(new EmptyBorder(12, 0, 0, 0));
+            companionForm.add(toggleRow("Use companion mode", companionMode,
+                    "This console mirrors another system and does not start a local resolver or dashboard."));
+            companionForm.add(formRow("Server", companionServer,
+                    "Host, host:port, or a full http:// address."));
+            companionForm.add(formRow("Port", companionPort,
+                    "Used when the server address has no port of its own."));
+            companionForm.add(formRow("Username", companionUser,
+                    "Only needed when the remote dashboard has a login."));
+            companionForm.add(formRow("Password", companionPassword,
+                    "Stored in this computer's local settings file."));
+            JPanel companionActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 10));
+            companionActions.setOpaque(false);
+            Widgets.PillButton test = new Widgets.PillButton("Test connection",
+                    "wifi", Widgets.TONAL);
+            test.addActionListener(e -> testCompanion());
+            companionActions.add(test);
+            Widgets.PillButton openCompanion = new Widgets.PillButton("Open dashboard",
+                    "external", Widgets.OUTLINE);
+            openCompanion.addActionListener(e -> app.openDashboard());
+            companionActions.add(openCompanion);
+            companionForm.add(companionActions);
+            companionState.setBorder(new EmptyBorder(0, 4, 0, 0));
+            companionForm.add(companionState);
+            companionCard.add(companionForm, BorderLayout.CENTER);
+            companionCard.setPreferredSize(new Dimension(100, 440));
+            companionCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 500));
+            page.add(companionCard);
+            page.add(Box.createVerticalStrut(14));
 
             // Resolver
             Widgets.RoundedPanel resolver = card(18, 18, 18, 18);
@@ -1479,7 +1839,7 @@ final class ControlPanel extends JFrame {
                     Widgets.PRIMARY);
             apply.addActionListener(e -> apply());
             actions.add(apply);
-            if (AppDirs.isMac() || AppDirs.isLinux()) {
+            if (!app.isCompanion() && (AppDirs.isMac() || AppDirs.isLinux())) {
                 Widgets.PillButton admin = new Widgets.PillButton(
                         "Restart as administrator", "lock", Widgets.OUTLINE);
                 admin.addActionListener(e -> app.restartAsAdmin());
@@ -1576,9 +1936,23 @@ final class ControlPanel extends JFrame {
                     "The DNS resolver and dashboard keep serving."));
             JPanel systemActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 10));
             systemActions.setOpaque(false);
-            Widgets.PillButton copy = new Widgets.PillButton("Copy DNS setup commands",
-                    "copy", Widgets.TONAL);
+            Widgets.PillButton copy = app.isCompanion()
+                    ? new Widgets.PillButton("Copy dashboard address", "copy",
+                    Widgets.TONAL)
+                    : new Widgets.PillButton("Copy DNS setup commands", "copy",
+                    Widgets.TONAL);
             copy.addActionListener(e -> {
+                if (app.isCompanion()) {
+                    CompanionClient client = app.companion();
+                    String url = client == null ? "" : client.dashboardUrl();
+                    if (url.isEmpty()) {
+                        setStatus("Enter the companion server address first.");
+                        return;
+                    }
+                    SystemIntegration.copy(url);
+                    setStatus("Dashboard address copied.");
+                    return;
+                }
                 SystemIntegration.copy(SystemIntegration.dnsCommandText(app.dnsPort()));
                 setStatus("DNS setup commands copied.");
             });
@@ -1681,6 +2055,14 @@ final class ControlPanel extends JFrame {
             loginState.setText(prefs.hasWebPassword()
                     ? "Login is on" + (prefs.webUsername().isEmpty() ? " (password only)"
                     : " (user + password)") : "Dashboard login is off.");
+            companionMode.setSelected(prefs.getBool("companionMode", false));
+            companionServer.setText(prefs.get("companionServer", ""));
+            companionPort.setText(String.valueOf(prefs.getInt("companionPort", 8080)));
+            companionUser.setText(prefs.get("companionUser", ""));
+            companionPassword.setText(prefs.get("companionPassword", ""));
+            companionState.setText(prefs.getBool("companionMode", false)
+                    ? app.companionStatus()
+                    : "Companion mode is off; this app runs its own resolver.");
         }
 
         private void apply() {
@@ -1694,6 +2076,23 @@ final class ControlPanel extends JFrame {
                 setStatus("Dashboard port must be between 1 and 65535.");
                 return;
             }
+            int companionValue = parsePort(companionPort.getText(), 8080);
+            if (companionValue < 1 || companionValue > 65535) {
+                setStatus("Companion port must be between 1 and 65535.");
+                return;
+            }
+            String companionAddress = companionServer.getText().trim();
+            if (companionMode.isSelected() && companionAddress.isEmpty()) {
+                setStatus("Enter the address of the Hole Shield system.");
+                return;
+            }
+            prefs.setBool("companionMode", companionMode.isSelected());
+            prefs.set("companionServer", companionAddress);
+            prefs.setInt("companionPort", companionValue);
+            prefs.set("companionUser", companionUser.getText().trim());
+            char[] companionSecret = companionPassword.getPassword();
+            prefs.set("companionPassword", new String(companionSecret));
+            java.util.Arrays.fill(companionSecret, '\0');
             prefs.setInt("dnsPort", dnsValue);
             prefs.set("bindAddress", bind.getText().trim().isEmpty()
                     ? "0.0.0.0" : bind.getText().trim());
@@ -1721,6 +2120,43 @@ final class ControlPanel extends JFrame {
             app.applySettings();
             loadValues();
             setStatus("Settings applied.");
+        }
+
+        private void testCompanion() {
+            final String server = companionServer.getText().trim();
+            final int port = parsePort(companionPort.getText(), 8080);
+            if (server.isEmpty()) {
+                companionState.setText("Enter the server address first.");
+                return;
+            }
+            if (port < 1 || port > 65535) {
+                companionState.setText("Companion port must be between 1 and 65535.");
+                return;
+            }
+            final String user = companionUser.getText().trim();
+            final String password = new String(companionPassword.getPassword());
+            companionState.setText("Connecting to " + server + "…");
+            new Thread(() -> {
+                String message;
+                try {
+                    CompanionClient client = new CompanionClient(server, port,
+                            user, password);
+                    client.connect();
+                    CompanionClient.Snapshot snapshot = client.snapshot();
+                    message = "Connected to " + client.display()
+                            + (client.version().isEmpty() ? ""
+                            : " · Hole Shield " + client.version())
+                            + " · " + DesktopApp.formatNumber(snapshot.gravityDomains)
+                            + " domains blocked";
+                } catch (Exception e) {
+                    message = e.getMessage();
+                }
+                final String text = message;
+                SwingUtilities.invokeLater(() -> {
+                    companionMessageAt = System.currentTimeMillis();
+                    companionState.setText(text);
+                });
+            }, "companion-test").start();
         }
 
         private void setPassword() {
@@ -1751,6 +2187,11 @@ final class ControlPanel extends JFrame {
         @Override
         void refresh() {
             // Settings are form fields; do not overwrite what the user is typing.
+            if (System.currentTimeMillis() - companionMessageAt > 10000L) {
+                companionState.setText(prefs.getBool("companionMode", false)
+                        ? app.companionStatus()
+                        : "Companion mode is off; this app runs its own resolver.");
+            }
             if (!loginState.getText().isEmpty()) return;
             loadValues();
         }

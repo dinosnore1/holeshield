@@ -33,6 +33,7 @@ public final class DesktopTest {
             stats();
             dns();
             web();
+            companion();
             persistence();
             System.out.println("OK — " + checks + " desktop checks passed");
         } catch (Throwable e) {
@@ -437,6 +438,123 @@ public final class DesktopTest {
 
         web.stop();
         dns.stop();
+    }
+
+    private static void companion() throws Exception {
+        File home = new File(dir, "companion");
+        home.mkdirs();
+        DesktopPrefs prefs = new DesktopPrefs(home);
+        prefs.load();
+        prefs.setInt("webPort", 0);
+        prefs.set("webBind", "127.0.0.1");
+        prefs.setInt("dnsPort", 0);
+        prefs.set("bindAddress", "127.0.0.1");
+        prefs.set("webUsername", "admin");
+        prefs.setWebPassword("companion-secret");
+        FilterEngine filter = new FilterEngine(prefs, home);
+        filter.load();
+        StatsStore store = new StatsStore(new File(home, "stats"));
+        store.load();
+        Resolver stub = (payload, query) -> null;
+        DnsService dns = new DnsService(prefs, filter, store, stub);
+        dns.start();
+        WebDashboard web = new WebDashboard(prefs, filter, store, dns,
+                DesktopApp.VERSION);
+        check(web.start(), "companion web starts");
+        try {
+            int port = web.actualPort();
+            String address = "127.0.0.1:" + port;
+            eq("http://127.0.0.1:" + port, CompanionClient.base(address, 8080),
+                    "companion base adds scheme");
+            eq("http://127.0.0.1:" + port,
+                    CompanionClient.base("http://127.0.0.1:" + port, 9),
+                    "companion base keeps explicit port");
+            check(CompanionClient.base("https://example.test", 8443)
+                    .equals("https://example.test:8443"), "companion base adds port");
+
+            CompanionClient client = new CompanionClient(address, 8080,
+                    "admin", "companion-secret");
+            client.connect();
+            check(client.connected(), "companion connects");
+            eq(DesktopApp.VERSION, client.version(), "companion version");
+            check(client.dashboardUrl().endsWith(":" + port + "/admin/"),
+                    "companion dashboard url");
+            CompanionClient.Snapshot snapshot = client.snapshot();
+            check(snapshot.gravityDomains >= 0, "companion summary gravity");
+            check(snapshot.blocking, "companion starts blocking");
+
+            check(!client.setBlocking(false, 0), "companion pause accepted");
+            CompanionClient.Snapshot paused = client.snapshot();
+            check(!paused.blocking, "companion pause visible");
+            check(client.setBlocking(true, 0), "companion resume accepted");
+            check(client.snapshot().blocking, "companion resume visible");
+            client.flushCache();
+
+            CompanionClient wrong = new CompanionClient(address, 8080,
+                    "admin", "not-the-password");
+            boolean rejected = false;
+            try {
+                wrong.connect();
+            } catch (CompanionClient.AuthException e) {
+                rejected = true;
+            }
+            check(rejected, "companion rejects a bad password");
+            check(!wrong.connected(), "companion stays offline after a bad login");
+
+            // The Android server answers /api/auth with 401 when a password is
+            // required; the client must still read the body and log in.
+            com.sun.net.httpserver.HttpServer android =
+                    com.sun.net.httpserver.HttpServer.create(
+                            new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+            android.createContext("/api/auth", exchange -> {
+                boolean probe = "GET".equals(exchange.getRequestMethod());
+                byte[] reply = (probe
+                        ? "{\"session\":{\"valid\":false,\"password_required\":true}}"
+                        : "{\"session\":{\"valid\":true,\"sid\":\"android-session\"}}")
+                        .getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(probe ? 401 : 200, reply.length);
+                try (java.io.OutputStream out = exchange.getResponseBody()) {
+                    out.write(reply);
+                }
+            });
+            android.createContext("/api/stats/summary", exchange -> {
+                boolean allowed = "android-session".equals(
+                        exchange.getRequestHeaders().getFirst("X-FTL-SID"));
+                byte[] reply = (allowed
+                        ? "{\"queries\":{\"total\":7,\"blocked\":3,"
+                        + "\"percent_blocked\":42.9},"
+                        + "\"gravity\":{\"domains_being_blocked\":11},"
+                        + "\"categories\":{\"ads\":4},\"blocking\":true}"
+                        : "{\"session\":{\"valid\":false}}")
+                        .getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(allowed ? 200 : 401, reply.length);
+                try (java.io.OutputStream out = exchange.getResponseBody()) {
+                    out.write(reply);
+                }
+            });
+            android.start();
+            try {
+                CompanionClient androidClient = new CompanionClient(
+                        "127.0.0.1:" + android.getAddress().getPort(), 8080,
+                        "admin", "pw");
+                androidClient.connect();
+                check(androidClient.connected(), "companion logs in after 401 probe");
+                CompanionClient.Snapshot androidSnapshot = androidClient.snapshot();
+                eq(7L, androidSnapshot.queries, "companion android summary");
+                eq(3L, androidSnapshot.blocked, "companion android blocked");
+                eq(11L, androidSnapshot.gravityDomains,
+                        "companion android gravity");
+                eq(42.9, androidSnapshot.rate, "companion android rate");
+            } finally {
+                android.stop(0);
+            }
+        } finally {
+            web.stop();
+            dns.stop();
+            store.save();
+        }
     }
 
     private static void persistence() {

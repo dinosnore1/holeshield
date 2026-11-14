@@ -79,6 +79,21 @@ final class TrayController {
 
     void update() {
         if (trayIcon == null) return;
+        if (app.isCompanion()) {
+            boolean connected = app.companionConnected();
+            boolean blocking = app.isBlocking();
+            status.setLabel(connected ? "Companion · " + app.bindSummary()
+                    : "Companion offline");
+            startStop.setLabel(blocking ? "Pause blocking" : "Resume blocking");
+            startStop.setEnabled(connected);
+            pause5.setEnabled(connected && blocking);
+            pause30.setEnabled(connected && blocking);
+            resume.setEnabled(connected && !blocking);
+            update.setEnabled(connected && !app.isUpdating());
+            trayIcon.setToolTip("Hole Shield Companion · " + (connected
+                    ? (blocking ? "connected" : "paused") : "offline"));
+            return;
+        }
         boolean running = app.isDnsRunning();
         boolean blocking = app.isBlocking();
         status.setLabel(running ? "DNS on port " + app.dnsPort()

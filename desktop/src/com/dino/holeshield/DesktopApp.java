@@ -2,6 +2,9 @@ package com.dino.holeshield;
 
 import javax.swing.SwingUtilities;
 import java.io.File;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /** Entry point for the Windows, Linux and macOS build. */
 public final class DesktopApp {
@@ -16,6 +19,14 @@ public final class DesktopApp {
     private WebDashboard web;
     private TrayController tray;
     private ControlPanel frame;
+    private CompanionClient companion;
+    private volatile CompanionClient.Snapshot companionSnapshot;
+    private volatile String companionError = "";
+    private volatile boolean companionUpdating;
+    private volatile int companionGeneration;
+    private ScheduledExecutorService companionPoller;
+    private long lastCompanionAttempt;
+    private boolean companionAuthFailed;
     private boolean headless;
     private boolean minimized;
     private boolean replace;
@@ -35,6 +46,7 @@ public final class DesktopApp {
         Integer dnsPort = null;
         Integer webPort = null;
         String initialPage = "Overview";
+        String companionTarget = null;
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -61,6 +73,10 @@ public final class DesktopApp {
                 webPort = parseInt(arg.substring("--web-port=".length()), 8080);
             } else if (arg.equals("--web-port") && i + 1 < args.length) {
                 webPort = parseInt(args[++i], 8080);
+            } else if (arg.startsWith("--companion=")) {
+                companionTarget = arg.substring("--companion=".length()).trim();
+            } else if (arg.equals("--companion") && i + 1 < args.length) {
+                companionTarget = args[++i].trim();
             } else if ("--help".equals(arg) || "-h".equals(arg)) {
                 System.out.println(usage());
                 return;
@@ -72,9 +88,24 @@ public final class DesktopApp {
         prefs.load();
         if (dnsPort != null) prefs.setInt("dnsPort", dnsPort);
         if (webPort != null) prefs.setInt("webPort", webPort);
+        if (companionTarget != null && !companionTarget.isEmpty()) {
+            prefs.setBool("companionMode", true);
+            prefs.set("companionServer", companionTarget);
+            prefs.save();
+        }
 
         if (!replace && !AppDirs.acquireLock()) {
-            String url = "http://127.0.0.1:" + prefs.getInt("webPort", 8080) + "/admin/";
+            String url;
+            if (prefs.getBool("companionMode", false)) {
+                try {
+                    url = CompanionClient.base(prefs.get("companionServer", ""),
+                            prefs.getInt("companionPort", 8080)) + "/admin/";
+                } catch (Exception e) {
+                    url = "the configured companion address";
+                }
+            } else {
+                url = "http://127.0.0.1:" + prefs.getInt("webPort", 8080) + "/admin/";
+            }
             if (headless) {
                 System.out.println("Hole Shield is already running: " + url);
             } else {
@@ -109,9 +140,14 @@ public final class DesktopApp {
 
         if (headless) {
             System.out.println(NAME + " " + VERSION + " desktop");
-            System.out.println("DNS:       " + app.bindSummary());
-            System.out.println("Dashboard: http://127.0.0.1:"
-                    + app.webPort() + "/admin/");
+            if (app.isCompanion()) {
+                System.out.println("Companion: " + app.companionStatus());
+                System.out.println("Dashboard: " + app.companion().dashboardUrl());
+            } else {
+                System.out.println("DNS:       " + app.bindSummary());
+                System.out.println("Dashboard: http://127.0.0.1:"
+                        + app.webPort() + "/admin/");
+            }
             System.out.println("Data:      " + AppDirs.dataDir().getAbsolutePath());
             try {
                 Thread.currentThread().join();
@@ -123,19 +159,31 @@ public final class DesktopApp {
     }
 
     private void startServices() {
-        filter = new FilterEngine(prefs, AppDirs.dataDir());
-        filter.load();
-        stats = new StatsStore(AppDirs.dataDir());
-        stats.load();
-        DnsCache cache = new DnsCache(prefs.getInt("cacheEntries", 5000));
-        Upstream upstream = new Upstream(prefs, cache);
-        dns = new DnsService(prefs, filter, stats, upstream);
-        dns.setListener(() -> {
-            if (frame != null) SwingUtilities.invokeLater(() -> frame.refreshHeader());
-            if (tray != null) SwingUtilities.invokeLater(tray::update);
-        });
+        if (isCompanion()) {
+            startCompanion();
+            return;
+        }
+        if (filter == null) {
+            filter = new FilterEngine(prefs, AppDirs.dataDir());
+            filter.load();
+        }
+        if (stats == null) {
+            stats = new StatsStore(AppDirs.dataDir());
+            stats.load();
+        }
+        if (dns == null) {
+            DnsCache cache = new DnsCache(prefs.getInt("cacheEntries", 5000));
+            Upstream upstream = new Upstream(prefs, cache);
+            dns = new DnsService(prefs, filter, stats, upstream);
+            dns.setListener(() -> {
+                if (frame != null) SwingUtilities.invokeLater(() -> frame.refreshHeader());
+                if (tray != null) SwingUtilities.invokeLater(tray::update);
+            });
+        }
         dns.start();
-        web = new WebDashboard(prefs, filter, stats, dns, VERSION);
+        if (web == null) {
+            web = new WebDashboard(prefs, filter, stats, dns, VERSION);
+        }
         web.start();
         if (!dns.bindError().isEmpty()) {
             System.err.println(dns.bindError());
@@ -151,7 +199,11 @@ public final class DesktopApp {
         tray = new TrayController(this);
         frame.setVisible(!minimized || tray == null);
         if (openDashboardAtStart) openDashboard();
-        if (!dns.bindError().isEmpty()) {
+        if (isCompanion()) {
+            frame.setStatus(companionConnected()
+                    ? "Companion connected to " + companion.display()
+                    : companionStatus());
+        } else if (!dns.bindError().isEmpty()) {
             frame.setStatus(dns.bindError());
         } else {
             frame.setStatus("DNS listening on " + bindSummary());
@@ -161,6 +213,10 @@ public final class DesktopApp {
     // ------------------------------------------------------------- app actions
 
     void toggleDns() {
+        if (isCompanion()) {
+            setBlocking(!isBlocking(), 0);
+            return;
+        }
         if (dns.running()) {
             dns.stop();
             setStatus("DNS stopped");
@@ -173,16 +229,28 @@ public final class DesktopApp {
     }
 
     void pause(long seconds) {
+        if (isCompanion()) {
+            setBlocking(false, seconds);
+            return;
+        }
         prefs.pause(seconds);
         refreshAll();
     }
 
     void resume() {
+        if (isCompanion()) {
+            setBlocking(true, 0);
+            return;
+        }
         prefs.resume();
         refreshAll();
     }
 
     void updateLists() {
+        if (isCompanion()) {
+            updateCompanionLists();
+            return;
+        }
         if (filter.isUpdating()) return;
         setStatus("Updating blocklists…");
         filter.updateBlocklists(
@@ -205,6 +273,20 @@ public final class DesktopApp {
     }
 
     void openDashboard() {
+        if (isCompanion()) {
+            CompanionClient client = companion;
+            if (client == null) {
+                setStatus("Companion mode is not configured yet.");
+                return;
+            }
+            String url = client.dashboardUrl();
+            if (url.isEmpty()) {
+                setStatus("Enter the address of the Hole Shield system first.");
+                return;
+            }
+            AppDirs.browse(url);
+            return;
+        }
         if (!web.running()) {
             setStatus(web.error());
             return;
@@ -214,6 +296,33 @@ public final class DesktopApp {
                 || "*".equals(bind) ? "127.0.0.1"
                 : "::".equals(bind) ? "[::1]" : bind;
         AppDirs.browse("http://" + host + ":" + web.actualPort() + "/admin/");
+    }
+
+    void flushCache() {
+        if (isCompanion()) {
+            CompanionClient client = companion;
+            if (client == null) return;
+            setStatus("Flushing the remote DNS cache…");
+            new Thread(() -> {
+                String message;
+                try {
+                    client.flushCache();
+                    message = "Remote DNS cache flushed.";
+                } catch (Exception e) {
+                    message = "Companion: " + e.getMessage();
+                }
+                final String text = message;
+                SwingUtilities.invokeLater(() -> {
+                    setStatus(text);
+                    refreshAll();
+                });
+            }, "companion-flush").start();
+            return;
+        }
+        if (dns != null) {
+            dns.flushCache();
+            setStatus("DNS cache flushed.");
+        }
     }
 
     void showWindow() {
@@ -245,17 +354,209 @@ public final class DesktopApp {
                     Theme.get().dark ? "NSAppearanceNameDarkAqua"
                             : "NSAppearanceNameAqua");
         }
-        filter.reloadRules();
-        dns.stop();
-        dns.start();
-        web.stop();
-        web.start();
+        boolean companionMode = isCompanion();
+        stopCompanion();
+        stopNetworkServices();
+        if (companionMode) {
+            // Companion mode is a console for another system; release the
+            // local gravity index so it does not sit in memory unused.
+            filter = null;
+            stats = null;
+            dns = null;
+            web = null;
+        } else if (filter != null) {
+            filter.reloadRules();
+        }
+        startServices();
         if (frame != null) {
             frame.rebuild();
-            frame.setStatus(dns.running() ? "Settings applied · DNS on "
+            frame.setStatus(companionMode
+                    ? (companionConnected() ? "Companion connected to "
+                    + companion.display() : companionStatus())
+                    : dns.running() ? "Settings applied · DNS on "
                     + bindSummary() : dns.bindError());
         }
         if (tray != null) tray.update();
+    }
+
+    // ------------------------------------------------------ companion console
+
+    boolean isCompanion() {
+        return prefs.getBool("companionMode", false);
+    }
+
+    CompanionClient companion() { return companion; }
+    CompanionClient.Snapshot companionSnapshot() { return companionSnapshot; }
+    String companionError() { return companionError; }
+    boolean companionConnected() {
+        return companion != null && companion.connected();
+    }
+
+    String companionStatus() {
+        if (companion == null) return "Companion is not configured.";
+        if (!companionError.isEmpty()) return "Companion: " + companionError;
+        return companionConnected() ? "Companion connected to " + companion.display()
+                : "Companion is offline.";
+    }
+
+    void reconnectCompanion() {
+        if (!isCompanion()) return;
+        startCompanion();
+        if (frame != null) {
+            frame.rebuild();
+            frame.setStatus(companionStatus());
+        }
+    }
+
+    void setBlocking(boolean blocking, long seconds) {
+        if (!isCompanion()) {
+            if (blocking) prefs.resume();
+            else prefs.pause(seconds);
+            refreshAll();
+            return;
+        }
+        CompanionClient client = companion;
+        if (client == null) return;
+        final int generation = companionGeneration;
+        setStatus(blocking ? "Resuming remote blocking…"
+                : seconds > 0 ? "Pausing remote blocking for "
+                + formatDuration(seconds) + "…" : "Pausing remote filtering…");
+        new Thread(() -> {
+            String message;
+            try {
+                client.setBlocking(blocking, (int) Math.min(Integer.MAX_VALUE,
+                        Math.max(0, seconds)));
+                if (generation != companionGeneration) return;
+                companionSnapshot = client.snapshot();
+                companionError = "";
+                message = client.display() + (blocking
+                        ? " is blocking again." : " paused filtering.");
+            } catch (Exception e) {
+                if (generation != companionGeneration) return;
+                companionError = e.getMessage();
+                message = "Companion: " + e.getMessage();
+            }
+            final String text = message;
+            SwingUtilities.invokeLater(() -> {
+                if (generation != companionGeneration) return;
+                setStatus(text);
+                refreshAll();
+            });
+        }, "companion-blocking").start();
+    }
+
+    private void updateCompanionLists() {
+        CompanionClient client = companion;
+        if (client == null || companionUpdating) return;
+        final int generation = companionGeneration;
+        companionUpdating = true;
+        setStatus("Asking " + client.display() + " to update blocklists…");
+        new Thread(() -> {
+            String message;
+            try {
+                client.updateGravity();
+                if (generation != companionGeneration) return;
+                message = "Remote blocklist update started on " + client.display() + ".";
+                companionError = "";
+            } catch (Exception e) {
+                if (generation != companionGeneration) return;
+                companionError = e.getMessage();
+                message = "Companion: " + e.getMessage();
+            }
+            final String text = message;
+            companionUpdating = false;
+            SwingUtilities.invokeLater(() -> {
+                if (generation != companionGeneration) return;
+                setStatus(text);
+                refreshAll();
+            });
+        }, "companion-gravity").start();
+    }
+
+    private void startCompanion() {
+        stopCompanion();
+        final int generation = ++companionGeneration;
+        companion = new CompanionClient(
+                prefs.get("companionServer", ""),
+                prefs.getInt("companionPort", 8080),
+                prefs.get("companionUser", ""),
+                prefs.get("companionPassword", ""));
+        companionSnapshot = null;
+        companionError = "";
+        companionUpdating = false;
+        lastCompanionAttempt = 0L;
+        companionAuthFailed = false;
+        try {
+            // Try once on the calling thread so the window and the headless
+            // banner show a real state immediately; the poller retries later.
+            companion.connect();
+        } catch (CompanionClient.AuthException e) {
+            companionAuthFailed = true;
+            lastCompanionAttempt = System.currentTimeMillis();
+            companionError = e.getMessage();
+        } catch (Exception e) {
+            companionError = e.getMessage();
+        }
+        companionPoller = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "companion-poll");
+            thread.setDaemon(true);
+            return thread;
+        });
+        companionPoller.scheduleWithFixedDelay(
+                () -> pollCompanion(generation, companion), 0, 2, TimeUnit.SECONDS);
+    }
+
+    private void pollCompanion(int generation, CompanionClient client) {
+        if (generation != companionGeneration || client == null) return;
+        long now = System.currentTimeMillis();
+        try {
+            if (!client.connected()) {
+                // A rejected password waits for the user to press Reconnect or
+                // apply new settings; retrying would keep the remote account
+                // locked out.
+                if (companionAuthFailed) return;
+                if (now - lastCompanionAttempt < 5000L) return;
+                lastCompanionAttempt = now;
+                client.connect();
+                companionAuthFailed = false;
+            }
+            CompanionClient.Snapshot snapshot = client.snapshot();
+            if (generation != companionGeneration) return;
+            companionSnapshot = snapshot;
+            companionError = "";
+        } catch (CompanionClient.AuthException e) {
+            if (generation != companionGeneration) return;
+            companionAuthFailed = true;
+            lastCompanionAttempt = now;
+            companionError = e.getMessage();
+        } catch (Exception e) {
+            if (generation != companionGeneration) return;
+            companionError = e.getMessage();
+        }
+        SwingUtilities.invokeLater(() -> {
+            if (generation != companionGeneration) return;
+            if (frame != null) frame.refreshAll();
+            if (tray != null) tray.update();
+        });
+    }
+
+    private void stopCompanion() {
+        companionGeneration++;
+        if (companionPoller != null) {
+            companionPoller.shutdownNow();
+            companionPoller = null;
+        }
+        companion = null;
+        companionSnapshot = null;
+        companionError = "";
+        companionUpdating = false;
+    }
+
+    private static String formatDuration(long seconds) {
+        if (seconds <= 0) return "until resumed";
+        if (seconds % 3600 == 0) return (seconds / 3600) + "h";
+        if (seconds % 60 == 0) return (seconds / 60) + " min";
+        return seconds + "s";
     }
 
     void restartAsAdmin() {
@@ -283,11 +584,16 @@ public final class DesktopApp {
     }
 
     private void stopServices() {
+        stopCompanion();
+        stopNetworkServices();
+        if (tray != null) tray.remove();
+    }
+
+    private void stopNetworkServices() {
         if (dns != null) dns.stop();
         if (web != null) web.stop();
         if (stats != null) stats.save();
         if (prefs != null) prefs.save();
-        if (tray != null) tray.remove();
     }
 
     private void refreshAll() {
@@ -307,21 +613,56 @@ public final class DesktopApp {
     DnsService dns() { return dns; }
     WebDashboard web() { return web; }
 
-    boolean isDnsRunning() { return dns != null && dns.running(); }
-    boolean isBlocking() { return prefs.blockingActive(); }
-    boolean isUpdating() { return filter != null && filter.isUpdating(); }
-    long blockedToday() { return stats == null ? 0 : stats.blocked(); }
+    boolean isDnsRunning() { return !isCompanion() && dns != null && dns.running(); }
+    boolean isBlocking() {
+        if (isCompanion()) {
+            CompanionClient.Snapshot snapshot = companionSnapshot;
+            return snapshot == null || snapshot.blocking;
+        }
+        return prefs.blockingActive();
+    }
+    boolean isUpdating() {
+        if (isCompanion()) return companionUpdating;
+        return filter != null && filter.isUpdating();
+    }
+    long blockedToday() {
+        if (isCompanion()) {
+            CompanionClient.Snapshot snapshot = companionSnapshot;
+            return snapshot == null ? 0 : snapshot.blocked;
+        }
+        return stats == null ? 0 : stats.blocked();
+    }
     int dnsPort() {
+        if (isCompanion()) {
+            try {
+                java.net.URI uri = java.net.URI.create(CompanionClient.base(
+                        prefs.get("companionServer", ""),
+                        prefs.getInt("companionPort", 8080)));
+                if (uri.getPort() > 0) return uri.getPort();
+            } catch (Exception ignored) { }
+            return prefs.getInt("companionPort", 8080);
+        }
         return dns != null && dns.actualPort() > 0 ? dns.actualPort()
                 : prefs.getInt("dnsPort", 53);
     }
     int webPort() {
+        if (isCompanion()) return prefs.getInt("companionPort", 8080);
         return web != null && web.actualPort() > 0 ? web.actualPort()
                 : prefs.getInt("webPort", 8080);
     }
-    String dnsError() { return dns == null ? "" : dns.bindError(); }
-    String webError() { return web == null ? "" : web.error(); }
+    String dnsError() {
+        if (isCompanion()) return companionError;
+        return dns == null ? "" : dns.bindError();
+    }
+    String webError() {
+        if (isCompanion()) return companionError;
+        return web == null ? "" : web.error();
+    }
     String bindSummary() {
+        if (isCompanion()) {
+            CompanionClient client = companion;
+            return client == null ? "" : client.display();
+        }
         String bind = prefs.get("bindAddress", "0.0.0.0");
         return (bind == null || bind.isEmpty() ? "0.0.0.0" : bind)
                 + ":" + dnsPort();
@@ -349,6 +690,7 @@ public final class DesktopApp {
                 + "  --minimized         Start hidden in the tray\n"
                 + "  --open-dashboard    Open the web dashboard on launch\n"
                 + "  --page NAME         Start on Overview, Query log, Blocklists, Rules or Settings\n"
+                + "  --companion HOST    Log in to a Hole Shield dashboard on the network\n"
                 + "  --replace           Start even if another instance is running\n"
                 + "  --version           Print the version\n";
     }

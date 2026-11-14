@@ -30,6 +30,8 @@ The `desktop/` directory contains a native Windows/Linux/macOS build with the
 same gravity format, rules, query log and web dashboard as the Android app. It
 runs local UDP/TCP DNS, supports DoH or plain upstreams, has a Swing control
 panel and tray controls, and ships as native installers for Windows, Linux and macOS.
+Companion mode lets the desktop app log in to a Hole Shield system that is
+already running on the LAN instead of starting a local resolver.
 
 ```bash
 ./desktop/tools/test.sh       # 123 headless core checks
