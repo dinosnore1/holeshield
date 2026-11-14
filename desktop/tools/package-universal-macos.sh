@@ -74,10 +74,16 @@ chmod +x "$TMP/scripts/postinstall"
 # Hole Shield.app elsewhere on disk (for example a local build), leaving
 # /Applications without the app the postinstall script expects.
 pkgbuild --analyze --root "$TMP/payload" "$TMP/components.plist" >/dev/null
-/usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" \
-  "$TMP/components.plist"
-/usr/libexec/PlistBuddy -c "Add :1:BundleIsRelocatable bool false" \
-  "$TMP/components.plist"
+for index in 0 1; do
+  if /usr/libexec/PlistBuddy -c "Print :$index:BundleIsRelocatable" \
+      "$TMP/components.plist" >/dev/null 2>&1; then
+    /usr/libexec/PlistBuddy -c "Set :$index:BundleIsRelocatable false" \
+      "$TMP/components.plist"
+  else
+    /usr/libexec/PlistBuddy -c "Add :$index:BundleIsRelocatable bool false" \
+      "$TMP/components.plist"
+  fi
+done
 
 PKG="$OUT/Hole-Shield-$VERSION-universal.pkg"
 rm -f "$PKG"
