@@ -1799,11 +1799,16 @@ final class ControlPanel extends JFrame {
                     "wifi", Widgets.TONAL);
             test.addActionListener(e -> testCompanion());
             companionActions.add(test);
+            Widgets.PillButton applyCompanion = new Widgets.PillButton(
+                    "Apply settings", "check", Widgets.PRIMARY);
+            applyCompanion.addActionListener(e -> apply());
+            companionActions.add(applyCompanion);
             Widgets.PillButton openCompanion = new Widgets.PillButton("Open dashboard",
                     "external", Widgets.OUTLINE);
             openCompanion.addActionListener(e -> app.openDashboard());
             companionActions.add(openCompanion);
             companionForm.add(companionActions);
+            companionMode.setOnChange(selected -> updateCompanionState());
             companionState.setBorder(new EmptyBorder(0, 4, 0, 0));
             companionForm.add(companionState);
             companionCard.add(companionForm, BorderLayout.CENTER);
@@ -2060,9 +2065,22 @@ final class ControlPanel extends JFrame {
             companionPort.setText(String.valueOf(prefs.getInt("companionPort", 8080)));
             companionUser.setText(prefs.get("companionUser", ""));
             companionPassword.setText(prefs.get("companionPassword", ""));
-            companionState.setText(prefs.getBool("companionMode", false)
-                    ? app.companionStatus()
-                    : "Companion mode is off; this app runs its own resolver.");
+            updateCompanionState();
+        }
+
+        private void updateCompanionState() {
+            boolean saved = prefs.getBool("companionMode", false);
+            boolean selected = companionMode.isSelected();
+            if (selected != saved) {
+                companionState.setText(selected
+                        ? "Companion mode will start when you apply settings."
+                        : "Companion mode will stop when you apply settings.");
+            } else if (selected) {
+                companionState.setText(app.companionStatus());
+            } else {
+                companionState.setText("Companion mode is off. "
+                        + "Turn it on and apply settings to mirror another system.");
+            }
         }
 
         private void apply() {
@@ -2147,7 +2165,9 @@ final class ControlPanel extends JFrame {
                             + (client.version().isEmpty() ? ""
                             : " · Hole Shield " + client.version())
                             + " · " + DesktopApp.formatNumber(snapshot.gravityDomains)
-                            + " domains blocked";
+                            + " domains blocked"
+                            + (prefs.getBool("companionMode", false) ? ""
+                            : " · Press Apply settings to use it");
                 } catch (Exception e) {
                     message = e.getMessage();
                 }
@@ -2187,10 +2207,8 @@ final class ControlPanel extends JFrame {
         @Override
         void refresh() {
             // Settings are form fields; do not overwrite what the user is typing.
-            if (System.currentTimeMillis() - companionMessageAt > 10000L) {
-                companionState.setText(prefs.getBool("companionMode", false)
-                        ? app.companionStatus()
-                        : "Companion mode is off; this app runs its own resolver.");
+            if (System.currentTimeMillis() - companionMessageAt > 30000L) {
+                updateCompanionState();
             }
             if (!loginState.getText().isEmpty()) return;
             loadValues();
