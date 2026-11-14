@@ -681,7 +681,10 @@ final class ControlPanel extends JFrame {
             }
             pauseButton.setText(blocking ? "Pause" : "Resume");
             pauseButton.setEnabled(running);
-            upstreamChip.setText(prefs.upstreamLabel());
+            String warning = app.upstreamWarning();
+            upstreamChip.setText(warning.isEmpty() ? prefs.upstreamLabel()
+                    : "Plain DNS fallback");
+            upstreamChip.setToolTipText(warning.isEmpty() ? null : warning);
             portChip.setText("Port " + app.dnsPort());
             scheduleChip.setText("Always on");
         }
@@ -1758,6 +1761,7 @@ final class ControlPanel extends JFrame {
         private final JTextField webUser = Widgets.field("optional username", 16);
         private final JPasswordField webPassword = Widgets.passwordField(16);
         private final JLabel loginState = Widgets.label("", 11, Font.PLAIN, 1);
+        private final JLabel upstreamNote = Widgets.label("", 11, Font.PLAIN, 6);
         private final Widgets.ToggleSwitch companionMode =
                 new Widgets.ToggleSwitch(prefs.getBool("companionMode", false));
         private final JTextField companionServer = Widgets.field("192.168.2.133", 18);
@@ -1831,6 +1835,9 @@ final class ControlPanel extends JFrame {
             form.add(formRow("Bind address", bind,
                     "0.0.0.0 serves the LAN. 127.0.0.1 is local only."));
             form.add(formRow("Upstream", upstream, null));
+            upstreamNote.setBorder(new EmptyBorder(0, 156, 6, 0));
+            upstreamNote.setVisible(false);
+            form.add(upstreamNote);
             form.add(formRow("DoH URL", dohUrl, null));
             form.add(formRow("Plain DNS", plain, null));
             form.add(formRow("Blocked response", blockedResponse, null));
@@ -2207,6 +2214,9 @@ final class ControlPanel extends JFrame {
         @Override
         void refresh() {
             // Settings are form fields; do not overwrite what the user is typing.
+            String warning = app.upstreamWarning();
+            upstreamNote.setText(warning);
+            upstreamNote.setVisible(!warning.isEmpty());
             if (System.currentTimeMillis() - companionMessageAt > 30000L) {
                 updateCompanionState();
             }

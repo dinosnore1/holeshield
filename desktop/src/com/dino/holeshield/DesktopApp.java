@@ -16,6 +16,7 @@ public final class DesktopApp {
     private FilterEngine filter;
     private StatsStore stats;
     private DnsService dns;
+    private Upstream upstream;
     private WebDashboard web;
     private TrayController tray;
     private ControlPanel frame;
@@ -173,7 +174,7 @@ public final class DesktopApp {
         }
         if (dns == null) {
             DnsCache cache = new DnsCache(prefs.getInt("cacheEntries", 5000));
-            Upstream upstream = new Upstream(prefs, cache);
+            upstream = new Upstream(prefs, cache);
             dns = new DnsService(prefs, filter, stats, upstream);
             dns.setListener(() -> {
                 if (frame != null) SwingUtilities.invokeLater(() -> frame.refreshHeader());
@@ -357,6 +358,7 @@ public final class DesktopApp {
         boolean companionMode = isCompanion();
         stopCompanion();
         stopNetworkServices();
+        if (upstream != null) upstream.reset();
         if (companionMode) {
             // Companion mode is a console for another system; release the
             // local gravity index so it does not sit in memory unused.
@@ -614,6 +616,11 @@ public final class DesktopApp {
     WebDashboard web() { return web; }
 
     boolean isDnsRunning() { return !isCompanion() && dns != null && dns.running(); }
+
+    /** Non-empty when DoH is failing and plain DNS is being used instead. */
+    String upstreamWarning() {
+        return dns == null ? "" : dns.upstreamWarning();
+    }
     boolean isBlocking() {
         if (isCompanion()) {
             CompanionClient.Snapshot snapshot = companionSnapshot;

@@ -763,6 +763,7 @@ final class WebDashboard {
                 .put("web_username", WebAuth.usernameRequired(prefs.webUsername()))
                 .put("blocked_response", prefs.blockedResponseLabel())
                 .put("upstream", prefs.upstreamLabel())
+                .put("upstream_warning", dns.upstreamWarning())
                 .put("safe_search", false)
                 .put("schedule_enabled", false)
                 .put("schedule_label", ""))

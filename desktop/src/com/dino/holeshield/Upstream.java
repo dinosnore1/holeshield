@@ -34,6 +34,7 @@ final class Upstream implements Resolver {
     private final DnsCache cache;
     private final HttpClient http;
     private volatile String lastError = "";
+    private volatile boolean dohDown;
 
     Upstream(DesktopPrefs prefs, DnsCache cache) {
         this.prefs = prefs;
@@ -52,11 +53,21 @@ final class Upstream implements Resolver {
         cache.clear();
     }
 
-    String statusLine() {
-        if (!lastError.isEmpty()) {
-            return prefs.upstreamLabel() + " · " + lastError;
-        }
-        return prefs.upstreamLabel();
+    /**
+     * Explains a DoH downgrade, or returns an empty string when lookups use
+     * the configured upstream. Plain DNS is only reported when the user did
+     * not choose it, so an explicit plain setup stays silent.
+     */
+    String warning() {
+        if ("plain".equals(prefs.get("upstreamMode", "doh")) || !dohDown) return "";
+        return "DoH is unavailable; queries use plain DNS "
+                + prefs.get("plainUpstream", DesktopPrefs.DEFAULT_PLAIN) + ".";
+    }
+
+    /** Clears the downgrade flag, for example after new settings are applied. */
+    void reset() {
+        dohDown = false;
+        lastError = "";
     }
 
     @Override
@@ -73,7 +84,10 @@ final class Upstream implements Resolver {
         if (encrypted) {
             result = resolveDoh(payload, query);
             if (result == null) {
+                dohDown = true;
                 result = resolvePlain(payload, query);
+            } else {
+                dohDown = false;
             }
         } else {
             result = resolvePlain(payload, query);

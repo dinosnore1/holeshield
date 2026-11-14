@@ -32,6 +32,7 @@ public final class DesktopTest {
             updates();
             stats();
             dns();
+            upstream();
             web();
             companion();
             persistence();
@@ -357,6 +358,26 @@ public final class DesktopTest {
         eq(0x4444, DnsPacket.u16(tcp, 0), "tcp transaction id");
         eq(3L, store.queries(), "tcp query logged");
         service.stop();
+    }
+
+    private static void upstream() throws Exception {
+        File home = new File(dir, "upstream");
+        home.mkdirs();
+        DesktopPrefs encrypted = new DesktopPrefs(home);
+        encrypted.load();
+        encrypted.set("upstreamMode", "doh");
+        encrypted.set("dohUrl", "http://127.0.0.1:1/dns-query");
+        encrypted.set("plainUpstream", "127.0.0.1:1");
+        Upstream fallback = new Upstream(encrypted, new DnsCache(32));
+        byte[] probe = DnsPacket.buildQuery(0x5151, "example.com", DnsPacket.TYPE_A);
+        fallback.resolve(probe, DnsPacket.parseQuery(probe, probe.length));
+        check(fallback.warning().contains("plain DNS"),
+                "DoH downgrade is reported: " + fallback.warning());
+        fallback.reset();
+        check(fallback.warning().isEmpty(), "DoH downgrade resets");
+
+        encrypted.set("upstreamMode", "plain");
+        check(fallback.warning().isEmpty(), "explicit plain DNS has no warning");
     }
 
     private static void web() throws Exception {

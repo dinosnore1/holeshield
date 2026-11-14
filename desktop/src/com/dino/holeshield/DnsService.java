@@ -286,6 +286,10 @@ final class DnsService {
         if (resolver instanceof Upstream) ((Upstream) resolver).flush();
     }
 
+    String upstreamWarning() {
+        return resolver instanceof Upstream ? ((Upstream) resolver).warning() : "";
+    }
+
     boolean running() { return running; }
     int actualPort() { return port; }
     String bindError() { return bindError; }
