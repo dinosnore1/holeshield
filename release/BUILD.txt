@@ -17,20 +17,25 @@ build/holeshield.apk
 
 Use build/holeshield.apk for direct GitHub installs.
 
-Desktop (2.3.4)
+Desktop (2.3.5)
 ---------------
-Unchanged for this release; no desktop installers were rebuilt. The last
-published desktop build remains the 2.3.4 set listed below.
+Published separately as the v2.3.5-desktop release, built by GitHub Actions on
+macOS, Ubuntu and Windows. Adds companion mode for logging in to a Hole Shield
+system already running on the LAN.
 
-desktop/build/dist/Hole-Shield-2.3.4-universal.pkg
+Hole-Shield-2.3.5-universal.pkg
   Universal macOS package for Intel and Apple Silicon (unsigned).
-Also published:
-  Hole-Shield-2.3.4-universal.pkg (macOS Intel + Apple Silicon)
-  Hole-Shield-2.3.4.msi / .exe (Windows)
-  holeshield_2.3.4-1_amd64.deb
-  holeshield-2.3.4-1.x86_64.rpm
-  holeshield-desktop-2.3.4-SHA256SUMS.txt
-168 desktop checks pass.
+  SHA-256 d0bae5057e27c0aeb4504a25ad564d06763a7e3c8fb6346d500b272789d78cde
+Hole Shield-2.3.5.msi
+  SHA-256 8f586fe3f327e206461781ed07b9653321e72a29da3af0a7807173fd7dad2fcd
+Hole Shield-2.3.5.exe
+  SHA-256 16580537007c2ccc42ac7c2960bb8bc803f12f3f13d60d0aeb21b112f41a8259
+holeshield_2.3.5-1_amd64.deb
+  SHA-256 791030a2c3fe68499364ebd786d404ea5dbfbf83b81650d37be34a5825b7bdc1
+holeshield-2.3.5-1.x86_64.rpm
+  SHA-256 b4f18614f1574d409d0fdb07a77229e161e86ff7e4e16fdc6845a671ad2631db
+holeshield-desktop-2.3.5-SHA256SUMS.txt
+199 desktop checks pass.
 VM smoke tests pass on GitHub-hosted macOS, Ubuntu and Windows VMs:
 macOS universal PKG, Ubuntu DEB, and Windows MSI. Each installed app is started
 headless and checked for a

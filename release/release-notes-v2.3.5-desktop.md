@@ -83,4 +83,12 @@ including Android's `401` login probe.
 
 ## SHA-256
 
-Checksums are attached as `holeshield-desktop-2.3.5-SHA256SUMS.txt`.
+```
+d0bae5057e27c0aeb4504a25ad564d06763a7e3c8fb6346d500b272789d78cde  Hole-Shield-2.3.5-universal.pkg
+8f586fe3f327e206461781ed07b9653321e72a29da3af0a7807173fd7dad2fcd  Hole Shield-2.3.5.msi
+16580537007c2ccc42ac7c2960bb8bc803f12f3f13d60d0aeb21b112f41a8259  Hole Shield-2.3.5.exe
+791030a2c3fe68499364ebd786d404ea5dbfbf83b81650d37be34a5825b7bdc1  holeshield_2.3.5-1_amd64.deb
+b4f18614f1574d409d0fdb07a77229e161e86ff7e4e16fdc6845a671ad2631db  holeshield-2.3.5-1.x86_64.rpm
+```
+
+The same checksums are attached as `holeshield-desktop-2.3.5-SHA256SUMS.txt`.
