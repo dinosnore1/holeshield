@@ -45,29 +45,46 @@ cp -R "$INTEL_APP" "$TMP/payload/Applications/Hole Shield-x64.app"
 
 cat > "$TMP/scripts/postinstall" <<'SH'
 #!/bin/sh
-set -e
+set -eu
 osascript -e 'tell application "Hole Shield" to quit' >/dev/null 2>&1 || true
 sleep 1
 ARCH="$(uname -m)"
 if [ "$ARCH" = "arm64" ]; then
   SRC="/Applications/Hole Shield-arm64.app"
+  OTHER="/Applications/Hole Shield-x64.app"
 else
   SRC="/Applications/Hole Shield-x64.app"
+  OTHER="/Applications/Hole Shield-arm64.app"
 fi
 DEST="/Applications/Hole Shield.app"
+if [ ! -d "$SRC" ]; then
+  echo "postinstall: expected $SRC to exist" >&2
+  exit 1
+fi
 rm -rf "$DEST"
 mv "$SRC" "$DEST"
 chmod +x "$DEST/Contents/MacOS/Hole Shield"
-rm -rf "/Applications/Hole Shield-arm64.app" "/Applications/Hole Shield-x64.app"
+rm -rf "$OTHER"
 exit 0
 SH
 chmod +x "$TMP/scripts/postinstall"
+
+# The package carries both architecture-specific apps with the same bundle
+# identifier. Without this, Installer can relocate one of them to any copy of
+# Hole Shield.app elsewhere on disk (for example a local build), leaving
+# /Applications without the app the postinstall script expects.
+pkgbuild --analyze --root "$TMP/payload" "$TMP/components.plist" >/dev/null
+/usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" \
+  "$TMP/components.plist"
+/usr/libexec/PlistBuddy -c "Add :1:BundleIsRelocatable bool false" \
+  "$TMP/components.plist"
 
 PKG="$OUT/Hole-Shield-$VERSION-universal.pkg"
 rm -f "$PKG"
 
 echo "Building universal PKG…"
 pkgbuild --root "$TMP/payload" --scripts "$TMP/scripts" \
+  --component-plist "$TMP/components.plist" \
   --identifier com.dino.holeshield --version "$VERSION" \
   --install-location / "$PKG"
 
