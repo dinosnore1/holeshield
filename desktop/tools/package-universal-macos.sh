@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="${MAC_VERSION:-2.3.4}"
+VERSION="${MAC_VERSION:-2.3.5}"
 OUT="${MAC_OUT:-$ROOT/desktop/build/dist}"
 ARM_APP=""
 INTEL_APP=""

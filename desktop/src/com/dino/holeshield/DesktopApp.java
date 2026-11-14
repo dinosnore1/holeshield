@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 /** Entry point for the Windows, Linux and macOS build. */
 public final class DesktopApp {
 
-    static final String VERSION = "2.3.4";
+    static final String VERSION = "2.3.5";
     static final String NAME = "Hole Shield";
 
     private final DesktopPrefs prefs;
