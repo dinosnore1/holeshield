@@ -33,7 +33,10 @@ always installs into `/Applications`, even when another copy of
 `Hole Shield.app` (for example a local build) is registered elsewhere on disk.
 The desktop installers were rebuilt again with clearer companion-mode settings:
 the **Apply settings** button now sits in the Companion card, and the status
-line says when a change is waiting to be applied.
+line says when a change is waiting to be applied. The app also reports a DoH
+downgrade: when the encrypted endpoint cannot be reached and plain DNS takes
+over, the overview chip, the resolver settings and the dashboard say so instead
+of claiming encrypted DNS.
 
 ## Android changes
 
@@ -146,11 +149,11 @@ Android:
 Desktop:
 
 ```
-d2ee2ce21ab2fd1fda538b6b1a2fb3bfbc28ec82a923c1ee9920d6c54b46c1a6  Hole-Shield-2.3.5-universal.pkg
-acd993c86abb97e0a6a1c35412bb9e1e468bf54fda78e3db5c8fa79e50388e40  Hole-Shield-2.3.5.msi
-c40a84c15204e39ffeca38ff853ea2beb56803f2ed745f8565b413e6e103d61d  Hole-Shield-2.3.5.exe
-1932b1b8f8d5de2566ae479a3497546e5ff4e37596736d8d479eecb8c5e7dc14  holeshield_2.3.5-1_amd64.deb
-3ccf04d0d2b655452dc2e759cb1cf862592fde29c8625b6bf73d7ceed8be35b2  holeshield-2.3.5-1.x86_64.rpm
+db71489159adaffaa5065815ce473b26398592e0d6e530de8e099195192e1c4e  Hole-Shield-2.3.5-universal.pkg
+a9f6587ebc053fe7923ad3a98f64fff69e0a4a38ed4118500c4bb7ac2e01c316  Hole-Shield-2.3.5.msi
+5fbedbcffe22c1bf30dca969e08eff87aec2f717fc6d60d63e3ed62e34c1c4dd  Hole-Shield-2.3.5.exe
+0b77ff0f4d8f7adb7df73ceb7968f8209b278f78f323123e27f5b8f5b4140ce8  holeshield_2.3.5-1_amd64.deb
+cd57883f8434839b65dde97dd0f215ebb8201ce943967eec9524a67283cd345d  holeshield-2.3.5-1.x86_64.rpm
 ```
 
 The same desktop checksums are attached as
