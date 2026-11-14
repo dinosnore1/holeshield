@@ -25,7 +25,7 @@ already running on the LAN.
 
 Hole-Shield-2.3.5-universal.pkg
   Universal macOS package for Intel and Apple Silicon (unsigned).
-  SHA-256 d0bae5057e27c0aeb4504a25ad564d06763a7e3c8fb6346d500b272789d78cde
+  SHA-256 8e2933ed9a4eebfc16dd5afc8617c447a33f71dff3a50b0f42f918bc9e7cf20c
 Hole Shield-2.3.5.msi
   SHA-256 8f586fe3f327e206461781ed07b9653321e72a29da3af0a7807173fd7dad2fcd
 Hole Shield-2.3.5.exe
