@@ -64,9 +64,15 @@ final class ControlPanel extends JFrame {
 
     private final Map<String, Widgets.NavItem> navItems = new LinkedHashMap<>();
     private final Map<String, Page> pages = new LinkedHashMap<>();
+    private final Map<String, JComponent> placeholders = new LinkedHashMap<>();
+    private final java.util.List<String> pageNames = new java.util.ArrayList<>();
     private JPanel content;
     private CardLayout cards;
     private String currentPage = "Overview";
+    private boolean warming;
+    private int warmGeneration;
+    private boolean builtCompanion;
+    private boolean builtDark;
 
     private JLabel statusText;
     private JLabel statusDot;
@@ -110,6 +116,8 @@ final class ControlPanel extends JFrame {
         this.filter = app.filter();
         this.stats = app.stats();
         this.dns = app.dns();
+        // Land on the requested page so only one page is built at startup.
+        this.currentPage = app.initialPage();
 
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         setMinimumSize(new Dimension(1000, 680));
@@ -131,7 +139,7 @@ final class ControlPanel extends JFrame {
         build();
         refreshAll();
         timer = new Timer(1500, e -> {
-            if (!isVisible()) return;
+            if (!isVisible() || app.isApplying()) return;
             tick++;
             refreshHeader();
             Page page = pages.get(currentPage);
@@ -163,7 +171,11 @@ final class ControlPanel extends JFrame {
         stats = app.stats();
         dns = app.dns();
         pages.clear();
+        placeholders.clear();
+        pageNames.clear();
         navItems.clear();
+        warming = false;
+        warmGeneration++;
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(Theme.get().bg);
         setContentPane(root);
@@ -176,33 +188,75 @@ final class ControlPanel extends JFrame {
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(0, 0, 0, 0));
 
-        if (app.isCompanion()) {
-            addPage("Companion", new CompanionPage());
-            addPage("Settings", new SettingsPage());
-        } else {
-            OverviewPage overview = new OverviewPage();
-            QueriesPage queries = new QueriesPage();
-            ListsPage lists = new ListsPage();
-            RulesPage rules = new RulesPage();
-            SettingsPage settings = new SettingsPage();
-            addPage("Overview", overview);
-            addPage("Query log", queries);
-            addPage("Blocklists", lists);
-            addPage("Rules", rules);
-            addPage("Settings", settings);
+        String[] names = app.isCompanion()
+                ? new String[]{"Companion", "Settings"}
+                : new String[]{"Overview", "Query log", "Blocklists", "Rules", "Settings"};
+        for (String name : names) {
+            pageNames.add(name);
+            // Pages are built on demand: only the landing page is constructed
+            // here, the rest are filled in after the window is on screen.
+            JPanel placeholder = new JPanel();
+            placeholder.setOpaque(false);
+            placeholders.put(name, placeholder);
+            content.add(placeholder, name);
         }
-        if (!pages.containsKey(currentPage)) {
-            currentPage = pages.isEmpty() ? "Overview"
-                    : pages.keySet().iterator().next();
-        }
+        if (!pageNames.contains(currentPage)) currentPage = pageNames.get(0);
+        builtCompanion = app.isCompanion();
+        builtDark = Theme.get().dark;
         root.add(content, BorderLayout.CENTER);
         root.add(buildFooter(), BorderLayout.SOUTH);
         selectPage(currentPage);
     }
 
-    private void addPage(String name, Page page) {
+    private Page createPage(String name) {
+        switch (name) {
+            case "Companion": return new CompanionPage();
+            case "Overview": return new OverviewPage();
+            case "Query log": return new QueriesPage();
+            case "Blocklists": return new ListsPage();
+            case "Rules": return new RulesPage();
+            case "Settings": return new SettingsPage();
+            default: return null;
+        }
+    }
+
+    /** Builds a page the first time it is needed and swaps it in. */
+    private Page ensurePage(String name) {
+        Page page = pages.get(name);
+        if (page != null) return page;
+        page = createPage(name);
+        if (page == null) return null;
+        JComponent placeholder = placeholders.remove(name);
+        if (placeholder != null) content.remove(placeholder);
         pages.put(name, page);
         content.add(page.scroll(), name);
+        content.revalidate();
+        content.repaint();
+        return page;
+    }
+
+    /**
+     * Builds the pages that were skipped at startup, one per event-loop turn,
+     * so the window appears immediately and never blocks for long.
+     */
+    void warmPages() {
+        if (warming || !isShowing()) return;
+        warming = true;
+        warmNext(new java.util.ArrayList<>(pageNames), warmGeneration);
+    }
+
+    private void warmNext(java.util.List<String> queue, int generation) {
+        if (generation != warmGeneration) return;
+        if (queue.isEmpty()) {
+            warming = false;
+            return;
+        }
+        SwingUtilities.invokeLater(() -> {
+            if (generation != warmGeneration) return;
+            String name = queue.remove(0);
+            if (!pages.containsKey(name)) ensurePage(name);
+            warmNext(queue, generation);
+        });
     }
 
     private JPanel buildHeader() {
@@ -332,7 +386,8 @@ final class ControlPanel extends JFrame {
     }
 
     private void selectPage(String name) {
-        if (!pages.containsKey(name)) return;
+        if (!pageNames.contains(name)) return;
+        ensurePage(name);
         currentPage = name;
         cards.show(content, name);
         for (Map.Entry<String, Widgets.NavItem> entry : navItems.entrySet()) {
@@ -425,7 +480,7 @@ final class ControlPanel extends JFrame {
     }
 
     void openPage(String name) {
-        if (name != null && pages.containsKey(name)) selectPage(name);
+        if (name != null && pageNames.contains(name)) selectPage(name);
     }
 
     void rebuild() {
@@ -435,6 +490,22 @@ final class ControlPanel extends JFrame {
         build();
         setSize(size);
         selectPage(page);
+        refreshAll();
+        revalidate();
+        repaint();
+        warmPages();
+    }
+
+    /**
+     * Updates the window after settings are applied. A rebuild is only needed
+     * when the window structure or the palette changed; otherwise refreshing
+     * keeps the current page, scroll position and selection intact.
+     */
+    void applySettingsChanged() {
+        if (builtCompanion != app.isCompanion() || builtDark != Theme.get().dark) {
+            rebuild();
+            return;
+        }
         refreshAll();
         revalidate();
         repaint();
@@ -1283,8 +1354,39 @@ final class ControlPanel extends JFrame {
                         .contains(needle)) continue;
                 rows.add(entry);
             }
-            model.setRows(rows);
+            if (!sameRows(rows)) {
+                StatsStore.Entry selected = selectedEntry();
+                model.setRows(rows);
+                restoreSelection(selected);
+            }
             count.setText(rows.size() + " shown");
+        }
+
+        /** Entries are shared with the log, so identity tells us what changed. */
+        private boolean sameRows(List<StatsStore.Entry> rows) {
+            List<StatsStore.Entry> current = model.rows;
+            if (current.size() != rows.size()) return false;
+            for (int i = 0; i < rows.size(); i++) {
+                if (current.get(i) != rows.get(i)) return false;
+            }
+            return true;
+        }
+
+        private StatsStore.Entry selectedEntry() {
+            int row = table.getSelectedRow();
+            if (row < 0) return null;
+            return model.rows.get(table.convertRowIndexToModel(row));
+        }
+
+        private void restoreSelection(StatsStore.Entry entry) {
+            if (entry == null) return;
+            for (int i = 0; i < model.rows.size(); i++) {
+                if (model.rows.get(i) == entry) {
+                    int view = table.convertRowIndexToView(i);
+                    table.setRowSelectionInterval(view, view);
+                    return;
+                }
+            }
         }
     }
 
@@ -1293,6 +1395,8 @@ final class ControlPanel extends JFrame {
                 "Time", "Client", "Domain", "Category", "Type", "Status",
                 "Upstream", "ms", "Rule"
         };
+        private static final java.text.SimpleDateFormat CLOCK =
+                new java.text.SimpleDateFormat("HH:mm:ss", Locale.US);
         private List<StatsStore.Entry> rows = new ArrayList<>();
 
         void setRows(List<StatsStore.Entry> rows) {
@@ -1308,8 +1412,7 @@ final class ControlPanel extends JFrame {
         public Object getValueAt(int row, int column) {
             StatsStore.Entry e = rows.get(row);
             switch (column) {
-                case 0: return new java.text.SimpleDateFormat("HH:mm:ss",
-                        Locale.US).format(new java.util.Date(e.at));
+                case 0: return CLOCK.format(new java.util.Date(e.at));
                 case 1: {
                     String name = DnsService.clientName(e.client);
                     return name.equals(e.client) ? e.client : name;
@@ -1458,7 +1561,7 @@ final class ControlPanel extends JFrame {
                     capSlider.setValue(capProgress(1510000));
                     capValue.setText(capLabel(1510000));
                 }
-                prefs.save();
+                app.inBackground(prefs::save, null);
                 sliderRow.setVisible(value);
                 capCard.setPreferredSize(new Dimension(100, value ? 128 : 82));
                 capCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, value ? 140 : 92));
@@ -1471,8 +1574,10 @@ final class ControlPanel extends JFrame {
             capSlider.addChangeListener(e -> {
                 int cap = capFromProgress(capSlider.getValue());
                 prefs.setInt("gravityCap", cap);
-                prefs.save();
                 capValue.setText(capLabel(cap));
+                if (!capSlider.getValueIsAdjusting()) {
+                    app.inBackground(prefs::save, null);
+                }
             });
 
             page.add(capCard);
@@ -1574,10 +1679,13 @@ final class ControlPanel extends JFrame {
                             prefs.blocklistUrls(), levelKey,
                             prefs.categoryLevel(levelKey)));
                 }
-                prefs.save();
-                filter.reloadRules();
-                refresh();
-                if (value) app.updateLists();
+                app.inBackground(() -> {
+                    prefs.save();
+                    filter.reloadRules();
+                }, () -> {
+                    refresh();
+                    if (value) app.updateLists();
+                });
             });
             left.add(toggle);
             left.add(Widgets.label(label, 12.5f, Font.BOLD, 0));
@@ -1603,12 +1711,16 @@ final class ControlPanel extends JFrame {
                         prefs.set("blocklistUrls", Blocklists.applyLevel(
                                 prefs.blocklistUrls(), levelKey, value));
                     }
-                    prefs.save();
-                    filter.reloadRules();
-                    refresh();
-                    if (prefs.getBool(key, fallback) && !filter.isUpdating()) {
-                        app.updateLists();
-                    }
+                    boolean enabled = prefs.getBool(key, fallback);
+                    app.inBackground(() -> {
+                        prefs.save();
+                        filter.reloadRules();
+                    }, () -> {
+                        refresh();
+                        if (enabled && !filter.isUpdating()) {
+                            app.updateLists();
+                        }
+                    });
                 });
                 right.add(level);
             }
@@ -2017,7 +2129,7 @@ final class ControlPanel extends JFrame {
                     "x", Widgets.GHOST);
             removePassword.addActionListener(e -> {
                 prefs.set("webPassword", "");
-                prefs.save();
+                app.inBackground(prefs::save, null);
                 webPassword.setText("");
                 loginState.setText("Dashboard login is off.");
                 setStatus("Dashboard password removed.");
@@ -2051,7 +2163,7 @@ final class ControlPanel extends JFrame {
                 String mode = index == 1 ? Theme.MODE_DARK
                         : index == 2 ? Theme.MODE_LIGHT : Theme.MODE_SYSTEM;
                 prefs.set("theme", mode);
-                prefs.save();
+                app.inBackground(prefs::save, null);
                 app.applyTheme();
             });
             appearanceRow.add(theme);
@@ -2215,6 +2327,10 @@ final class ControlPanel extends JFrame {
         }
 
         private void apply() {
+            if (app.isApplying()) {
+                setStatus("Settings are still applying. Try again in a moment.");
+                return;
+            }
             int dnsValue = parsePort(dnsPort.getText(), 53);
             int webValue = parsePort(webPort.getText(), 8080);
             if (dnsValue < 1 || dnsValue > 65535) {
@@ -2257,18 +2373,20 @@ final class ControlPanel extends JFrame {
             prefs.set("webUsername", webUser.getText().trim());
             prefs.setBool("launchAtLogin", launchAtLogin.isSelected());
             prefs.setBool("closeToTray", closeToTray.isSelected());
-            SystemIntegration.setLaunchAtLogin(launchAtLogin.isSelected());
+            boolean launchNow = launchAtLogin.isSelected();
+            app.inBackground(() -> SystemIntegration.setLaunchAtLogin(launchNow), null);
             char[] password = webPassword.getPassword();
-            if (password.length > 0) {
-                prefs.setWebPassword(new String(password));
-                java.util.Arrays.fill(password, '\0');
+            String newPassword = password.length > 0 ? new String(password) : null;
+            java.util.Arrays.fill(password, '\0');
+            if (newPassword != null) {
                 webPassword.setText("");
                 loginState.setText("Login is on.");
             }
-            prefs.save();
-            app.applySettings();
+            app.applySettings(() -> {
+                if (newPassword != null) prefs.setWebPassword(newPassword);
+                prefs.save();
+            });
             loadValues();
-            setStatus("Settings applied.");
         }
 
         private void testCompanion() {
@@ -2316,13 +2434,19 @@ final class ControlPanel extends JFrame {
                 setStatus("Enter a new password first.");
                 return;
             }
-            prefs.setWebPassword(new String(password));
+            String value = new String(password);
             java.util.Arrays.fill(password, '\0');
-            prefs.set("webUsername", webUser.getText().trim());
-            prefs.save();
-            webPassword.setText("");
-            loginState.setText("Login is on.");
-            setStatus("Dashboard password updated.");
+            String user = webUser.getText().trim();
+            setStatus("Saving dashboard password…");
+            app.inBackground(() -> {
+                prefs.setWebPassword(value);
+                prefs.set("webUsername", user);
+                prefs.save();
+            }, () -> {
+                webPassword.setText("");
+                loginState.setText("Login is on.");
+                setStatus("Dashboard password updated.");
+            });
         }
 
         private int parsePort(String value, int fallback) {

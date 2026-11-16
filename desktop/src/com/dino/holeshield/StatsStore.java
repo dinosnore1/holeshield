@@ -17,6 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /** Thread-safe query log, counters and chart history for the desktop app. */
 final class StatsStore {
@@ -100,6 +103,10 @@ final class StatsStore {
     private long errors;
     private int dirty;
     private long lastSave;
+    private boolean saveQueued;
+    private ScheduledExecutorService saver;
+    private static final Object WRITE_LOCK = new Object();
+    private static final long SAVE_DELAY_MS = 5000L;
 
     StatsStore(File dir) {
         this.dir = dir;
@@ -200,8 +207,24 @@ final class StatsStore {
         if (entry.blocked) day[1]++;
 
         dirty++;
-        long elapsed = System.currentTimeMillis() - lastSave;
-        if (dirty >= 40 || elapsed > 60000L) save();
+        queueSave();
+    }
+
+    /**
+     * Writes soon on a background thread. Lookups call this for every query,
+     * so it must never wait for the disk; bursts collapse into one write.
+     */
+    private void queueSave() {
+        if (saveQueued) return;
+        saveQueued = true;
+        if (saver == null) {
+            saver = Executors.newSingleThreadScheduledExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "stats-save");
+                thread.setDaemon(true);
+                return thread;
+            });
+        }
+        saver.schedule(this::save, SAVE_DELAY_MS, TimeUnit.MILLISECONDS);
     }
 
     private void index(Entry e) {
@@ -423,8 +446,24 @@ final class StatsStore {
         return s;
     }
 
-    synchronized void save() {
-        AppDirs.ensureDir(dir);
+    void save() {
+        String summary;
+        String logText;
+        synchronized (this) {
+            saveQueued = false;
+            summary = summaryText();
+            logText = logText();
+            dirty = 0;
+            lastSave = System.currentTimeMillis();
+        }
+        synchronized (WRITE_LOCK) {
+            AppDirs.ensureDir(dir);
+            write(new File(dir, "stats.txt"), summary);
+            write(new File(dir, "query_log.tsv"), logText);
+        }
+    }
+
+    private String summaryText() {
         StringBuilder out = new StringBuilder();
         out.append("V 1\n");
         out.append("C ").append(total).append(',').append(blocked).append(',')
@@ -438,8 +477,10 @@ final class StatsStore {
             out.append("D ").append(e.getKey()).append(' ')
                     .append(e.getValue()[0]).append(',').append(e.getValue()[1]).append('\n');
         }
-        write(new File(dir, "stats.txt"), out.toString());
+        return out.toString();
+    }
 
+    private String logText() {
         StringBuilder logText = new StringBuilder();
         for (Entry e : log) {
             logText.append(e.at).append('\t')
@@ -455,9 +496,7 @@ final class StatsStore {
                     .append(e.blocked ? '1' : '0').append('\t')
                     .append(e.cached ? '1' : '0').append('\n');
         }
-        write(new File(dir, "query_log.tsv"), logText.toString());
-        dirty = 0;
-        lastSave = System.currentTimeMillis();
+        return logText.toString();
     }
 
     private static void write(File file, String text) {

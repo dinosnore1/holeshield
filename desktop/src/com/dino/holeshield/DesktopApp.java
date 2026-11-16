@@ -2,6 +2,7 @@ package com.dino.holeshield;
 
 import javax.swing.SwingUtilities;
 import java.io.File;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +34,7 @@ public final class DesktopApp {
     private boolean replace;
     private boolean openDashboardAtStart;
     private String initialPage = "Overview";
+    private final AtomicBoolean applying = new AtomicBoolean();
 
     private DesktopApp(DesktopPrefs prefs) {
         this.prefs = prefs;
@@ -199,6 +201,8 @@ public final class DesktopApp {
         frame.openPage(initialPage);
         tray = new TrayController(this);
         frame.setVisible(!minimized || tray == null);
+        // Fill in the pages that startup skipped, once the window is up.
+        SwingUtilities.invokeLater(frame::warmPages);
         if (openDashboardAtStart) openDashboard();
         if (isCompanion()) {
             frame.setStatus(companionConnected()
@@ -218,15 +222,40 @@ public final class DesktopApp {
             setBlocking(!isBlocking(), 0);
             return;
         }
-        if (dns.running()) {
-            dns.stop();
-            setStatus("DNS stopped");
-        } else {
-            dns.start();
-            setStatus(dns.running() ? "DNS listening on " + bindSummary()
-                    : dns.bindError());
+        if (applying.get()) {
+            setStatus("Settings are still applying. Try again in a moment.");
+            return;
         }
-        refreshAll();
+        boolean stopping = dns.running();
+        setStatus(stopping ? "Stopping DNS…" : "Starting DNS…");
+        inBackground(() -> {
+            if (stopping) dns.stop();
+            else dns.start();
+        }, () -> {
+            setStatus(stopping ? "DNS stopped" : dns.running()
+                    ? "DNS listening on " + bindSummary() : dns.bindError());
+            refreshAll();
+        });
+    }
+
+    /**
+     * Runs slow work (disk, sockets, process spawns, list parsing) off the
+     * Swing thread and then calls {@code done} back on it.
+     */
+    void inBackground(Runnable work, Runnable done) {
+        Thread thread = new Thread(() -> {
+            try {
+                work.run();
+            } finally {
+                if (done != null) SwingUtilities.invokeLater(done);
+            }
+        }, "hs-background");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    boolean isApplying() {
+        return applying.get();
     }
 
     void pause(long seconds) {
@@ -349,6 +378,19 @@ public final class DesktopApp {
     }
 
     void applySettings() {
+        applySettings(null);
+    }
+
+    /**
+     * Restarts the services with the saved settings. {@code beforeRestart}
+     * runs first on the background thread, for slow work such as hashing a
+     * new password that must land before the dashboard restarts.
+     */
+    void applySettings(Runnable beforeRestart) {
+        if (!applying.compareAndSet(false, true)) {
+            setStatus("Settings are still applying. Try again in a moment.");
+            return;
+        }
         Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM));
         if (AppDirs.isMac()) {
             System.setProperty("apple.awt.application.appearance",
@@ -356,6 +398,28 @@ public final class DesktopApp {
                             : "NSAppearanceNameAqua");
         }
         boolean companionMode = isCompanion();
+        setStatus("Applying settings…");
+        inBackground(() -> {
+            if (beforeRestart != null) beforeRestart.run();
+            restartServices(companionMode);
+        }, () -> {
+            try {
+                if (frame != null) {
+                    frame.applySettingsChanged();
+                    frame.setStatus(companionMode
+                            ? (companionConnected() ? "Companion connected to "
+                            + companion.display() : companionStatus())
+                            : dns.running() ? "Settings applied · DNS on "
+                            + bindSummary() : dns.bindError());
+                }
+                if (tray != null) tray.update();
+            } finally {
+                applying.set(false);
+            }
+        });
+    }
+
+    private void restartServices(boolean companionMode) {
         stopCompanion();
         stopNetworkServices();
         if (upstream != null) upstream.reset();
@@ -370,15 +434,6 @@ public final class DesktopApp {
             filter.reloadRules();
         }
         startServices();
-        if (frame != null) {
-            frame.rebuild();
-            frame.setStatus(companionMode
-                    ? (companionConnected() ? "Companion connected to "
-                    + companion.display() : companionStatus())
-                    : dns.running() ? "Settings applied · DNS on "
-                    + bindSummary() : dns.bindError());
-        }
-        if (tray != null) tray.update();
     }
 
     // ------------------------------------------------------ companion console
@@ -405,7 +460,7 @@ public final class DesktopApp {
         if (!isCompanion()) return;
         startCompanion();
         if (frame != null) {
-            frame.rebuild();
+            frame.applySettingsChanged();
             frame.setStatus(companionStatus());
         }
     }
@@ -675,6 +730,7 @@ public final class DesktopApp {
                 + ":" + dnsPort();
     }
 
+    String initialPage() { return initialPage; }
     boolean headless() { return headless; }
     boolean replace() { return replace; }
 

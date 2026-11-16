@@ -120,11 +120,17 @@ final class Theme {
         return new Font(family, style, Math.round(size));
     }
 
+    private static String monoFamily;
+
     static Font mono(float size) {
-        String mono = System.getProperty("os.name", "").toLowerCase().contains("mac")
-                ? "Menlo" : "Consolas";
-        if (!fontExists(mono)) mono = Font.MONOSPACED;
-        return new Font(mono, Font.PLAIN, Math.round(size));
+        // Resolved once: listing every installed family is far too slow to
+        // repeat for each table cell on every repaint.
+        if (monoFamily == null) {
+            String mono = System.getProperty("os.name", "").toLowerCase().contains("mac")
+                    ? "Menlo" : "Consolas";
+            monoFamily = fontExists(mono) ? mono : Font.MONOSPACED;
+        }
+        return new Font(monoFamily, Font.PLAIN, Math.round(size));
     }
 
     private static boolean fontExists(String name) {
