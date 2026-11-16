@@ -519,7 +519,7 @@ final class Widgets {
 
     static final class NavItem extends JComponent {
         private final String title;
-        private final Icon icon;
+        private final String iconName;
         private boolean selected;
         private boolean hover;
         private double selAmt;
@@ -532,7 +532,7 @@ final class Widgets {
 
         NavItem(String title, String iconName) {
             this.title = title;
-            this.icon = Icons.icon(iconName, 18, 2);
+            this.iconName = iconName == null ? "shield" : iconName;
             setPreferredSize(new Dimension(196, 42));
             setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -614,7 +614,7 @@ final class Widgets {
                 g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 11, 11));
             }
             boolean active = selAmt > 0.5;
-            Icons.icon(iconName(), 18, active ? 1 : 2)
+            Icons.icon(iconName, 18, active ? 1 : 2)
                     .paintIcon(this, g2, 15, (h - 18) / 2);
             g2.setColor(Theme.mix(t.muted, t.onAccentSoft, Math.min(1, selAmt)));
             g2.setFont(Theme.font(12.5f, active ? Font.BOLD : Font.PLAIN));
@@ -628,14 +628,6 @@ final class Widgets {
             g2.dispose();
         }
 
-        private String iconName() {
-            if (icon == null) return "shield";
-            if (title.equals("Overview")) return "dashboard";
-            if (title.equals("Query log")) return "list";
-            if (title.equals("Blocklists")) return "shield";
-            if (title.equals("Rules")) return "rules";
-            return "settings";
-        }
     }
 
     // -------------------------------------------------------------- stat cards
@@ -992,7 +984,7 @@ final class Widgets {
             FontMetrics countMetrics = g2.getFontMetrics();
             int countW = 0;
             for (StatsStore.Top row : rows) {
-                countW = Math.max(countW, countMetrics.stringWidth(String.valueOf(row.count)));
+                countW = Math.max(countW, countMetrics.stringWidth(DesktopApp.formatNumber(row.count)));
             }
             int y = 2;
             for (StatsStore.Top row : rows) {
@@ -1013,7 +1005,7 @@ final class Widgets {
                 g2.setColor(danger ? t.danger : t.accent);
                 int fill = Math.max(6, (int) (barW * (double) row.count / max));
                 g2.fillRoundRect(barX, y + 8, fill, 6, 6, 6);
-                String count = String.valueOf(row.count);
+                String count = DesktopApp.formatNumber(row.count);
                 g2.setColor(t.muted);
                 g2.setFont(Theme.font(11.5f, Font.BOLD));
                 g2.drawString(count, getWidth() - countMetrics.stringWidth(count), y + 15);

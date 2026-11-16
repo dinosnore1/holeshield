@@ -189,7 +189,7 @@ final class ControlPanel extends JFrame {
         content.setBorder(new EmptyBorder(0, 0, 0, 0));
 
         String[] names = app.isCompanion()
-                ? new String[]{"Companion", "Settings"}
+                ? new String[]{"Companion", "Query log", "Blocklists", "Rules", "Settings"}
                 : new String[]{"Overview", "Query log", "Blocklists", "Rules", "Settings"};
         for (String name : names) {
             pageNames.add(name);
@@ -209,6 +209,16 @@ final class ControlPanel extends JFrame {
     }
 
     private Page createPage(String name) {
+        if (app.isCompanion()) {
+            switch (name) {
+                case "Companion": return new CompanionPage();
+                case "Query log": return new CompanionQueriesPage();
+                case "Blocklists": return new CompanionListsPage();
+                case "Rules": return new CompanionRulesPage();
+                case "Settings": return new SettingsPage();
+                default: return null;
+            }
+        }
         switch (name) {
             case "Companion": return new CompanionPage();
             case "Overview": return new OverviewPage();
@@ -338,6 +348,9 @@ final class ControlPanel extends JFrame {
         String[][] entries = app.isCompanion()
                 ? new String[][]{
                         {"Companion", "server"},
+                        {"Query log", "list"},
+                        {"Blocklists", "shield"},
+                        {"Rules", "rules"},
                         {"Settings", "settings"}}
                 : new String[][]{
                         {"Overview", "dashboard"},
@@ -616,7 +629,16 @@ final class ControlPanel extends JFrame {
         int height = card.getPreferredSize().height;
         card.setPreferredSize(new Dimension(100, height));
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
-        card.revalidate();
+        relayout(card);
+    }
+
+    /** Revalidates after the current event so a grown card is never clipped. */
+    private static void relayout(JComponent card) {
+        SwingUtilities.invokeLater(() -> {
+            card.revalidate();
+            if (card.getParent() != null) card.getParent().revalidate();
+            card.repaint();
+        });
     }
 
     // ------------------------------------------------------------------ overview
@@ -665,7 +687,7 @@ final class ControlPanel extends JFrame {
         }
 
         private JComponent hero() {
-            Widgets.RoundedPanel card = card(22, 24, 22, 24);
+            Widgets.RoundedPanel card = card(22, 24, 22, 32);
             card.setShadow(true);
             JPanel left = new JPanel();
             left.setOpaque(false);
@@ -687,6 +709,7 @@ final class ControlPanel extends JFrame {
             JPanel actions = new JPanel();
             actions.setOpaque(false);
             actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
+            actions.setBorder(new EmptyBorder(4, 0, 0, 0));
             pauseButton.setAlignmentX(Component.RIGHT_ALIGNMENT);
             pauseButton.addActionListener(e -> pauseAction());
             actions.add(pauseButton);
@@ -924,8 +947,18 @@ final class ControlPanel extends JFrame {
         private final Widgets.PillButton updateButton =
                 new Widgets.PillButton("Update blocklists", "refresh", Widgets.OUTLINE);
         private final Widgets.BarList categories = new Widgets.BarList();
+        private Widgets.RoundedPanel companionCategoryPanel;
         private final JLabel details = Widgets.label("", 12, Font.PLAIN, 1);
         private final JLabel state = Widgets.label("", 11.5f, Font.PLAIN, 2);
+        private final Widgets.ChartPanel chart = new Widgets.ChartPanel();
+        private final JLabel chartSummary = Widgets.label("", 11.5f, Font.PLAIN, 1);
+        private final Widgets.BarList topBlocked = new Widgets.BarList();
+        private final Widgets.BarList topClients = new Widgets.BarList();
+        private final Widgets.BarList types = new Widgets.BarList();
+        private final Widgets.BarList upstreams = new Widgets.BarList();
+        private final JLabel coverage = Widgets.label("", 11.5f, Font.PLAIN, 1);
+        private Widgets.RoundedPanel coveragePanel;
+        private JPanel topsRowPanel;
 
         CompanionPage() {
             VerticalPanel page = new VerticalPanel();
@@ -935,19 +968,97 @@ final class ControlPanel extends JFrame {
             page.add(Box.createVerticalStrut(14));
             page.add(controls());
             page.add(Box.createVerticalStrut(14));
+            page.add(chartCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(topsRow());
+            page.add(Box.createVerticalStrut(14));
             page.add(categoryCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(coverageCard());
             page.add(Box.createVerticalStrut(14));
             page.add(detailsCard());
             scroll = pageScroll(page);
         }
 
+        private JComponent chartCard() {
+            Widgets.RoundedPanel card = card(18, 20, 14, 20);
+            JPanel head = new JPanel(new BorderLayout(10, 0));
+            head.setOpaque(false);
+            JPanel copy = new JPanel();
+            copy.setOpaque(false);
+            copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
+            copy.add(Widgets.label("Query activity", 15, Font.BOLD, 0));
+            chartSummary.setBorder(new EmptyBorder(2, 0, 0, 0));
+            copy.add(chartSummary);
+            head.add(copy, BorderLayout.CENTER);
+            head.add(Widgets.label("Last 24 hours", 11.5f, Font.PLAIN, 1),
+                    BorderLayout.EAST);
+            card.add(head, BorderLayout.NORTH);
+            card.add(chart, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 330));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 340));
+            return card;
+        }
+
+        private JComponent topsRow() {
+            JPanel row = new JPanel(new GridLayout(1, 4, 14, 0));
+            row.setOpaque(false);
+            row.setAlignmentX(Component.LEFT_ALIGNMENT);
+            row.add(barCard("Top blocked", "Most blocked lookups", topBlocked, true));
+            row.add(barCard("Top clients", "Devices using the resolver", topClients, false));
+            row.add(barCard("Query types", "A, AAAA, HTTPS and more", types, false));
+            row.add(barCard("Upstreams", "Where lookups were answered", upstreams, false));
+            row.setPreferredSize(new Dimension(100, 236));
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 236));
+            topsRowPanel = row;
+            return row;
+        }
+
+        /** Grows the four top cards to fit their longest list, so no row is cut off. */
+        private void fitTops() {
+            if (topsRowPanel == null) return;
+            int tallest = 0;
+            for (Widgets.BarList list : new Widgets.BarList[]{
+                    topBlocked, topClients, types, upstreams}) {
+                tallest = Math.max(tallest, list.getPreferredSize().height);
+            }
+            int height = Math.max(236, tallest + 96);
+            topsRowPanel.setPreferredSize(new Dimension(100, height));
+            topsRowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
+            relayout(topsRowPanel);
+        }
+
+        private JComponent barCard(String title, String sub, Widgets.BarList list,
+                                   boolean danger) {
+            Widgets.RoundedPanel card = card(16, 17, 14, 17);
+            card.add(Widgets.header(title, sub, null), BorderLayout.NORTH);
+            list.setDanger(danger);
+            list.setBorder(new EmptyBorder(8, 0, 0, 0));
+            card.add(list, BorderLayout.CENTER);
+            return card;
+        }
+
+        private JComponent coverageCard() {
+            coveragePanel = card(16, 18, 16, 18);
+            coveragePanel.add(Widgets.header("List coverage",
+                    "Remote blocklist sources and their last download", null),
+                    BorderLayout.NORTH);
+            coverage.setBorder(new EmptyBorder(8, 2, 0, 0));
+            coverage.setVerticalAlignment(SwingConstants.TOP);
+            coveragePanel.add(coverage, BorderLayout.CENTER);
+            coveragePanel.setPreferredSize(new Dimension(100, 150));
+            coveragePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
+            return coveragePanel;
+        }
+
         private JComponent hero() {
-            Widgets.RoundedPanel card = card(22, 24, 22, 24);
+            Widgets.RoundedPanel card = card(22, 24, 22, 32);
             card.setShadow(true);
             JPanel left = new JPanel();
             left.setOpaque(false);
             left.setAlignmentX(Component.LEFT_ALIGNMENT);
             left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+            left.add(Box.createVerticalGlue());
             heroTitle.setHorizontalAlignment(SwingConstants.LEFT);
             heroSub.setHorizontalAlignment(SwingConstants.LEFT);
             left.add(flowLeft(heroTitle));
@@ -959,23 +1070,41 @@ final class ControlPanel extends JFrame {
             chips.add(chip("lock", accountChip));
             chips.add(chip("external", modeChip));
             left.add(chips);
+            left.add(Box.createVerticalGlue());
             card.add(left, BorderLayout.CENTER);
 
             JPanel actions = new JPanel();
             actions.setOpaque(false);
             actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
+            actions.setBorder(new EmptyBorder(4, 0, 0, 0));
             Widgets.PillButton open = new Widgets.PillButton("Open dashboard",
                     "external", Widgets.PRIMARY);
+            Dimension openSize = open.getPreferredSize();
+            openSize.width += 24;
+            open.setPreferredSize(openSize);
+            open.setMinimumSize(openSize);
+            open.setMaximumSize(openSize);
             open.setAlignmentX(Component.RIGHT_ALIGNMENT);
             open.addActionListener(e -> app.openDashboard());
+            actions.add(Box.createVerticalGlue());
             actions.add(open);
             actions.add(Box.createVerticalStrut(8));
             Widgets.PillButton reconnect = new Widgets.PillButton("Reconnect",
                     "refresh", Widgets.OUTLINE);
+            Dimension reconnectSize = reconnect.getPreferredSize();
+            reconnectSize.width += 24;
+            reconnect.setPreferredSize(reconnectSize);
+            reconnect.setMinimumSize(reconnectSize);
+            reconnect.setMaximumSize(reconnectSize);
             reconnect.setAlignmentX(Component.RIGHT_ALIGNMENT);
             reconnect.addActionListener(e -> app.reconnectCompanion());
             actions.add(reconnect);
+            actions.add(Box.createVerticalGlue());
             card.add(actions, BorderLayout.EAST);
+            // Two stacked buttons need more height than the hero text, or the
+            // top pill ends up hard against the rounded corner.
+            card.setPreferredSize(new Dimension(100, 170));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 170));
             return card;
         }
 
@@ -1044,6 +1173,7 @@ final class ControlPanel extends JFrame {
 
         private JComponent categoryCard() {
             Widgets.RoundedPanel card = card(16, 17, 14, 17);
+            companionCategoryPanel = card;
             card.add(Widgets.header("Blocked by category",
                     "Category counts reported by the remote dashboard", null),
                     BorderLayout.NORTH);
@@ -1086,6 +1216,9 @@ final class ControlPanel extends JFrame {
             blockingButton.setText(blocking ? "Pause blocking" : "Resume blocking");
             blockingButton.setEnabled(connected);
             updateButton.setEnabled(connected && !app.isUpdating());
+
+            CompanionClient.Dashboard dash = app.companionDashboard();
+            refreshMirror(dash);
 
             if (snapshot == null) {
                 heroTitle.setText(connected ? "Companion console" : "Companion offline");
@@ -1134,21 +1267,39 @@ final class ControlPanel extends JFrame {
                         (int) Math.min(Integer.MAX_VALUE, count)));
             }
             categories.setData(rows, "No category counts reported.");
+            int categoryHeight = Math.max(210, categories.getPreferredSize().height + 90);
+            if (companionCategoryPanel.getPreferredSize().height != categoryHeight) {
+                companionCategoryPanel.setPreferredSize(new Dimension(100, categoryHeight));
+                companionCategoryPanel.setMaximumSize(
+                        new Dimension(Integer.MAX_VALUE, categoryHeight));
+                relayout(companionCategoryPanel);
+            }
 
             String updated = snapshot.lastUpdate > 0
                     ? relative(snapshot.lastUpdate) : "never";
-            details.setText("<html><body style='width:520px'>"
-                    + "Server: <b>" + html(address) + "</b><br>"
-                    + "Software: " + html(snapshot.name.isEmpty()
-                    ? "Hole Shield" : snapshot.name)
-                    + (snapshot.version.isEmpty() ? "" : " " + html(snapshot.version))
-                    + "<br>"
-                    + "Clients seen: " + snapshot.clients
-                    + " · Gravity updated: " + updated + "<br>"
-                    + "Schedule: " + (snapshot.scheduleEnabled
+            CompanionClient.Host host = dash == null ? null : dash.host;
+            StringBuilder info = new StringBuilder("<html><body style='width:520px'>")
+                    .append("Server: <b>").append(html(address)).append("</b><br>")
+                    .append("Software: ").append(html(snapshot.name.isEmpty()
+                    ? "Hole Shield" : snapshot.name))
+                    .append(snapshot.version.isEmpty() ? "" : " " + html(snapshot.version))
+                    .append("<br>")
+                    .append("Clients seen: ").append(snapshot.clients)
+                    .append(" · Gravity updated: ").append(updated).append("<br>")
+                    .append("Schedule: ").append(snapshot.scheduleEnabled
                     ? html(snapshot.scheduleLabel) : "Always on")
-                    + " · Blocking: " + (blocking ? "enabled" : "paused")
-                    + "</body></html>");
+                    .append(" · Blocking: ").append(blocking ? "enabled" : "paused");
+            if (host != null && !host.hostname.isEmpty()) {
+                info.append("<br>Host: ").append(html(host.hostname))
+                        .append(host.ip.isEmpty() ? "" : " · " + html(host.ip))
+                        .append(" · web ").append(host.webPort)
+                        .append(" · DNS ").append(host.dnsPort)
+                        .append(host.dnsRunning ? " (running)" : " (stopped)");
+                if (!host.dnsNote.isEmpty()) {
+                    info.append("<br>").append(html(host.dnsNote));
+                }
+            }
+            details.setText(info.append("</body></html>").toString());
             state.setText(app.isUpdating() ? "Remote blocklist update in progress…"
                     : !liveError.isEmpty() ? liveError
                     : "Live view · refreshes every two seconds.");
@@ -1159,9 +1310,685 @@ final class ControlPanel extends JFrame {
             return Character.toUpperCase(key.charAt(0)) + key.substring(1);
         }
 
+        /** Draws the chart, top lists, coverage and host rows of the mirror. */
+        private void refreshMirror(CompanionClient.Dashboard dash) {
+            List<StatsStore.Bucket> points = new ArrayList<>();
+            List<StatsStore.Top> blockedRows = new ArrayList<>();
+            List<StatsStore.Top> clientRows = new ArrayList<>();
+            List<StatsStore.Top> typeRows = new ArrayList<>();
+            List<StatsStore.Top> upstreamRows = new ArrayList<>();
+            long total = 0;
+            long blockedCount = 0;
+            if (dash != null) {
+                for (CompanionClient.Point point : dash.history) {
+                    points.add(new StatsStore.Bucket(point.time, point.queries, point.blocked));
+                    total += point.queries;
+                    blockedCount += point.blocked;
+                }
+                blockedRows = tops(dash.topBlocked);
+                clientRows = tops(dash.topClients);
+                typeRows = tops(dash.types);
+                upstreamRows = tops(dash.upstreams);
+            }
+            chart.setData(points, "24h");
+            chartSummary.setText(DesktopApp.formatNumber(total) + " queries · "
+                    + DesktopApp.formatNumber(blockedCount) + " blocked · "
+                    + String.format(Locale.US, "%.1f%%",
+                    total == 0 ? 0 : blockedCount * 100.0 / total));
+            topBlocked.setData(blockedRows, "No blocked lookups yet.");
+            topClients.setData(clientRows, "No clients yet.");
+            types.setData(typeRows, "No queries yet.");
+            upstreams.setData(upstreamRows, "No upstream data yet.");
+            coverage.setText(dash == null
+                    ? "Waiting for the remote dashboard…"
+                    : coverageHtml(dash.sources));
+            fitTops();
+            if (coveragePanel != null) {
+                int lines = dash == null ? 1 : Math.min(8, dash.sources.size())
+                        + (dash.sources.size() > 8 ? 1 : 0);
+                int height = 104 + Math.max(1, lines) * 18;
+                coveragePanel.setPreferredSize(new Dimension(100, height));
+                coveragePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
+                relayout(coveragePanel);
+            }
+        }
+
+        private List<StatsStore.Top> tops(List<CompanionClient.Top> source) {
+            List<StatsStore.Top> rows = new ArrayList<>();
+            for (CompanionClient.Top top : source) {
+                rows.add(new StatsStore.Top(top.key,
+                        (int) Math.min(Integer.MAX_VALUE, top.count)));
+            }
+            return rows;
+        }
+
+        private String coverageHtml(List<CompanionClient.Source> sources) {
+            if (sources.isEmpty()) return "No blocklist sources reported.";
+            StringBuilder out = new StringBuilder("<html><body style='width:560px'>");
+            int shown = 0;
+            for (CompanionClient.Source source : sources) {
+                if (shown++ >= 8) break;
+                String host = source.address.replaceFirst("^https?://", "");
+                if (host.length() > 58) host = host.substring(0, 57) + "…";
+                out.append(source.ok ? "<span style='color:#3fd391'>✓</span> "
+                        : "<span style='color:#ff6b6b'>✕</span> ").append(html(host));
+                if (source.count > 0) {
+                    out.append(" · ").append(DesktopApp.formatNumber(source.count));
+                }
+                if (!source.ok && !source.error.isEmpty()) {
+                    out.append(" · ").append(html(source.error));
+                }
+                out.append("<br>");
+            }
+            if (sources.size() > 8) {
+                out.append("+ ").append(sources.size() - 8).append(" more sources");
+            }
+            return out.append("</body></html>").toString();
+        }
+
         private String html(String value) {
             return value == null ? "" : value.replace("&", "&amp;")
                     .replace("<", "&lt;").replace(">", "&gt;");
+        }
+    }
+
+    // ------------------------------------------------------ companion queries
+
+    /** Remote query log, mirroring the web dashboard's query table. */
+    private final class CompanionQueriesPage extends Page {
+        private final JScrollPane scroll;
+        private final JTextField search = Widgets.field("Search domain or client", 24);
+        private final JComboBox<String> filterCombo = Widgets.combo(
+                new String[]{"All queries", "Blocked only", "Allowed only"}, "All queries");
+        private final JLabel count = Widgets.label("", 11.5f, Font.PLAIN, 1);
+        private final CompanionQueryModel model = new CompanionQueryModel();
+        private int filterMode;
+        private final JTable table = new JTable(model);
+        private final Timer debounce;
+
+        CompanionQueriesPage() {
+            VerticalPanel page = new VerticalPanel();
+            Widgets.RoundedPanel toolbar = card(14, 16, 14, 16);
+            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            left.setOpaque(false);
+            left.add(search);
+            left.add(filterCombo);
+            Widgets.PillButton refresh = new Widgets.PillButton("Refresh", "refresh",
+                    Widgets.OUTLINE);
+            refresh.addActionListener(e -> refresh());
+            left.add(refresh);
+            toolbar.add(left, BorderLayout.WEST);
+
+            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+            right.setOpaque(false);
+            right.add(count);
+            Widgets.PillButton export = new Widgets.PillButton("Export", "download",
+                    Widgets.OUTLINE);
+            export.addActionListener(e -> export());
+            right.add(export);
+            toolbar.add(right, BorderLayout.EAST);
+            page.add(toolbar);
+            page.add(Box.createVerticalStrut(14));
+
+            Widgets.RoundedPanel tableCard = card(8, 10, 8, 10);
+            tableCard.setShadow(true);
+            Widgets.styleTable(table);
+            table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+            int[] widths = {82, 128, 250, 84, 62, 112, 132, 58, 160};
+            for (int i = 0; i < table.getColumnCount(); i++) {
+                table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+                table.getColumnModel().getColumn(i).setCellRenderer(new QueryRenderer(i));
+            }
+            JScrollPane inner = Widgets.scroll(table);
+            inner.setPreferredSize(new Dimension(100, 540));
+            tableCard.add(inner, BorderLayout.CENTER);
+            tableCard.setPreferredSize(new Dimension(100, 560));
+            tableCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 560));
+            page.add(tableCard);
+            scroll = pageScroll(page);
+
+            debounce = new Timer(280, e -> refresh());
+            debounce.setRepeats(false);
+            search.getDocument().addDocumentListener(new DocumentListener() {
+                @Override public void insertUpdate(DocumentEvent e) { debounce.restart(); }
+                @Override public void removeUpdate(DocumentEvent e) { debounce.restart(); }
+                @Override public void changedUpdate(DocumentEvent e) { debounce.restart(); }
+            });
+            filterCombo.addActionListener(e -> {
+                filterMode = filterCombo.getSelectedIndex();
+                refresh();
+            });
+        }
+
+        @Override
+        JScrollPane scroll() {
+            return scroll;
+        }
+
+        @Override
+        void refresh() {
+            CompanionClient.Dashboard dash = app.companionDashboard();
+            List<CompanionClient.Query> rows = new ArrayList<>();
+            if (dash != null) {
+                String needle = search.getText().trim().toLowerCase(Locale.US);
+                for (CompanionClient.Query row : dash.queries) {
+                    if (filterMode == 1 && !row.blocked) continue;
+                    if (filterMode == 2 && row.blocked) continue;
+                    if (!needle.isEmpty()
+                            && !row.domain.toLowerCase(Locale.US).contains(needle)
+                            && !row.client.toLowerCase(Locale.US).contains(needle)
+                            && !row.clientName.toLowerCase(Locale.US).contains(needle)) continue;
+                    rows.add(row);
+                }
+            }
+            model.setRows(rows);
+            count.setText(rows.size() + " shown");
+        }
+
+        private void export() {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setSelectedFile(new File("holeshield-remote-queries.csv"));
+            if (chooser.showSaveDialog(ControlPanel.this) != JFileChooser.APPROVE_OPTION) {
+                return;
+            }
+            StringBuilder csv = new StringBuilder(
+                    "Time,Client,Domain,Category,Type,Status,Upstream,ms,Rule\n");
+            java.text.SimpleDateFormat clock =
+                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+            for (CompanionClient.Query row : model.rows) {
+                csv.append(clock.format(new java.util.Date(row.at))).append(',')
+                        .append(csv(row.client)).append(',')
+                        .append(csv(row.domain)).append(',')
+                        .append(csv(row.category)).append(',')
+                        .append(csv(row.type)).append(',')
+                        .append(csv(row.status)).append(',')
+                        .append(csv(row.upstream)).append(',')
+                        .append(String.format(Locale.US, "%.1f", row.ms)).append(',')
+                        .append(csv(row.rule)).append('\n');
+            }
+            try {
+                Files.write(chooser.getSelectedFile().toPath(),
+                        csv.toString().getBytes(StandardCharsets.UTF_8));
+                setStatus("Exported " + chooser.getSelectedFile().getName());
+            } catch (Exception e) {
+                SystemIntegration.showError(ControlPanel.this,
+                        "Could not write the export: " + e.getMessage());
+            }
+        }
+
+        private String csv(String value) {
+            if (value == null) return "";
+            if (value.indexOf(',') < 0 && value.indexOf('"') < 0) return value;
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+    }
+
+    /** Table model over the remote query log. */
+    private static final class CompanionQueryModel extends AbstractTableModel {
+        private static final String[] COLUMNS = {
+                "Time", "Client", "Domain", "Category", "Type", "Status",
+                "Upstream", "ms", "Rule"
+        };
+        private static final java.text.SimpleDateFormat CLOCK =
+                new java.text.SimpleDateFormat("HH:mm:ss", Locale.US);
+        private List<CompanionClient.Query> rows = new ArrayList<>();
+
+        void setRows(List<CompanionClient.Query> rows) {
+            List<CompanionClient.Query> next = rows == null
+                    ? new ArrayList<>() : rows;
+            if (sameIds(next)) return;
+            this.rows = next;
+            fireTableDataChanged();
+        }
+
+        /** Keeps the table still while the same rows are on screen. */
+        private boolean sameIds(List<CompanionClient.Query> next) {
+            if (next.size() != rows.size()) return false;
+            for (int i = 0; i < next.size(); i++) {
+                if (next.get(i).id != rows.get(i).id) return false;
+            }
+            return true;
+        }
+
+        @Override public int getRowCount() { return rows.size(); }
+        @Override public int getColumnCount() { return COLUMNS.length; }
+        @Override public String getColumnName(int column) { return COLUMNS[column]; }
+
+        @Override
+        public Object getValueAt(int row, int column) {
+            CompanionClient.Query q = rows.get(row);
+            switch (column) {
+                case 0: return CLOCK.format(new java.util.Date(q.at));
+                case 1: return q.clientName.isEmpty() || q.clientName.equals(q.client)
+                        ? q.client : q.clientName;
+                case 2: return q.domain;
+                case 3: return q.category == null || q.category.isEmpty()
+                        ? (q.blocked ? "Gravity" : "—") : q.category;
+                case 4: return q.type;
+                case 5: return q.status;
+                case 6: return q.upstream.isEmpty() ? "—" : q.upstream;
+                case 7: return String.format(Locale.US, "%.1f", q.ms);
+                case 8: return q.rule.isEmpty() ? "—" : q.rule;
+                default: return "";
+            }
+        }
+    }
+
+    // --------------------------------------------------- companion blocklists
+
+    /** Remote blocklists: gravity, categories and sources. */
+    private final class CompanionListsPage extends Page {
+        private final JScrollPane scroll;
+        private final JLabel gravityLine = Widgets.label("", 12, Font.PLAIN, 1);
+        private final JLabel gravityHint = Widgets.label("", 11, Font.PLAIN, 6);
+        private final Widgets.PillButton update =
+                new Widgets.PillButton("Update now", "refresh", Widgets.PRIMARY);
+        private final JPanel categoryRows = new JPanel();
+        private final SourceModel sourceModel = new SourceModel();
+        private final JTable sourceTable = new JTable(sourceModel);
+        private final Map<String, Widgets.ToggleSwitch> categoryToggles =
+                new LinkedHashMap<>();
+        private final Map<String, JComboBox<String>> categoryLevels =
+                new LinkedHashMap<>();
+        private final JTextField newSource = Widgets.field("https://example.com/hosts.txt", 30);
+        private String sourceSignature = "";
+        private boolean updatingCategories;
+
+        CompanionListsPage() {
+            VerticalPanel page = new VerticalPanel();
+            page.add(gravityCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(categoriesCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(sourcesCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(addSourceCard());
+            scroll = pageScroll(page);
+        }
+
+        private JComponent gravityCard() {
+            Widgets.RoundedPanel card = card(18, 18, 18, 26);
+            card.add(Widgets.header("Gravity database",
+                    "The remote system's merged blocklist index", null),
+                    BorderLayout.NORTH);
+            JPanel body = new JPanel(new BorderLayout(10, 0));
+            body.setOpaque(false);
+            body.setBorder(new EmptyBorder(12, 0, 0, 0));
+            JPanel copy = new JPanel();
+            copy.setOpaque(false);
+            copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
+            copy.add(gravityLine);
+            gravityHint.setBorder(new EmptyBorder(4, 0, 0, 0));
+            copy.add(gravityHint);
+            body.add(copy, BorderLayout.CENTER);
+            update.addActionListener(e -> app.updateLists());
+            body.add(update, BorderLayout.EAST);
+            card.add(body, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 120));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
+            return card;
+        }
+
+        private JComponent categoriesCard() {
+            Widgets.RoundedPanel card = card(18, 18, 18, 18);
+            card.add(Widgets.header("Categories",
+                    "Turn a remote category on or off without rebuilding the index", null),
+                    BorderLayout.NORTH);
+            categoryRows.setOpaque(false);
+            categoryRows.setLayout(new BoxLayout(categoryRows, BoxLayout.Y_AXIS));
+            categoryRows.setBorder(new EmptyBorder(10, 0, 0, 0));
+            String[] labels = {"Ads", "Trackers", "Malware", "Adult",
+                    "Piracy", "Gambling", "Dating", "Social media"};
+            for (int i = 0; i < Blocklists.CATEGORY_KEYS.length; i++) {
+                String key = Blocklists.CATEGORY_KEYS[i];
+                Widgets.ToggleSwitch toggle = new Widgets.ToggleSwitch(false);
+                toggle.setOnChange(value -> app.companionSetCategory(key, value));
+                categoryToggles.put(key, toggle);
+                JComboBox<String> level = Widgets.combo(
+                        new String[]{"Lite", "Medium", "Maximum"}, "Maximum");
+                level.setPreferredSize(new Dimension(118, 28));
+                level.addActionListener(e -> {
+                    if (updatingCategories) return;
+                    Object item = level.getSelectedItem();
+                    String choice = item == null ? "Maximum" : item.toString();
+                    app.companionSetCategoryLevel(key,
+                            "Lite".equals(choice) ? "lite"
+                                    : "Medium".equals(choice) ? "medium" : "max");
+                });
+                categoryLevels.put(key, level);
+
+                JPanel row = new JPanel(new BorderLayout(10, 0));
+                row.setOpaque(false);
+                row.setAlignmentX(Component.LEFT_ALIGNMENT);
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+                row.setBorder(new EmptyBorder(5, 0, 5, 0));
+                JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+                left.setOpaque(false);
+                left.add(toggle);
+                left.add(Widgets.label(labels[i], 12.5f, Font.BOLD, 0));
+                row.add(left, BorderLayout.WEST);
+                row.add(level, BorderLayout.EAST);
+                categoryRows.add(row);
+            }
+            card.add(categoryRows, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 400));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 420));
+            return card;
+        }
+
+        private JComponent sourcesCard() {
+            Widgets.RoundedPanel card = card(18, 18, 18, 18);
+            card.add(Widgets.header("Blocklist sources",
+                    "Lists the remote system downloads", null), BorderLayout.NORTH);
+            Widgets.styleTable(sourceTable);
+            int[] widths = {620, 90, 80};
+            for (int i = 0; i < sourceTable.getColumnCount(); i++) {
+                sourceTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+                sourceTable.getColumnModel().getColumn(i)
+                        .setCellRenderer(new SourceRenderer(i));
+            }
+            JScrollPane list = Widgets.scroll(sourceTable);
+            list.setPreferredSize(new Dimension(100, 280));
+            card.add(list, BorderLayout.CENTER);
+            JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 6));
+            footer.setOpaque(false);
+            Widgets.PillButton remove = new Widgets.PillButton("Remove selected",
+                    "trash", Widgets.GHOST);
+            remove.addActionListener(e -> removeSelectedSource());
+            footer.add(remove);
+            card.add(footer, BorderLayout.SOUTH);
+            card.setPreferredSize(new Dimension(100, 390));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 390));
+            return card;
+        }
+
+        private void removeSelectedSource() {
+            int row = sourceTable.getSelectedRow();
+            if (row < 0) {
+                setStatus("Select a blocklist source first.");
+                return;
+            }
+            CompanionClient.Source source = sourceModel.rows.get(
+                    sourceTable.convertRowIndexToModel(row));
+            app.companionRemoveList(source.id, source.address);
+        }
+
+        /** The add field lives in its own card so a long list cannot clip it. */
+        private JComponent addSourceCard() {
+            Widgets.RoundedPanel card = card(18, 18, 18, 18);
+            card.add(Widgets.header("Add a source",
+                    "Downloads start on the next update", null), BorderLayout.NORTH);
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 10));
+            row.setOpaque(false);
+            row.add(newSource);
+            Widgets.PillButton add = new Widgets.PillButton("Add source", "plus",
+                    Widgets.TONAL);
+            add.addActionListener(e -> {
+                String value = newSource.getText().trim();
+                if (!value.startsWith("http://") && !value.startsWith("https://")) {
+                    setStatus("Enter an http(s) blocklist URL.");
+                    return;
+                }
+                app.companionAddList(value);
+                newSource.setText("");
+            });
+            row.add(add);
+            card.add(row, BorderLayout.CENTER);
+            card.setPreferredSize(new Dimension(100, 118));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 128));
+            return card;
+        }
+
+        @Override
+        JScrollPane scroll() {
+            return scroll;
+        }
+
+        @Override
+        void refresh() {
+            CompanionClient.Dashboard dash = app.companionDashboard();
+            CompanionClient.Snapshot snapshot = app.companionSnapshot();
+            update.setEnabled(app.companionConnected() && !app.isUpdating());
+            if (snapshot != null) {
+                gravityLine.setText(DesktopApp.formatNumber(snapshot.gravityDomains)
+                        + " domains · " + snapshot.categories.size() + " categories");
+                gravityHint.setText(snapshot.lastUpdate > 0
+                        ? "Last updated " + relative(snapshot.lastUpdate)
+                        : "No update has run yet.");
+            } else {
+                gravityLine.setText("Waiting for the remote dashboard…");
+                gravityHint.setText("");
+            }
+            if (dash == null) return;
+            for (Map.Entry<String, Widgets.ToggleSwitch> entry : categoryToggles.entrySet()) {
+                Boolean on = dash.categories.get(entry.getKey());
+                entry.getValue().setSelected(on != null && on);
+            }
+            updatingCategories = true;
+            try {
+                for (Map.Entry<String, JComboBox<String>> entry : categoryLevels.entrySet()) {
+                    String level = dash.levels.get(entry.getKey());
+                    String label = "lite".equals(level) ? "Lite"
+                            : "medium".equals(level) ? "Medium" : "Maximum";
+                    JComboBox<String> combo = entry.getValue();
+                    if (!label.equals(combo.getSelectedItem())) {
+                        combo.setSelectedItem(label);
+                    }
+                }
+            } finally {
+                updatingCategories = false;
+            }
+            String signature = signature(dash.sources);
+            if (!signature.equals(sourceSignature)) {
+                sourceSignature = signature;
+                sourceModel.setRows(dash.sources);
+            }
+        }
+
+        private String signature(List<CompanionClient.Source> sources) {
+            StringBuilder out = new StringBuilder();
+            for (CompanionClient.Source source : sources) {
+                out.append(source.id).append(source.address).append(source.ok)
+                        .append(source.count).append('|');
+            }
+            return out.toString();
+        }
+    }
+
+    /** Table model over the remote blocklist sources. */
+    private static final class SourceModel extends AbstractTableModel {
+        private static final String[] COLUMNS = {"Address", "Domains", "Status"};
+        private List<CompanionClient.Source> rows = new ArrayList<>();
+
+        void setRows(List<CompanionClient.Source> rows) {
+            this.rows = rows == null ? new ArrayList<>() : rows;
+            fireTableDataChanged();
+        }
+
+        @Override public int getRowCount() { return rows.size(); }
+        @Override public int getColumnCount() { return COLUMNS.length; }
+        @Override public String getColumnName(int column) { return COLUMNS[column]; }
+
+        @Override
+        public Object getValueAt(int row, int column) {
+            CompanionClient.Source source = rows.get(row);
+            switch (column) {
+                case 0: return source.address.replaceFirst("^https?://", "");
+                case 1: return DesktopApp.formatNumber(source.count);
+                case 2: return source.ok ? "OK" : "FAIL";
+                default: return "";
+            }
+        }
+    }
+
+    private static final class SourceRenderer extends DefaultTableCellRenderer {
+        private final int column;
+
+        SourceRenderer(int column) {
+            this.column = column;
+            setOpaque(true);
+            setBorder(new EmptyBorder(0, 11, 0, 8));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean selected, boolean focus,
+                                                       int row, int col) {
+            super.getTableCellRendererComponent(table, value, selected, focus, row, col);
+            Theme t = Theme.get();
+            setBackground(selected ? t.accentSoft
+                    : (row % 2 == 0 ? t.surface : t.surfaceAlt));
+            setForeground(t.text);
+            setFont(column == 0 ? Theme.mono(11.5f) : Theme.font(11.5f));
+            if (column == 1) setForeground(t.muted);
+            if (column == 2) {
+                setFont(Theme.font(10.5f, Font.BOLD));
+                String status = value == null ? "" : value.toString();
+                setForeground("OK".equals(status) ? t.accent : t.danger);
+            }
+            return this;
+        }
+    }
+
+    // -------------------------------------------------------- companion rules
+
+    /** Remote allow and block rules. */
+    private final class CompanionRulesPage extends Page {
+        private final JScrollPane scroll;
+        private final JTextField domain = Widgets.field("example.com", 24);
+        private final JComboBox<String> kind = Widgets.combo(
+                new String[]{"Exact domain", "Wildcard", "Regex"}, "Exact domain");
+        private final JComboBox<String> action = Widgets.combo(
+                new String[]{"Block", "Allow"}, "Block");
+        private final JPanel allowRows = new JPanel();
+        private final JPanel blockRows = new JPanel();
+        private String ruleSignature = "";
+        private Widgets.RoundedPanel allowPanel;
+        private Widgets.RoundedPanel blockPanel;
+
+        CompanionRulesPage() {
+            VerticalPanel page = new VerticalPanel();
+            page.add(addCard());
+            page.add(Box.createVerticalStrut(14));
+            page.add(listsRow());
+            scroll = pageScroll(page);
+        }
+
+        private JComponent addCard() {
+            Widgets.RoundedPanel card = card(18, 18, 18, 18);
+            card.add(Widgets.header("Add a rule",
+                    "Rules are applied on the remote system", null),
+                    BorderLayout.NORTH);
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 10));
+            row.setOpaque(false);
+            row.add(domain);
+            row.add(kind);
+            row.add(action);
+            Widgets.PillButton add = new Widgets.PillButton("Add rule", "plus",
+                    Widgets.PRIMARY);
+            add.addActionListener(e -> {
+                String value = domain.getText().trim();
+                if (value.isEmpty()) {
+                    setStatus("Enter a domain or pattern first.");
+                    return;
+                }
+                app.companionAddRule("Allow".equals(action.getSelectedItem()),
+                        kindOf(), value);
+                domain.setText("");
+            });
+            row.add(add);
+            card.add(row, BorderLayout.CENTER);
+            fitCard(card);
+            return card;
+        }
+
+        private String kindOf() {
+            Object item = kind.getSelectedItem();
+            String value = item == null ? "" : item.toString();
+            return "Wildcard".equals(value) ? "wildcard"
+                    : "Regex".equals(value) ? "regex" : "exact";
+        }
+
+        private JComponent listsRow() {
+            JPanel row = new JPanel(new GridLayout(1, 2, 14, 0));
+            row.setOpaque(false);
+            row.setAlignmentX(Component.LEFT_ALIGNMENT);
+            allowPanel = ruleCard("Allowed domains", "Never filtered", allowRows);
+            blockPanel = ruleCard("Blocked domains", "Always sinkholed", blockRows);
+            row.add(allowPanel);
+            row.add(blockPanel);
+            row.setPreferredSize(new Dimension(100, 360));
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 380));
+            return row;
+        }
+
+        private Widgets.RoundedPanel ruleCard(String title, String sub, JPanel rows) {
+            Widgets.RoundedPanel card = card(18, 18, 18, 18);
+            card.add(Widgets.header(title, sub, null), BorderLayout.NORTH);
+            rows.setOpaque(false);
+            rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+            rows.setBorder(new EmptyBorder(10, 0, 0, 0));
+            card.add(rows, BorderLayout.CENTER);
+            return card;
+        }
+
+        @Override
+        JScrollPane scroll() {
+            return scroll;
+        }
+
+        @Override
+        void refresh() {
+            CompanionClient.Dashboard dash = app.companionDashboard();
+            if (dash == null) return;
+            String signature = signature(dash);
+            if (signature.equals(ruleSignature)) return;
+            ruleSignature = signature;
+            rebuild(allowRows, dash.allowed, true);
+            rebuild(blockRows, dash.blocked, false);
+            if (allowPanel != null) fitCard(allowPanel);
+            if (blockPanel != null) fitCard(blockPanel);
+        }
+
+        private String signature(CompanionClient.Dashboard dash) {
+            StringBuilder out = new StringBuilder();
+            for (CompanionClient.Rule rule : dash.allowed) {
+                out.append('a').append(rule.kind).append(rule.domain).append('|');
+            }
+            for (CompanionClient.Rule rule : dash.blocked) {
+                out.append('b').append(rule.kind).append(rule.domain).append('|');
+            }
+            return out.toString();
+        }
+
+        private void rebuild(JPanel container, List<CompanionClient.Rule> rules,
+                             boolean allow) {
+            container.removeAll();
+            if (rules.isEmpty()) {
+                container.add(Widgets.hint(allow
+                        ? "No allow rules." : "No block rules."));
+            }
+            for (CompanionClient.Rule rule : rules) {
+                JPanel row = new JPanel(new BorderLayout(8, 0));
+                row.setOpaque(false);
+                row.setAlignmentX(Component.LEFT_ALIGNMENT);
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+                row.setBorder(new EmptyBorder(3, 0, 3, 0));
+                JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+                left.setOpaque(false);
+                left.add(Widgets.label(rule.kind, 10, Font.BOLD, 0));
+                left.add(Widgets.label(rule.domain, 11.5f, Font.PLAIN, 0));
+                row.add(left, BorderLayout.CENTER);
+                Widgets.PillButton remove = new Widgets.PillButton("", "trash",
+                        Widgets.GHOST);
+                remove.setPreferredSize(new Dimension(34, 30));
+                remove.addActionListener(e -> app.companionRemoveRule(allow,
+                        rule.kind, rule.domain));
+                row.add(remove, BorderLayout.EAST);
+                container.add(row);
+            }
+            container.revalidate();
+            container.repaint();
         }
     }
 
@@ -1237,6 +2064,7 @@ final class ControlPanel extends JFrame {
             Widgets.RoundedPanel tableCard = card(0, 0, 0, 0);
             tableCard.setClipChildren(true);
             Widgets.styleTable(table);
+            table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
             table.getColumnModel().getColumn(0).setPreferredWidth(82);
             table.getColumnModel().getColumn(1).setPreferredWidth(130);
             table.getColumnModel().getColumn(2).setPreferredWidth(250);
@@ -1489,7 +2317,7 @@ final class ControlPanel extends JFrame {
         ListsPage() {
             VerticalPanel page = new VerticalPanel();
 
-            Widgets.RoundedPanel updateCard = card(17, 18, 17, 18);
+            Widgets.RoundedPanel updateCard = card(17, 18, 17, 26);
             JPanel left = new JPanel();
             left.setOpaque(false);
             left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
@@ -1516,7 +2344,7 @@ final class ControlPanel extends JFrame {
             page.add(updateCard);
             page.add(Box.createVerticalStrut(14));
 
-            Widgets.RoundedPanel capCard = card(16, 17, 14, 17);
+            Widgets.RoundedPanel capCard = card(16, 17, 14, 24);
             JPanel capBox = new JPanel();
             capBox.setOpaque(false);
             capBox.setLayout(new BoxLayout(capBox, BoxLayout.Y_AXIS));
@@ -2031,14 +2859,18 @@ final class ControlPanel extends JFrame {
             companionForm.setBorder(new EmptyBorder(12, 0, 0, 0));
             companionForm.add(toggleRow("Use companion mode", companionMode,
                     "This console mirrors another system and does not start a local resolver or dashboard."));
-            companionForm.add(formRow("Server", companionServer,
+            JPanel connectionFields = new JPanel();
+            connectionFields.setOpaque(false);
+            connectionFields.setLayout(new BoxLayout(connectionFields, BoxLayout.Y_AXIS));
+            connectionFields.add(formRow("Server", companionServer,
                     "Host, host:port, or a full http:// address."));
-            companionForm.add(formRow("Port", companionPort,
+            connectionFields.add(formRow("Port", companionPort,
                     "Used when the server address has no port of its own."));
-            companionForm.add(formRow("Username", companionUser,
+            connectionFields.add(formRow("Username", companionUser,
                     "Only needed when the remote dashboard has a login."));
-            companionForm.add(formRow("Password", companionPassword,
+            connectionFields.add(formRow("Password", companionPassword,
                     "Stored in this computer's local settings file."));
+            companionForm.add(connectionFields);
             JPanel companionActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 10));
             companionActions.setOpaque(false);
             Widgets.PillButton test = new Widgets.PillButton("Test connection",
@@ -2054,11 +2886,33 @@ final class ControlPanel extends JFrame {
             openCompanion.addActionListener(e -> app.openDashboard());
             companionActions.add(openCompanion);
             companionForm.add(companionActions);
-            companionMode.setOnChange(selected -> updateCompanionState());
+            Runnable updateCompanionFields = () -> {
+                boolean enabled = companionMode.isSelected();
+                connectionFields.setVisible(enabled);
+                test.setVisible(enabled);
+                openCompanion.setVisible(enabled);
+                applyCompanion.setVisible(enabled);
+                companionActions.setVisible(enabled);
+                companionCard.setPreferredSize(null);
+                fitCard(companionCard);
+                updateCompanionState();
+            };
+            companionMode.setOnChange(selected -> {
+                if (!selected && prefs.getBool("companionMode", false)) {
+                    if (app.isApplying()) {
+                        companionMode.setSelected(true);
+                        setStatus("Settings are still applying. Try again in a moment.");
+                    } else {
+                        prefs.setBool("companionMode", false);
+                        app.applySettings(prefs::save);
+                    }
+                }
+                updateCompanionFields.run();
+            });
             companionState.setBorder(new EmptyBorder(0, 4, 0, 0));
             companionForm.add(companionState);
             companionCard.add(companionForm, BorderLayout.CENTER);
-            fitCard(companionCard);
+            updateCompanionFields.run();
             page.add(companionCard);
             page.add(Box.createVerticalStrut(14));
 

@@ -529,6 +529,45 @@ public final class DesktopTest {
             check(client.snapshot().blocking, "companion resume visible");
             client.flushCache();
 
+            store.record(new StatsStore.Entry(System.currentTimeMillis(),
+                    "192.168.2.9", "ads.example.com", DnsPacket.TYPE_A, "BLOCKED",
+                    "gravity", 0, 2, "", "Ads", true, false));
+            CompanionClient.Dashboard dash = client.dashboard();
+            eq(24, dash.history.size(), "companion history buckets");
+            check(!dash.queries.isEmpty(), "companion query log");
+            check(dash.queries.get(0).blocked, "companion query status");
+            check(dash.categories.containsKey("ads"), "companion categories");
+            check(dash.levels.containsKey("ads"), "companion category levels");
+            check(!dash.sources.isEmpty(), "companion list sources");
+            check(!dash.host.hostname.isEmpty(), "companion host info");
+
+            client.addRule(true, "exact", "allowed.example");
+            client.addRule(false, "wildcard", "*.ads.example");
+            CompanionClient.Dashboard ruled = client.dashboard();
+            check(ruled.allowed.stream().anyMatch(r -> r.domain.equals("allowed.example")),
+                    "companion adds allow rule");
+            check(ruled.blocked.stream().anyMatch(r ->
+                            r.domain.equals("ads.example") && r.kind.equals("wildcard")),
+                    "companion adds block rule");
+            client.removeRule(true, "exact", "allowed.example");
+            check(client.dashboard().allowed.stream()
+                            .noneMatch(r -> r.domain.equals("allowed.example")),
+                    "companion removes rule");
+
+            client.addList("https://example.test/hosts.txt");
+            CompanionClient.Source added = client.dashboard().sources.stream()
+                    .filter(s -> s.address.equals("https://example.test/hosts.txt"))
+                    .findFirst().orElse(null);
+            check(added != null, "companion adds list");
+            client.removeList(added.id);
+            check(client.dashboard().sources.stream()
+                            .noneMatch(s -> s.address.equals("https://example.test/hosts.txt")),
+                    "companion removes list");
+
+            client.setCategory("ads", false);
+            eq(Boolean.FALSE, client.dashboard().categories.get("ads"),
+                    "companion disables category");
+
             CompanionClient wrong = new CompanionClient(address, 8080,
                     "admin", "not-the-password");
             boolean rejected = false;

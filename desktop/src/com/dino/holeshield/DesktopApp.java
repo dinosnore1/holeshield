@@ -23,11 +23,13 @@ public final class DesktopApp {
     private ControlPanel frame;
     private CompanionClient companion;
     private volatile CompanionClient.Snapshot companionSnapshot;
+    private volatile CompanionClient.Dashboard companionDashboard;
     private volatile String companionError = "";
     private volatile boolean companionUpdating;
     private volatile int companionGeneration;
     private ScheduledExecutorService companionPoller;
     private long lastCompanionAttempt;
+    private long lastDashboardAt;
     private boolean companionAuthFailed;
     private boolean headless;
     private boolean minimized;
@@ -200,6 +202,14 @@ public final class DesktopApp {
         frame = new ControlPanel(this);
         frame.openPage(initialPage);
         tray = new TrayController(this);
+        if (AppDirs.isMac() && java.awt.Desktop.isDesktopSupported()) {
+            try {
+                java.awt.Desktop.getDesktop().addAppEventListener(
+                        (java.awt.desktop.AppReopenedListener) event -> showWindow());
+            } catch (UnsupportedOperationException | SecurityException ignored) {
+                // The tray menu remains available when macOS reopen is unsupported.
+            }
+        }
         frame.setVisible(!minimized || tray == null);
         // Fill in the pages that startup skipped, once the window is up.
         SwingUtilities.invokeLater(frame::warmPages);
@@ -356,10 +366,16 @@ public final class DesktopApp {
     }
 
     void showWindow() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::showWindow);
+            return;
+        }
         if (frame == null) return;
         frame.setVisible(true);
+        frame.setExtendedState(frame.getExtendedState() & ~java.awt.Frame.ICONIFIED);
         frame.toFront();
         frame.requestFocus();
+        frame.warmPages();
     }
 
     void openDataFolder() {
@@ -444,6 +460,7 @@ public final class DesktopApp {
 
     CompanionClient companion() { return companion; }
     CompanionClient.Snapshot companionSnapshot() { return companionSnapshot; }
+    CompanionClient.Dashboard companionDashboard() { return companionDashboard; }
     String companionError() { return companionError; }
     boolean companionConnected() {
         return companion != null && companion.connected();
@@ -502,6 +519,70 @@ public final class DesktopApp {
         }, "companion-blocking").start();
     }
 
+    // ------------------------------------------------- remote edits (mirror)
+
+    private interface RemoteEdit {
+        void run(CompanionClient client) throws Exception;
+    }
+
+    /** Applies an edit on the remote, then reloads the mirror. */
+    private void remoteEdit(RemoteEdit work, String success) {
+        CompanionClient client = companion;
+        if (client == null) {
+            setStatus("Companion mode is not configured yet.");
+            return;
+        }
+        final int generation = companionGeneration;
+        setStatus("Sending to " + client.display() + "…");
+        inBackground(() -> {
+            String message;
+            try {
+                work.run(client);
+                CompanionClient.Dashboard dashboard = client.dashboard();
+                if (generation == companionGeneration) companionDashboard = dashboard;
+                message = success;
+            } catch (Exception e) {
+                message = "Companion: " + e.getMessage();
+            }
+            final String text = message;
+            SwingUtilities.invokeLater(() -> {
+                if (generation != companionGeneration) return;
+                setStatus(text);
+                refreshAll();
+            });
+        }, null);
+    }
+
+    void companionAddRule(boolean allow, String kind, String domain) {
+        remoteEdit(client -> client.addRule(allow, kind, domain),
+                (allow ? "Allowed " : "Blocked ") + domain + " on the remote system.");
+    }
+
+    void companionRemoveRule(boolean allow, String kind, String domain) {
+        remoteEdit(client -> client.removeRule(allow, kind, domain),
+                "Removed the " + (allow ? "allow" : "block") + " rule for " + domain + ".");
+    }
+
+    void companionAddList(String address) {
+        remoteEdit(client -> client.addList(address),
+                "Added " + address + " to the remote blocklists.");
+    }
+
+    void companionRemoveList(int id, String address) {
+        remoteEdit(client -> client.removeList(id),
+                "Removed " + address + " from the remote blocklists.");
+    }
+
+    void companionSetCategory(String key, boolean enabled) {
+        remoteEdit(client -> client.setCategory(key, enabled),
+                (enabled ? "Enabled " : "Disabled ") + key + " on the remote system.");
+    }
+
+    void companionSetCategoryLevel(String key, String level) {
+        remoteEdit(client -> client.setCategoryLevel(key, level),
+                "Set " + key + " to " + level + " on the remote system.");
+    }
+
     private void updateCompanionLists() {
         CompanionClient client = companion;
         if (client == null || companionUpdating) return;
@@ -539,9 +620,11 @@ public final class DesktopApp {
                 prefs.get("companionUser", ""),
                 prefs.get("companionPassword", ""));
         companionSnapshot = null;
+        companionDashboard = null;
         companionError = "";
         companionUpdating = false;
         lastCompanionAttempt = 0L;
+        lastDashboardAt = 0L;
         companionAuthFailed = false;
         try {
             // Try once on the calling thread so the window and the headless
@@ -581,6 +664,21 @@ public final class DesktopApp {
             if (generation != companionGeneration) return;
             companionSnapshot = snapshot;
             companionError = "";
+            // The full dashboard mirror changes slowly; refresh it every few
+            // seconds so the console does not hammer the remote.
+            if (now - lastDashboardAt >= 4000L) {
+                lastDashboardAt = now;
+                try {
+                    CompanionClient.Dashboard dashboard = client.dashboard();
+                    if (generation == companionGeneration) {
+                        companionDashboard = dashboard;
+                    }
+                } catch (CompanionClient.AuthException e) {
+                    throw e;
+                } catch (Exception ignored) {
+                    // Keep the previous mirror; the summary already succeeded.
+                }
+            }
         } catch (CompanionClient.AuthException e) {
             if (generation != companionGeneration) return;
             companionAuthFailed = true;
