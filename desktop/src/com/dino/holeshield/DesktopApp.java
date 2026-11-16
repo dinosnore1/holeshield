@@ -37,6 +37,7 @@ public final class DesktopApp {
     private boolean openDashboardAtStart;
     private String initialPage = "Overview";
     private final AtomicBoolean applying = new AtomicBoolean();
+    private final AtomicBoolean stopping = new AtomicBoolean();
 
     private DesktopApp(DesktopPrefs prefs) {
         this.prefs = prefs;
@@ -129,6 +130,11 @@ public final class DesktopApp {
         if (headless) {
             System.setProperty("java.awt.headless", "true");
         } else {
+            if (AppDirs.isMac()) {
+                // Must be set before the look and feel loads, otherwise the
+                // menu bar is placed inside the window instead of the screen.
+                System.setProperty("apple.laf.useScreenMenuBar", "true");
+            }
             Theme.install();
             Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM));
             if (AppDirs.isMac()) {
@@ -376,6 +382,7 @@ public final class DesktopApp {
         frame.toFront();
         frame.requestFocus();
         frame.warmPages();
+        frame.refreshHeader();
     }
 
     void openDataFolder() {
@@ -725,6 +732,7 @@ public final class DesktopApp {
         boolean ok = SystemIntegration.relaunchAsAdmin("--port=" + prefs.getInt("dnsPort", 53));
         if (!ok) {
             AppDirs.acquireLock();
+            stopping.set(false);
             startServices();
             setStatus("This platform does not support automatic elevation. Run the app from a terminal with sudo.");
             return;
@@ -738,10 +746,15 @@ public final class DesktopApp {
         System.exit(0);
     }
 
+    /**
+     * Stops background services exactly once. The tray icon is intentionally
+     * left to the OS: removing it from a shutdown hook waits on the event
+     * thread and deadlocks the quit.
+     */
     private void stopServices() {
+        if (!stopping.compareAndSet(false, true)) return;
         stopCompanion();
         stopNetworkServices();
-        if (tray != null) tray.remove();
     }
 
     private void stopNetworkServices() {

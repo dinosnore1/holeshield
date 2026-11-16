@@ -191,12 +191,36 @@ final class Theme {
         UIManager.put("Button.foreground", t.text);
         UIManager.put("PopupMenu.background", t.card);
         UIManager.put("PopupMenu.foreground", t.text);
+        UIManager.put("PopupMenu.border",
+                javax.swing.BorderFactory.createLineBorder(t.border));
+        UIManager.put("MenuBar.background", t.surface);
+        UIManager.put("MenuBar.foreground", t.text);
+        UIManager.put("MenuBar.font", font(12.5f));
+        UIManager.put("MenuBar.border",
+                javax.swing.BorderFactory.createMatteBorder(0, 0, 1, 0, t.border));
         UIManager.put("MenuItem.background", t.card);
         UIManager.put("MenuItem.foreground", t.text);
+        UIManager.put("MenuItem.font", font(12.5f));
+        UIManager.put("MenuItem.acceleratorForeground", t.faint);
         UIManager.put("MenuItem.selectionBackground", t.accentSoft);
         UIManager.put("MenuItem.selectionForeground", t.onAccentSoft);
+        UIManager.put("MenuItem.acceleratorSelectionForeground", t.onAccentSoft);
         UIManager.put("Menu.background", t.card);
         UIManager.put("Menu.foreground", t.text);
+        UIManager.put("Menu.selectionBackground", t.accentSoft);
+        UIManager.put("Menu.selectionForeground", t.onAccentSoft);
+        UIManager.put("Menu.acceleratorForeground", t.faint);
+        UIManager.put("Menu.acceleratorSelectionForeground", t.onAccentSoft);
+        UIManager.put("RadioButtonMenuItem.background", t.card);
+        UIManager.put("RadioButtonMenuItem.foreground", t.text);
+        UIManager.put("RadioButtonMenuItem.font", font(12.5f));
+        UIManager.put("RadioButtonMenuItem.selectionBackground", t.accentSoft);
+        UIManager.put("RadioButtonMenuItem.selectionForeground", t.onAccentSoft);
+        UIManager.put("CheckBoxMenuItem.background", t.card);
+        UIManager.put("CheckBoxMenuItem.foreground", t.text);
+        UIManager.put("CheckBoxMenuItem.font", font(12.5f));
+        UIManager.put("CheckBoxMenuItem.selectionBackground", t.accentSoft);
+        UIManager.put("CheckBoxMenuItem.selectionForeground", t.onAccentSoft);
         UIManager.put("Separator.foreground", t.border);
         UIManager.put("ProgressBar.background", t.surfaceAlt);
         UIManager.put("ProgressBar.foreground", t.accent);

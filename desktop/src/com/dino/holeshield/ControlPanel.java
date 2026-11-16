@@ -81,6 +81,7 @@ final class ControlPanel extends JFrame {
     private JLabel footerRight;
     private JLabel versionLabel;
     private Widgets.RoundedPanel statusPill;
+    private AppMenu menu;
     private Timer timer;
     private int tick;
 
@@ -205,7 +206,14 @@ final class ControlPanel extends JFrame {
         builtDark = Theme.get().dark;
         root.add(content, BorderLayout.CENTER);
         root.add(buildFooter(), BorderLayout.SOUTH);
+        installMenu();
         selectPage(currentPage);
+    }
+
+    /** Builds the native menu bar; macOS moves it to the screen menu bar. */
+    private void installMenu() {
+        menu = new AppMenu(app, this);
+        setJMenuBar(menu.component());
     }
 
     private Page createPage(String name) {
@@ -403,6 +411,7 @@ final class ControlPanel extends JFrame {
         ensurePage(name);
         currentPage = name;
         cards.show(content, name);
+        if (menu != null) menu.syncPage(name);
         for (Map.Entry<String, Widgets.NavItem> entry : navItems.entrySet()) {
             entry.getValue().setSelected(entry.getKey().equals(name));
         }
@@ -418,6 +427,7 @@ final class ControlPanel extends JFrame {
 
     void refreshHeader() {
         Theme t = Theme.get();
+        if (menu != null) menu.update();
         if (app.isCompanion()) {
             boolean connected = app.companionConnected();
             boolean healthy = connected && app.companionError().isEmpty();
@@ -494,6 +504,25 @@ final class ControlPanel extends JFrame {
 
     void openPage(String name) {
         if (name != null && pageNames.contains(name)) selectPage(name);
+    }
+
+    /** The pages currently in the window, in navigation order. */
+    java.util.List<String> pageNames() {
+        return new java.util.ArrayList<>(pageNames);
+    }
+
+    String currentPageName() {
+        return currentPage;
+    }
+
+    /** Closes the window exactly like the close button does. */
+    void hideWindow() {
+        if (prefs.getBool("closeToTray", true)
+                && java.awt.SystemTray.isSupported()) {
+            setVisible(false);
+        } else {
+            app.shutdown();
+        }
     }
 
     void rebuild() {

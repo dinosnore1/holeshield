@@ -113,11 +113,4 @@ final class TrayController {
             trayIcon.displayMessage(title, text, TrayIcon.MessageType.INFO);
         } catch (Exception ignored) { }
     }
-
-    void remove() {
-        if (trayIcon != null) {
-            try { SystemTray.getSystemTray().remove(trayIcon); } catch (Exception ignored) { }
-            trayIcon = null;
-        }
-    }
 }
