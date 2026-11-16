@@ -29,6 +29,7 @@ final class Theme {
     final Color muted;
     final Color faint;
     final Color accent;
+    final Color accentAlt;
     final Color onAccent;
     final Color accentSoft;
     final Color onAccentSoft;
@@ -36,51 +37,56 @@ final class Theme {
     final Color dangerSoft;
     final Color success;
     final Color warn;
+    final Color track;
     final Color shadow;
     final Color selection;
 
     private Theme(boolean dark) {
         this.dark = dark;
         if (dark) {
-            bg = new Color(0x0D1512);
-            surface = new Color(0x111B16);
-            surfaceAlt = new Color(0x16221C);
-            card = new Color(0x17251E);
-            cardHover = new Color(0x1D2E26);
-            border = new Color(0x2A3C33);
-            text = new Color(0xE8F3EC);
-            muted = new Color(0x97AC9F);
-            faint = new Color(0x6C8175);
-            accent = new Color(0x8ED5B2);
-            onAccent = new Color(0x003825);
-            accentSoft = new Color(0x1C4A37);
-            onAccentSoft = new Color(0xB9F4D6);
-            danger = new Color(0xFFB4AB);
-            dangerSoft = new Color(0x4E211E);
-            success = new Color(0x8ED5B2);
-            warn = new Color(0xF2D27D);
-            shadow = new Color(0, 0, 0, 70);
-            selection = new Color(0x8ED5B2, false);
+            bg = new Color(0x0A0F0C);
+            surface = new Color(0x0F1512);
+            surfaceAlt = new Color(0x141C17);
+            card = new Color(0x121A15);
+            cardHover = new Color(0x1A251D);
+            border = new Color(0x23302A);
+            text = new Color(0xE9F1EC);
+            muted = new Color(0x93A69A);
+            faint = new Color(0x6D8175);
+            accent = new Color(0x3DDC97);
+            accentAlt = new Color(0x2AC98A);
+            onAccent = new Color(0x04241A);
+            accentSoft = new Color(0x132F23);
+            onAccentSoft = new Color(0xA7F3CE);
+            danger = new Color(0xFF9E93);
+            dangerSoft = new Color(0x3D1E1A);
+            success = new Color(0x3DDC97);
+            warn = new Color(0xF2CE7A);
+            track = new Color(0x1B2620);
+            shadow = new Color(0, 0, 0, 96);
+            selection = new Color(0x3DDC97, false);
         } else {
-            bg = new Color(0xF2F6F3);
+            bg = new Color(0xF5F8F6);
             surface = new Color(0xFFFFFF);
-            surfaceAlt = new Color(0xF7FAF8);
+            surfaceAlt = new Color(0xF1F6F2);
             card = new Color(0xFFFFFF);
-            cardHover = new Color(0xEFF6F1);
-            border = new Color(0xD9E4DC);
-            text = new Color(0x13221A);
-            muted = new Color(0x5C6F64);
-            faint = new Color(0x84968A);
-            accent = new Color(0x1F6B4C);
+            cardHover = new Color(0xEDF4EF);
+            border = new Color(0xDFE8E1);
+            text = new Color(0x0D1A13);
+            muted = new Color(0x5A6B60);
+            faint = new Color(0x82948A);
+            accent = new Color(0x0E7C55);
+            accentAlt = new Color(0x0A6B49);
             onAccent = new Color(0xFFFFFF);
-            accentSoft = new Color(0xC9EBD9);
+            accentSoft = new Color(0xDCF3E7);
             onAccentSoft = new Color(0x07331F);
-            danger = new Color(0xB3261E);
-            dangerSoft = new Color(0xF9DEDC);
-            success = new Color(0x1F6B4C);
-            warn = new Color(0x7A5B00);
-            shadow = new Color(30, 50, 40, 24);
-            selection = new Color(0xC9EBD9, false);
+            danger = new Color(0xB42318);
+            dangerSoft = new Color(0xFEE4E2);
+            success = new Color(0x0E7C55);
+            warn = new Color(0x8A6100);
+            track = new Color(0xEDF2EE);
+            shadow = new Color(24, 46, 34, 22);
+            selection = new Color(0xDCF3E7, false);
         }
     }
 
@@ -200,6 +206,16 @@ final class Theme {
                 (int) Math.round(a.getRed() * (1 - t) + b.getRed() * t),
                 (int) Math.round(a.getGreen() * (1 - t) + b.getGreen() * t),
                 (int) Math.round(a.getBlue() * (1 - t) + b.getBlue() * t));
+    }
+
+    /** Like {@link #mix} but also blends the alpha channel. */
+    static Color mixAlpha(Color a, Color b, double amount) {
+        double t = Math.max(0, Math.min(1, amount));
+        return new Color(
+                (int) Math.round(a.getRed() * (1 - t) + b.getRed() * t),
+                (int) Math.round(a.getGreen() * (1 - t) + b.getGreen() * t),
+                (int) Math.round(a.getBlue() * (1 - t) + b.getBlue() * t),
+                (int) Math.round(a.getAlpha() * (1 - t) + b.getAlpha() * t));
     }
 
     private static boolean detectSystemDark() {

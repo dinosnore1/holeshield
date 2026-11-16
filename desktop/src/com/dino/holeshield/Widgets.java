@@ -5,6 +5,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -12,11 +13,15 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
+import javax.swing.JSlider;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.plaf.basic.BasicScrollBarUI;
+import javax.swing.plaf.basic.BasicSliderUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -31,6 +36,7 @@ import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -107,8 +113,9 @@ final class Widgets {
     static class RoundedPanel extends JPanel {
         private Color fill;
         private Color borderColor;
-        private int radius = 18;
+        private int radius = 16;
         private boolean shadow;
+        private boolean clipChildren;
 
         RoundedPanel() {
             setOpaque(false);
@@ -126,6 +133,24 @@ final class Widgets {
         void setRadius(int radius) { this.radius = radius; }
         void setShadow(boolean shadow) { this.shadow = shadow; }
 
+        /** Keeps square children (tables, scroll panes) inside the rounded edge. */
+        void setClipChildren(boolean clipChildren) { this.clipChildren = clipChildren; }
+
+        @Override
+        protected void paintChildren(Graphics g) {
+            if (!clipChildren) {
+                super.paintChildren(g);
+                return;
+            }
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.clip(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(),
+                    radius, radius));
+            super.paintChildren(g2);
+            g2.dispose();
+        }
+
         @Override
         protected void paintComponent(Graphics g) {
             Theme t = Theme.get();
@@ -137,13 +162,16 @@ final class Widgets {
             RoundRectangle2D shape = new RoundRectangle2D.Double(0.5, 0.5,
                     Math.max(0, w - 1), Math.max(0, h - 1), radius, radius);
             if (shadow) {
-                g2.setColor(t.shadow);
-                g2.fill(new RoundRectangle2D.Double(1, 2, Math.max(0, w - 2),
-                        Math.max(0, h - 2), radius, radius));
+                // Two stacked offsets give a soft edge without a blur filter.
+                for (int i = 2; i >= 1; i--) {
+                    g2.setColor(Theme.alpha(t.shadow, t.shadow.getAlpha() / (i * 2)));
+                    g2.fill(new RoundRectangle2D.Double(0.5, i + 0.5,
+                            Math.max(0, w - 1), Math.max(0, h - 1), radius, radius));
+                }
             }
             g2.setColor(fill == null ? t.card : fill);
             g2.fill(shape);
-            g2.setColor(borderColor == null ? t.border : borderColor);
+            g2.setColor(borderColor == null ? Theme.alpha(t.border, 210) : borderColor);
             g2.setStroke(new BasicStroke(1f));
             g2.draw(shape);
             g2.dispose();
@@ -194,6 +222,15 @@ final class Widgets {
         private final String iconName;
         private final int iconSize;
         private boolean selected;
+        private double hoverAmt;
+        private double pressAmt;
+        private double selectAmt;
+        private double hoverTarget;
+        private double pressTarget;
+        private double selectTarget;
+        private Motion.Tween hoverTween;
+        private Motion.Tween pressTween;
+        private Motion.Tween selectTween;
 
         PillButton(String text, String iconName, int variant) {
             super(text);
@@ -210,6 +247,7 @@ final class Widgets {
             setOpaque(false);
             setPreferredSize(new Dimension(preferredWidth(), 36));
             setMinimumSize(new Dimension(36, 36));
+            getModel().addChangeListener(e -> syncStates());
         }
 
         PillButton(String text, String iconName) {
@@ -226,12 +264,87 @@ final class Widgets {
         @Override
         public Dimension getPreferredSize() {
             Dimension size = super.getPreferredSize();
-            return new Dimension(Math.max(size.width, preferredWidth()), 36);
+            return new Dimension(Math.max(size.width, preferredWidth()), 38);
         }
 
         void setSelectedState(boolean selected) {
             this.selected = selected;
+            animateSelect(selected ? 1 : 0);
             repaint();
+        }
+
+        /** Eases the hover/press/selection fills so state changes glide. */
+        private void syncStates() {
+            boolean on = isEnabled();
+            animateHover(on && getModel().isRollover() ? 1 : 0);
+            animatePress(on && getModel().isPressed() ? 1 : 0);
+        }
+
+        private void animateHover(double target) {
+            if (Math.abs(target - hoverTarget) < 0.001) return;
+            hoverTarget = target;
+            if (hoverTween != null) hoverTween.stop();
+            if (!isShowing()) {
+                hoverAmt = target;
+                return;
+            }
+            hoverTween = Motion.tween(hoverAmt, target, 130, Motion.EASE_OUT,
+                    value -> { hoverAmt = value; repaint(); });
+        }
+
+        private void animatePress(double target) {
+            if (Math.abs(target - pressTarget) < 0.001) return;
+            pressTarget = target;
+            if (pressTween != null) pressTween.stop();
+            if (!isShowing()) {
+                pressAmt = target;
+                return;
+            }
+            pressTween = Motion.tween(pressAmt, target, 90, Motion.EASE_OUT,
+                    value -> { pressAmt = value; repaint(); });
+        }
+
+        private void animateSelect(double target) {
+            if (Math.abs(target - selectTarget) < 0.001) return;
+            selectTarget = target;
+            if (selectTween != null) selectTween.stop();
+            if (!isShowing()) {
+                selectAmt = target;
+                return;
+            }
+            selectTween = Motion.tween(selectAmt, target, 150, Motion.EASE_OUT,
+                    value -> { selectAmt = value; repaint(); });
+        }
+
+        /** Fill for the current animated state, blended from the base colours. */
+        private Color fillFor(double hover, double down, double sel) {
+            Theme t = Theme.get();
+            switch (variant) {
+                case PRIMARY:
+                    return Theme.mix(Theme.mix(t.accent,
+                                    Theme.mix(t.accent, t.onAccent, 0.07), hover),
+                            Theme.mix(t.accentAlt, t.onAccent, 0.16), down);
+                case DANGER:
+                    return Theme.mix(Theme.mix(t.dangerSoft,
+                                    Theme.mix(t.dangerSoft, t.danger, 0.08), hover),
+                            Theme.mix(t.dangerSoft, t.danger, 0.15), down);
+                case GHOST: {
+                    Color off = Theme.mixAlpha(Theme.mixAlpha(
+                                    new Color(0, 0, 0, 0),
+                                    Theme.alpha(t.cardHover, 190), hover),
+                            t.cardHover, down);
+                    Color on = Theme.mix(Theme.mix(t.accentSoft,
+                                    Theme.mix(t.accentSoft, t.accent, 0.05), hover),
+                            Theme.mix(t.accentSoft, t.accent, 0.10), down);
+                    return Theme.mixAlpha(off, on, sel);
+                }
+                case OUTLINE:
+                    return Theme.mixAlpha(new Color(0, 0, 0, 0), t.cardHover, hover);
+                default:
+                    return Theme.mix(Theme.mix(t.accentSoft,
+                                    Theme.mix(t.accentSoft, t.accent, 0.06), hover),
+                            Theme.mix(t.accentSoft, t.accent, 0.12), down);
+            }
         }
 
         @Override
@@ -242,57 +355,44 @@ final class Widgets {
                     RenderingHints.VALUE_ANTIALIAS_ON);
             int w = getWidth();
             int h = getHeight();
-            boolean hover = getModel().isRollover() && isEnabled();
-            boolean down = getModel().isPressed() && isEnabled();
-            Color fill;
+            Color fill = fillFor(hoverAmt * (1 - pressAmt), pressAmt, selectAmt);
             Color fg;
             switch (variant) {
                 case PRIMARY:
-                    fill = down ? Theme.mix(t.accent, t.onAccent, 0.18)
-                            : hover ? Theme.mix(t.accent, t.onAccent, 0.08) : t.accent;
                     fg = t.onAccent;
                     break;
                 case DANGER:
-                    fill = down ? Theme.mix(t.dangerSoft, t.danger, 0.15)
-                            : hover ? Theme.mix(t.dangerSoft, t.danger, 0.08) : t.dangerSoft;
                     fg = t.danger;
                     break;
                 case GHOST:
-                    if (selected) {
-                        fill = down ? Theme.mix(t.accentSoft, t.accent, 0.10)
-                                : hover ? Theme.mix(t.accentSoft, t.accent, 0.05)
-                                : t.accentSoft;
-                        fg = t.onAccentSoft;
-                    } else {
-                        fill = down ? t.cardHover : hover ? Theme.alpha(t.cardHover, 190)
-                                : new Color(0, 0, 0, 0);
-                        fg = t.text;
-                    }
-                    break;
-                case OUTLINE:
-                    fill = hover ? t.cardHover : new Color(0, 0, 0, 0);
-                    fg = t.text;
+                    fg = Theme.mix(t.text, t.onAccentSoft, selectAmt);
                     break;
                 default:
-                    fill = down ? Theme.mix(t.accentSoft, t.accent, 0.12)
-                            : hover ? Theme.mix(t.accentSoft, t.accent, 0.06) : t.accentSoft;
-                    fg = t.onAccentSoft;
+                    fg = variant == OUTLINE ? t.text : t.onAccentSoft;
             }
             RoundRectangle2D shape = new RoundRectangle2D.Double(0, 0, w, h, h, h);
-            g2.setColor(fill);
+            if (variant == PRIMARY && isEnabled()) {
+                g2.setColor(Theme.alpha(t.shadow, Math.min(60, t.shadow.getAlpha())));
+                g2.fill(new RoundRectangle2D.Double(0, 1.5, w, h, h, h));
+                g2.setPaint(new GradientPaint(0, 0, fill, 0, h,
+                        Theme.mix(fill, t.accentAlt, 0.55)));
+            } else {
+                g2.setColor(fill);
+            }
             g2.fill(shape);
             if (variant == OUTLINE) {
-                g2.setColor(t.border);
+                g2.setColor(Theme.alpha(t.border, 230));
                 g2.setStroke(new BasicStroke(1f));
                 g2.draw(new RoundRectangle2D.Double(0.5, 0.5, w - 1, h - 1, h, h));
             }
             if (isFocusOwner()) {
-                g2.setColor(Theme.alpha(t.accent, 170));
-                g2.setStroke(new BasicStroke(2f));
-                g2.draw(new RoundRectangle2D.Double(2, 2, w - 4, h - 4, h - 4, h - 4));
+                g2.setColor(Theme.alpha(t.accent, 120));
+                g2.setStroke(new BasicStroke(1.6f));
+                g2.draw(new RoundRectangle2D.Double(1.6, 1.6, w - 3.2, h - 3.2,
+                        h - 3.2, h - 3.2));
             }
             if (!isEnabled()) {
-                g2.setColor(Theme.alpha(t.surface, 150));
+                g2.setColor(Theme.alpha(t.surface, 140));
                 g2.fill(shape);
                 fg = t.faint;
             }
@@ -330,20 +430,22 @@ final class Widgets {
     static final class ToggleSwitch extends JComponent {
         private boolean selected;
         private Consumer<Boolean> onChange;
+        private double pos;
+        private Motion.Tween knobTween;
 
         ToggleSwitch(boolean selected) {
             this.selected = selected;
-            setPreferredSize(new Dimension(46, 26));
-            setMinimumSize(new Dimension(46, 26));
-            setMaximumSize(new Dimension(46, 26));
+            this.pos = selected ? 1 : 0;
+            setPreferredSize(new Dimension(46, 28));
+            setMinimumSize(new Dimension(46, 28));
+            setMaximumSize(new Dimension(46, 28));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setFocusable(true);
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     if (!isEnabled()) return;
-                    ToggleSwitch.this.selected = !ToggleSwitch.this.selected;
-                    repaint();
+                    setSelected(!ToggleSwitch.this.selected);
                     if (onChange != null) onChange.accept(ToggleSwitch.this.selected);
                 }
             });
@@ -352,8 +454,7 @@ final class Widgets {
                 public void keyPressed(KeyEvent e) {
                     if (e.getKeyCode() == KeyEvent.VK_SPACE
                             || e.getKeyCode() == KeyEvent.VK_ENTER) {
-                        ToggleSwitch.this.selected = !ToggleSwitch.this.selected;
-                        repaint();
+                        setSelected(!ToggleSwitch.this.selected);
                         if (onChange != null) onChange.accept(ToggleSwitch.this.selected);
                     }
                 }
@@ -367,8 +468,17 @@ final class Widgets {
         boolean isSelected() { return selected; }
 
         void setSelected(boolean selected) {
+            if (this.selected == selected) return;
             this.selected = selected;
-            repaint();
+            if (knobTween != null) knobTween.stop();
+            double target = selected ? 1 : 0;
+            if (!isShowing()) {
+                pos = target;
+                repaint();
+                return;
+            }
+            knobTween = Motion.tween(pos, target, 170, Motion.EASE_OUT,
+                    value -> { pos = value; repaint(); });
         }
 
         @Override
@@ -377,15 +487,24 @@ final class Widgets {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON);
-            int h = Math.min(getHeight(), 26);
+            int h = Math.min(getHeight(), 28);
             int w = Math.min(getWidth(), 46);
             int y = (getHeight() - h) / 2;
-            Color track = selected ? (isEnabled() ? t.accent : t.faint) : t.border;
+            Color offTrack = Theme.mix(t.surfaceAlt, t.border, 0.85);
+            Color onTrack = isEnabled() ? t.accent : t.faint;
+            Color track = Theme.mix(offTrack, onTrack, pos);
             g2.setColor(track);
             g2.fill(new RoundRectangle2D.Double(0, y, w, h, h, h));
+            if (pos < 0.999) {
+                g2.setColor(Theme.alpha(t.border, (int) Math.round(240 * (1 - pos))));
+                g2.setStroke(new BasicStroke(1f));
+                g2.draw(new RoundRectangle2D.Double(0.5, y + 0.5, w - 1, h - 1, h, h));
+            }
             int thumb = h - 6;
-            int x = selected ? w - thumb - 3 : 3;
-            g2.setColor(selected ? t.onAccent : Theme.mix(t.surface, t.text, 0.05));
+            int x = (int) Math.round(3 + (w - thumb - 6) * pos);
+            g2.setColor(Theme.alpha(t.shadow, 46));
+            g2.fillOval(x, y + 4, thumb, thumb);
+            g2.setColor(Theme.mix(Theme.mix(t.surface, t.text, 0.30), t.onAccent, pos));
             g2.fillOval(x, y + 3, thumb, thumb);
             if (isFocusOwner()) {
                 g2.setColor(Theme.alpha(t.accent, 150));
@@ -403,20 +522,26 @@ final class Widgets {
         private final Icon icon;
         private boolean selected;
         private boolean hover;
+        private double selAmt;
+        private double hovAmt;
+        private double selTarget;
+        private double hovTarget;
+        private Motion.Tween selTween;
+        private Motion.Tween hovTween;
         private Runnable onClick;
 
         NavItem(String title, String iconName) {
             this.title = title;
-            this.icon = Icons.icon(iconName, 19, 2);
-            setPreferredSize(new Dimension(190, 44));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+            this.icon = Icons.icon(iconName, 18, 2);
+            setPreferredSize(new Dimension(196, 42));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setFocusable(true);
             addMouseListener(new MouseAdapter() {
                 @Override
-                public void mouseEntered(MouseEvent e) { hover = true; repaint(); }
+                public void mouseEntered(MouseEvent e) { animateHover(1); }
                 @Override
-                public void mouseExited(MouseEvent e) { hover = false; repaint(); }
+                public void mouseExited(MouseEvent e) { animateHover(0); }
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     if (onClick != null) onClick.run();
@@ -437,7 +562,34 @@ final class Widgets {
 
         void setSelected(boolean selected) {
             this.selected = selected;
-            repaint();
+            animateSelect(selected ? 1 : 0);
+        }
+
+        private void animateSelect(double target) {
+            if (Math.abs(target - selTarget) < 0.001) return;
+            selTarget = target;
+            if (selTween != null) selTween.stop();
+            if (!isShowing()) {
+                selAmt = target;
+                repaint();
+                return;
+            }
+            selTween = Motion.tween(selAmt, target, 170, Motion.EASE_OUT,
+                    value -> { selAmt = value; repaint(); });
+        }
+
+        private void animateHover(double target) {
+            hover = target > 0.5;
+            if (Math.abs(target - hovTarget) < 0.001) return;
+            hovTarget = target;
+            if (hovTween != null) hovTween.stop();
+            if (!isShowing()) {
+                hovAmt = target;
+                repaint();
+                return;
+            }
+            hovTween = Motion.tween(hovAmt, target, 120, Motion.EASE_OUT,
+                    value -> { hovAmt = value; repaint(); });
         }
 
         @Override
@@ -448,30 +600,30 @@ final class Widgets {
                     RenderingHints.VALUE_ANTIALIAS_ON);
             int w = getWidth();
             int h = getHeight();
-            if (selected) {
-                g2.setColor(t.accentSoft);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 14, 14));
-                g2.setColor(t.accent);
-                g2.fill(new RoundRectangle2D.Double(0, 11, 3, h - 22, 3, 3));
-            } else if (hover) {
-                g2.setColor(t.cardHover);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 14, 14));
+            if (selAmt > 0.001) {
+                g2.setColor(Theme.alpha(t.accentSoft,
+                        (int) Math.round(255 * Math.min(1, selAmt))));
+                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 11, 11));
+                g2.setColor(Theme.alpha(t.accent,
+                        (int) Math.round(255 * Math.min(1, selAmt))));
+                g2.fill(new RoundRectangle2D.Double(0, h / 2.0 - 8, 3, 16, 3, 3));
             }
-            Icon tinted = Icons.icon(selected ? "shield-check" : iconName(),
-                    19, selected ? 5 : 2);
-            if ("dashboard".equals(iconName()) || "list".equals(iconName())
-                    || "rules".equals(iconName()) || "settings".equals(iconName())) {
-                tinted = Icons.icon(iconName(), 19, selected ? 5 : 2);
+            double hov = hovAmt * (1 - Math.min(1, selAmt));
+            if (hov > 0.001) {
+                g2.setColor(Theme.alpha(t.cardHover, (int) Math.round(210 * hov)));
+                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 11, 11));
             }
-            tinted.paintIcon(this, g2, 15, (h - 19) / 2);
-            g2.setColor(selected ? t.onAccentSoft : t.muted);
-            g2.setFont(Theme.font(13f, selected ? Font.BOLD : Font.PLAIN));
+            boolean active = selAmt > 0.5;
+            Icons.icon(iconName(), 18, active ? 1 : 2)
+                    .paintIcon(this, g2, 15, (h - 18) / 2);
+            g2.setColor(Theme.mix(t.muted, t.onAccentSoft, Math.min(1, selAmt)));
+            g2.setFont(Theme.font(12.5f, active ? Font.BOLD : Font.PLAIN));
             FontMetrics fm = g2.getFontMetrics();
-            g2.drawString(title, 44, (h - fm.getHeight()) / 2 + fm.getAscent());
+            g2.drawString(title, 43, (h - fm.getHeight()) / 2 + fm.getAscent());
             if (isFocusOwner()) {
-                g2.setColor(Theme.alpha(t.accent, 130));
-                g2.setStroke(new BasicStroke(2f));
-                g2.draw(new RoundRectangle2D.Double(1, 1, w - 2, h - 2, 13, 13));
+                g2.setColor(Theme.alpha(t.accent, 120));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.draw(new RoundRectangle2D.Double(1, 1, w - 2, h - 2, 10, 10));
             }
             g2.dispose();
         }
@@ -499,8 +651,8 @@ final class Widgets {
             this.label = label;
             this.iconName = iconName;
             this.tint = tint;
-            setBorder(new EmptyBorder(15, 16, 15, 16));
-            setPreferredSize(new Dimension(180, 104));
+            setBorder(new EmptyBorder(16, 16, 16, 16));
+            setPreferredSize(new Dimension(180, 112));
         }
 
         void setValue(String value) {
@@ -521,10 +673,10 @@ final class Widgets {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON);
             Color accent = tint == 1 ? t.danger : tint == 2 ? t.warn : t.accent;
-            g2.setColor(Theme.alpha(accent, t.dark ? 34 : 28));
-            g2.fill(new RoundRectangle2D.Double(14, 13, 30, 30, 10, 10));
+            g2.setColor(Theme.alpha(accent, t.dark ? 34 : 26));
+            g2.fill(new RoundRectangle2D.Double(16, 16, 32, 32, 11, 11));
             Graphics2D ig = (Graphics2D) g2.create();
-            ig.translate(20, 19);
+            ig.translate(23, 23);
             Icons.paint(ig, iconName, 18, accent);
             ig.dispose();
 
@@ -532,14 +684,14 @@ final class Widgets {
                 g2.setColor(t.faint);
                 g2.setFont(Theme.font(10f, Font.PLAIN));
                 int hintWidth = g2.getFontMetrics().stringWidth(hint);
-                g2.drawString(hint, getWidth() - hintWidth - 14, 25);
+                g2.drawString(hint, getWidth() - hintWidth - 16, 29);
             }
             g2.setColor(t.text);
-            g2.setFont(Theme.font(27, Font.BOLD));
-            g2.drawString(value, 14, 76);
+            g2.setFont(Theme.font(29, Font.BOLD));
+            g2.drawString(value, 16, 79);
             g2.setColor(t.muted);
             g2.setFont(Theme.font(11.5f, Font.PLAIN));
-            g2.drawString(label, 14, 93);
+            g2.drawString(label, 16, 98);
             g2.dispose();
         }
     }
@@ -550,6 +702,10 @@ final class Widgets {
         private List<StatsStore.Bucket> data = new ArrayList<>();
         private String range = "24h";
         private int hover = -1;
+        private double[] fromQueries;
+        private double[] fromBlocked;
+        private double morph = 1;
+        private Motion.Tween morphTween;
 
         ChartPanel() {
             setPreferredSize(new Dimension(100, 250));
@@ -574,9 +730,50 @@ final class Widgets {
         }
 
         void setData(List<StatsStore.Bucket> data, String range) {
-            this.data = data == null ? new ArrayList<>() : data;
+            List<StatsStore.Bucket> next = data == null ? new ArrayList<>() : data;
             this.range = range;
-            repaint();
+            boolean animate = next.size() == this.data.size() && next.size() > 1
+                    && !this.data.isEmpty();
+            if (!animate) {
+                if (morphTween != null) morphTween.stop();
+                fromQueries = null;
+                fromBlocked = null;
+                morph = 1;
+                this.data = next;
+                repaint();
+                return;
+            }
+            // Freeze the series where it is on screen, then ease to the new one.
+            double[] prevQueries = fromQueries;
+            double[] prevBlocked = fromBlocked;
+            double progress = morph;
+            fromQueries = new double[next.size()];
+            fromBlocked = new double[next.size()];
+            for (int i = 0; i < next.size(); i++) {
+                long oldQueries = this.data.get(i).queries;
+                long oldBlocked = this.data.get(i).blocked;
+                fromQueries[i] = prevQueries == null ? oldQueries
+                        : prevQueries[i] + (oldQueries - prevQueries[i]) * progress;
+                fromBlocked[i] = prevBlocked == null ? oldBlocked
+                        : prevBlocked[i] + (oldBlocked - prevBlocked[i]) * progress;
+            }
+            this.data = next;
+            morph = 0;
+            if (morphTween != null) morphTween.stop();
+            if (!isShowing()) {
+                morph = 1;
+                fromQueries = null;
+                fromBlocked = null;
+                repaint();
+                return;
+            }
+            morphTween = Motion.tween(0, 1, 260, Motion.EASE_OUT,
+                    value -> { morph = value; repaint(); });
+        }
+
+        private double series(double[] from, long target, int index) {
+            if (from == null || index >= from.length) return target;
+            return from[index] + (target - from[index]) * morph;
         }
 
         private int indexAt(int x) {
@@ -612,15 +809,23 @@ final class Widgets {
                 g2.dispose();
                 return;
             }
+            // Interpolate towards the live series so data changes glide in.
+            double[] queriesAt = new double[data.size()];
+            double[] blockedAt = new double[data.size()];
             long maxValue = 1;
-            for (StatsStore.Bucket b : data) {
-                maxValue = Math.max(maxValue, Math.max(b.queries, b.blocked));
+            for (int i = 0; i < data.size(); i++) {
+                queriesAt[i] = series(fromQueries, data.get(i).queries, i);
+                blockedAt[i] = series(fromBlocked, data.get(i).blocked, i);
+                maxValue = Math.max(maxValue, (long) Math.ceil(
+                        Math.max(queriesAt[i], blockedAt[i])));
             }
             long nice = niceMax(maxValue);
             for (int i = 0; i <= 4; i++) {
                 long value = nice * i / 4;
                 int y = top + plotH - (int) (plotH * (double) value / nice);
-                g2.setColor(Theme.alpha(t.border, 150));
+                g2.setColor(Theme.alpha(t.border, 130));
+                g2.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10f, new float[]{2f, 4f}, 0f));
                 g2.drawLine(left, y, left + plotW, y);
                 g2.setColor(t.faint);
                 String label = compact(value);
@@ -628,34 +833,28 @@ final class Widgets {
                 g2.drawString(label, left - 7 - fm.stringWidth(label), y + 3);
             }
             double slot = plotW / Math.max(1.0, data.size() - 1.0);
-            Path2D area = new Path2D.Double();
-            Path2D queries = new Path2D.Double();
-            Path2D blocked = new Path2D.Double();
+            double[] xs = new double[data.size()];
+            double[] yq = new double[data.size()];
+            double[] yb = new double[data.size()];
             for (int i = 0; i < data.size(); i++) {
-                double x = left + slot * i;
-                double yq = top + plotH - plotH * (double) data.get(i).queries / nice;
-                double yb = top + plotH - plotH * (double) data.get(i).blocked / nice;
-                if (i == 0) {
-                    queries.moveTo(x, yq);
-                    blocked.moveTo(x, yb);
-                    area.moveTo(x, yq);
-                } else {
-                    queries.lineTo(x, yq);
-                    blocked.lineTo(x, yb);
-                    area.lineTo(x, yq);
-                }
+                xs[i] = left + slot * i;
+                yq[i] = top + plotH - plotH * queriesAt[i] / nice;
+                yb[i] = top + plotH - plotH * blockedAt[i] / nice;
             }
-            area.lineTo(left + slot * (data.size() - 1), top + plotH);
-            area.lineTo(left, top + plotH);
+            Path2D queries = smooth(xs, yq);
+            Path2D blocked = smooth(xs, yb);
+            Path2D area = (Path2D) queries.clone();
+            area.lineTo(xs[xs.length - 1], top + plotH);
+            area.lineTo(xs[0], top + plotH);
             area.closePath();
-            g2.setPaint(new GradientPaint(left, top, Theme.alpha(t.accent, 100),
+            g2.setPaint(new GradientPaint(left, top, Theme.alpha(t.accent, 110),
                     left, top + plotH, Theme.alpha(t.accent, 0)));
             g2.fill(area);
-            g2.setStroke(new BasicStroke(2.1f, BasicStroke.CAP_ROUND,
+            g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND,
                     BasicStroke.JOIN_ROUND));
             g2.setColor(t.accent);
             g2.draw(queries);
-            g2.setStroke(new BasicStroke(1.7f, BasicStroke.CAP_ROUND,
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND,
                     BasicStroke.JOIN_ROUND));
             g2.setColor(t.danger);
             g2.draw(blocked);
@@ -670,27 +869,33 @@ final class Widgets {
             g2.drawString(end, left + plotW - endWidth, h - 8);
 
             if (hover >= 0 && hover < data.size()) {
-                double x = left + slot * hover;
-                g2.setColor(Theme.alpha(t.muted, 110));
-                g2.setStroke(new BasicStroke(1f));
+                double x = xs[hover];
+                g2.setColor(Theme.alpha(t.muted, 90));
+                g2.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10f, new float[]{3f, 3f}, 0f));
                 g2.drawLine((int) x, top, (int) x, top + plotH);
-                StatsStore.Bucket b = data.get(hover);
-                double yq = top + plotH - plotH * (double) b.queries / nice;
-                double yb = top + plotH - plotH * (double) b.blocked / nice;
+                g2.setColor(t.card);
+                g2.fillOval((int) x - 5, (int) yq[hover] - 5, 10, 10);
                 g2.setColor(t.accent);
-                g2.fillOval((int) x - 4, (int) yq - 4, 8, 8);
+                g2.fillOval((int) x - 4, (int) yq[hover] - 4, 8, 8);
                 g2.setColor(t.danger);
-                g2.fillOval((int) x - 3, (int) yb - 3, 6, 6);
-                String label = rangeLabel(hover) + "  ·  " + b.queries
-                        + " queries  ·  " + b.blocked + " blocked";
+                g2.fillOval((int) x - 3, (int) yb[hover] - 3, 6, 6);
+                String label = rangeLabel(hover) + "  ·  "
+                        + Math.round(queriesAt[hover])
+                        + " queries  ·  " + Math.round(blockedAt[hover]) + " blocked";
                 g2.setFont(Theme.font(10.5f, Font.PLAIN));
                 FontMetrics fm = g2.getFontMetrics();
-                int labelW = fm.stringWidth(label) + 16;
+                int labelW = fm.stringWidth(label) + 18;
                 int lx = (int) Math.max(4, Math.min(w - labelW - 4, x - labelW / 2.0));
-                g2.setColor(Theme.alpha(t.surface, 240));
-                g2.fillRoundRect(lx, 2, labelW, 20, 8, 8);
+                g2.setColor(Theme.alpha(t.shadow, 40));
+                g2.fillRoundRect(lx, 2, labelW, 24, 10, 10);
+                g2.setColor(Theme.alpha(t.card, 248));
+                g2.fillRoundRect(lx, 1, labelW, 24, 10, 10);
+                g2.setColor(Theme.alpha(t.border, 220));
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(lx, 1, labelW, 24, 10, 10);
                 g2.setColor(t.text);
-                g2.drawString(label, lx + 8, 16);
+                g2.drawString(label, lx + 9, 17);
             }
             g2.dispose();
         }
@@ -705,6 +910,26 @@ final class Widgets {
                 fmt = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US);
             }
             return fmt.format(date);
+        }
+
+        /** Catmull-Rom smoothing so the series read as trends, not zig-zags. */
+        private static Path2D smooth(double[] xs, double[] ys) {
+            Path2D path = new Path2D.Double();
+            if (xs.length == 0) return path;
+            path.moveTo(xs[0], ys[0]);
+            if (xs.length == 1) return path;
+            for (int i = 0; i < xs.length - 1; i++) {
+                double x0 = i > 0 ? xs[i - 1] : xs[i];
+                double y0 = i > 0 ? ys[i - 1] : ys[i];
+                double x3 = i + 2 < xs.length ? xs[i + 2] : xs[i + 1];
+                double y3 = i + 2 < xs.length ? ys[i + 2] : ys[i + 1];
+                double c1x = xs[i] + (xs[i + 1] - x0) / 6.0;
+                double c1y = ys[i] + (ys[i + 1] - y0) / 6.0;
+                double c2x = xs[i + 1] - (x3 - xs[i]) / 6.0;
+                double c2y = ys[i + 1] - (y3 - ys[i]) / 6.0;
+                path.curveTo(c1x, c1y, c2x, c2y, xs[i + 1], ys[i + 1]);
+            }
+            return path;
         }
 
         private static long niceMax(long value) {
@@ -738,7 +963,7 @@ final class Widgets {
         void setData(List<StatsStore.Top> rows, String empty) {
             this.rows = rows == null ? new ArrayList<>() : rows;
             this.empty = empty;
-            setPreferredSize(new Dimension(100, Math.max(54, rows.size() * 30 + 8)));
+            setPreferredSize(new Dimension(100, Math.max(54, rows.size() * 32 + 6)));
             revalidate();
             repaint();
         }
@@ -754,36 +979,45 @@ final class Widgets {
             if (rows.isEmpty()) {
                 g2.setColor(t.faint);
                 g2.setFont(Theme.font(11.5f, Font.PLAIN));
-                g2.drawString(empty, 2, 22);
+                String text = empty;
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString(text, Math.max(2, (getWidth() - fm.stringWidth(text)) / 2),
+                        Math.max(18, getHeight() / 2 + 4));
                 g2.dispose();
                 return;
             }
             int max = 1;
             for (StatsStore.Top row : rows) max = Math.max(max, row.count);
-            int y = 4;
+            g2.setFont(Theme.font(11.5f, Font.BOLD));
+            FontMetrics countMetrics = g2.getFontMetrics();
+            int countW = 0;
             for (StatsStore.Top row : rows) {
-                g2.setFont(Theme.font(11.5f, Font.PLAIN));
+                countW = Math.max(countW, countMetrics.stringWidth(String.valueOf(row.count)));
+            }
+            int y = 2;
+            for (StatsStore.Top row : rows) {
+                g2.setFont(Theme.font(11.8f, Font.PLAIN));
                 g2.setColor(t.text);
                 String name = row.key == null ? "" : row.key;
                 FontMetrics fm = g2.getFontMetrics();
-                int nameW = Math.max(80, getWidth() * 42 / 100);
+                int nameW = Math.max(80, getWidth() * 45 / 100);
                 String shown = name;
                 while (fm.stringWidth(shown) > nameW - 8 && shown.length() > 4) {
                     shown = shown.substring(0, shown.length() - 2) + "…";
                 }
-                g2.drawString(shown, 0, y + 13);
+                g2.drawString(shown, 0, y + 14);
                 int barX = nameW;
-                int barW = Math.max(30, getWidth() - nameW - 46);
-                g2.setColor(t.surfaceAlt);
-                g2.fillRoundRect(barX, y + 4, barW, 8, 8, 8);
+                int barW = Math.max(30, getWidth() - nameW - countW - 14);
+                g2.setColor(t.track);
+                g2.fillRoundRect(barX, y + 8, barW, 6, 6, 6);
                 g2.setColor(danger ? t.danger : t.accent);
-                int fill = Math.max(4, (int) (barW * (double) row.count / max));
-                g2.fillRoundRect(barX, y + 4, fill, 8, 8, 8);
+                int fill = Math.max(6, (int) (barW * (double) row.count / max));
+                g2.fillRoundRect(barX, y + 8, fill, 6, 6, 6);
                 String count = String.valueOf(row.count);
                 g2.setColor(t.muted);
-                int countW = fm.stringWidth(count);
-                g2.drawString(count, getWidth() - countW, y + 13);
-                y += 30;
+                g2.setFont(Theme.font(11.5f, Font.BOLD));
+                g2.drawString(count, getWidth() - countMetrics.stringWidth(count), y + 15);
+                y += 32;
             }
             g2.dispose();
         }
@@ -884,16 +1118,200 @@ final class Widgets {
         pane.getVerticalScrollBar().setUnitIncrement(18);
         pane.getHorizontalScrollBar().setUnitIncrement(18);
         pane.setBackground(t.bg);
+        pane.getVerticalScrollBar().setUI(new SlimScrollBarUI());
+        pane.getHorizontalScrollBar().setUI(new SlimScrollBarUI());
+        pane.getVerticalScrollBar().setOpaque(false);
+        pane.getHorizontalScrollBar().setOpaque(false);
+        pane.getVerticalScrollBar().setPreferredSize(new Dimension(11, 10));
+        pane.getHorizontalScrollBar().setPreferredSize(new Dimension(10, 11));
         return pane;
+    }
+
+    /** Thin, chrome-free scrollbar that only shows a thumb when needed. */
+    static final class SlimScrollBarUI extends BasicScrollBarUI {
+        private static final int THUMB_IDLE_ALPHA = 85;
+        private static final int THUMB_ACTIVE_ALPHA = 140;
+        private double thumbAmt;
+        private double thumbTarget;
+        private Motion.Tween thumbTween;
+
+        @Override
+        protected JButton createDecreaseButton(int orientation) {
+            return zeroButton();
+        }
+
+        @Override
+        protected JButton createIncreaseButton(int orientation) {
+            return zeroButton();
+        }
+
+        private JButton zeroButton() {
+            JButton button = new JButton();
+            button.setPreferredSize(new Dimension(0, 0));
+            button.setMinimumSize(new Dimension(0, 0));
+            button.setMaximumSize(new Dimension(0, 0));
+            return button;
+        }
+
+        @Override
+        protected void paintTrack(Graphics g, JComponent c, Rectangle track) {
+            // The surface behind the bar already provides the track colour.
+        }
+
+        @Override
+        protected void paintThumb(Graphics g, JComponent c, Rectangle thumb) {
+            if (thumb.isEmpty() || !scrollbar.isEnabled()) return;
+            animateThumb(isDragging || isThumbRollover() ? 1 : 0);
+            Theme t = Theme.get();
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            int alpha = (int) Math.round(THUMB_IDLE_ALPHA
+                    + (THUMB_ACTIVE_ALPHA - THUMB_IDLE_ALPHA) * thumbAmt);
+            g2.setColor(Theme.alpha(t.muted, alpha));
+            int pad = 2;
+            g2.fillRoundRect(thumb.x + pad, thumb.y + pad,
+                    Math.max(2, thumb.width - pad * 2),
+                    Math.max(2, thumb.height - pad * 2), 8, 8);
+            g2.dispose();
+        }
+
+        /** Fades the thumb between its resting and hover alpha. */
+        private void animateThumb(double target) {
+            if (Math.abs(target - thumbTarget) < 0.001) return;
+            thumbTarget = target;
+            if (thumbTween != null) thumbTween.stop();
+            if (!scrollbar.isShowing()) {
+                thumbAmt = target;
+                return;
+            }
+            thumbTween = Motion.tween(thumbAmt, target, 130, Motion.EASE_OUT,
+                    value -> { thumbAmt = value; scrollbar.repaint(); });
+        }
     }
 
     static JScrollPane scrollSurface(Component view) {
         JScrollPane pane = scroll(view);
+        pane.setBackground(Theme.get().surface);
         pane.getViewport().setBackground(Theme.get().surface);
         return pane;
     }
 
+    // ------------------------------------------------------------------ slider
+
+    static void styleSlider(JSlider slider) {
+        slider.setOpaque(false);
+        slider.setUI(new SlimSliderUI(slider));
+    }
+
+    /** Flat 5px rail with an outlined knob; the platform UI draws a glossy bar. */
+    static final class SlimSliderUI extends BasicSliderUI {
+        SlimSliderUI(JSlider slider) {
+            super(slider);
+        }
+
+        @Override
+        protected Dimension getThumbSize() {
+            return new Dimension(16, 16);
+        }
+
+        @Override
+        public void paintFocus(Graphics g) {
+        }
+
+        @Override
+        public void paintTrack(Graphics g) {
+            Theme t = Theme.get();
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            int h = 5;
+            int y = trackRect.y + (trackRect.height - h) / 2;
+            g2.setColor(t.track);
+            g2.fillRoundRect(trackRect.x, y, trackRect.width, h, h, h);
+            int filled = thumbRect.x + thumbRect.width / 2 - trackRect.x;
+            if (filled > 0) {
+                g2.setColor(slider.isEnabled() ? t.accent : t.faint);
+                g2.fillRoundRect(trackRect.x, y, Math.min(filled, trackRect.width),
+                        h, h, h);
+            }
+            g2.dispose();
+        }
+
+        @Override
+        public void paintThumb(Graphics g) {
+            Theme t = Theme.get();
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            int size = 16;
+            int x = thumbRect.x + (thumbRect.width - size) / 2;
+            int y = thumbRect.y + (thumbRect.height - size) / 2;
+            g2.setColor(Theme.alpha(t.shadow, 46));
+            g2.fillOval(x, y + 1, size, size);
+            g2.setColor(t.card);
+            g2.fillOval(x, y, size, size);
+            g2.setColor(slider.isEnabled() ? t.accent : t.faint);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawOval(x + 1, y + 1, size - 2, size - 2);
+            g2.dispose();
+        }
+    }
+
     // ------------------------------------------------------------------- input
+
+    static final class RoundedBorder extends AbstractBorder {
+        private Color fill;
+        private Color line;
+        private final int radius;
+        private final Insets pad;
+
+        RoundedBorder(Color fill, Color line, int radius, Insets pad) {
+            this.fill = fill;
+            this.line = line;
+            this.radius = radius;
+            this.pad = pad;
+        }
+
+        void setColors(Color fill, Color line) {
+            this.fill = fill;
+            this.line = line;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
+            if (w <= 0 || h <= 0) return;
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            RoundRectangle2D shape = new RoundRectangle2D.Double(x + 0.5, y + 0.5,
+                    Math.max(0, w - 1), Math.max(0, h - 1), radius, radius);
+            if (fill != null) {
+                g2.setColor(fill);
+                g2.fill(shape);
+            }
+            g2.setColor(line);
+            g2.setStroke(new BasicStroke(1f));
+            g2.draw(shape);
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            return new Insets(pad.top, pad.left, pad.bottom, pad.right);
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c, Insets insets) {
+            insets.set(pad.top, pad.left, pad.bottom, pad.right);
+            return insets;
+        }
+
+        @Override
+        public boolean isBorderOpaque() {
+            return false;
+        }
+    }
 
     static final class PlaceholderField extends JTextField {
         private String placeholder;
@@ -909,6 +1327,7 @@ final class Widgets {
 
         @Override
         protected void paintComponent(Graphics g) {
+            paintInputSurface(g, this);
             super.paintComponent(g);
             if (placeholder == null || placeholder.isEmpty()) return;
             if (getText() != null && !getText().isEmpty()) return;
@@ -932,57 +1351,79 @@ final class Widgets {
         PlaceholderField field = new PlaceholderField(columns);
         field.setPlaceholder(placeholder);
         field.setFont(Theme.font(12.5f));
-        field.setBackground(t.surfaceAlt);
         field.setForeground(t.text);
         field.setCaretColor(t.accent);
         field.setSelectionColor(t.accentSoft);
         field.setSelectedTextColor(t.onAccentSoft);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(t.border),
-                new EmptyBorder(7, 10, 7, 10)));
+        field.setOpaque(false);
+        field.setBorder(inputBorder(t, inputLine(t)));
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                field.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Theme.get().accent),
-                        new EmptyBorder(7, 10, 7, 10)));
+                field.setBorder(inputBorder(Theme.get(), Theme.get().accent));
             }
 
             @Override
             public void focusLost(FocusEvent e) {
-                field.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Theme.get().border),
-                        new EmptyBorder(7, 10, 7, 10)));
+                field.setBorder(inputBorder(Theme.get(), inputLine(Theme.get())));
             }
         });
         return field;
     }
 
+    private static RoundedBorder inputBorder(Theme t, Color line) {
+        return new RoundedBorder(null, line, 10, new Insets(8, 11, 8, 11));
+    }
+
+    /** Rounded surface painted beneath text; a border fill would cover the text. */
+    private static void paintInputSurface(Graphics g, JComponent c) {
+        Theme t = Theme.get();
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(t.surfaceAlt);
+        g2.fill(new RoundRectangle2D.Double(0.5, 0.5,
+                Math.max(0, c.getWidth() - 1), Math.max(0, c.getHeight() - 1),
+                10, 10));
+        g2.dispose();
+    }
+
+    /** Dark surfaces need a touch more contrast than the hairline divider. */
+    private static Color inputLine(Theme t) {
+        return t.dark ? Theme.mix(t.border, t.muted, 0.32) : t.border;
+    }
+
+    static final class RoundedPasswordField extends JPasswordField {
+        RoundedPasswordField(int columns) {
+            super(columns);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            paintInputSurface(g, this);
+            super.paintComponent(g);
+        }
+    }
+
     static JPasswordField passwordField(int columns) {
         Theme t = Theme.get();
-        JPasswordField field = new JPasswordField(columns);
+        JPasswordField field = new RoundedPasswordField(columns);
         field.setFont(Theme.font(12.5f));
-        field.setBackground(t.surfaceAlt);
         field.setForeground(t.text);
         field.setCaretColor(t.accent);
         field.setSelectionColor(t.accentSoft);
         field.setSelectedTextColor(t.onAccentSoft);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(t.border),
-                new EmptyBorder(7, 10, 7, 10)));
+        field.setOpaque(false);
+        field.setBorder(inputBorder(t, inputLine(t)));
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                field.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Theme.get().accent),
-                        new EmptyBorder(7, 10, 7, 10)));
+                field.setBorder(inputBorder(Theme.get(), Theme.get().accent));
             }
 
             @Override
             public void focusLost(FocusEvent e) {
-                field.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Theme.get().border),
-                        new EmptyBorder(7, 10, 7, 10)));
+                field.setBorder(inputBorder(Theme.get(), inputLine(Theme.get())));
             }
         });
         return field;
@@ -990,14 +1431,20 @@ final class Widgets {
 
     static JComboBox<String> combo(String[] items, String selected) {
         Theme t = Theme.get();
-        JComboBox<String> combo = new JComboBox<>(items);
+        JComboBox<String> combo = new JComboBox<>(items) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                paintInputSurface(g, this);
+                super.paintComponent(g);
+            }
+        };
         combo.setFont(Theme.font(12.5f));
         combo.setBackground(t.surfaceAlt);
         combo.setForeground(t.text);
         combo.setFocusable(true);
-        combo.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(t.border),
-                new EmptyBorder(3, 8, 3, 8)));
+        combo.setOpaque(false);
+        combo.setBorder(new RoundedBorder(null, inputLine(t), 10,
+                new Insets(1, 11, 1, 2)));
         combo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
             @Override
             protected javax.swing.JButton createArrowButton() {
@@ -1010,6 +1457,32 @@ final class Widgets {
                 button.setPreferredSize(new Dimension(22, 22));
                 return button;
             }
+
+            @Override
+            public void paintCurrentValueBackground(Graphics g,
+                                                    java.awt.Rectangle bounds,
+                                                    boolean hasFocus) {
+                // The rounded border paints the field surface.
+            }
+
+            @Override
+            protected Dimension getDefaultSize() {
+                return new Dimension(super.getDefaultSize().width, 28);
+            }
+        });
+        combo.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                combo.setBorder(new RoundedBorder(null,
+                        Theme.get().accent, 10, new Insets(1, 11, 1, 2)));
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                Theme theme = Theme.get();
+                combo.setBorder(new RoundedBorder(null,
+                        inputLine(theme), 10, new Insets(1, 11, 1, 2)));
+            }
         });
         combo.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -1019,11 +1492,14 @@ final class Widgets {
                 JLabel label = (JLabel) super.getListCellRendererComponent(list, value,
                         index, selected, focus);
                 Theme theme = Theme.get();
-                label.setBorder(new EmptyBorder(5, 9, 5, 9));
+                // index -1 is the closed combo: keep it flat, like a text field.
+                boolean inList = index >= 0;
+                label.setBorder(inList ? new EmptyBorder(5, 9, 5, 9)
+                        : new EmptyBorder(0, 3, 0, 3));
                 label.setFont(Theme.font(12.5f));
-                label.setOpaque(true);
-                label.setBackground(selected ? theme.accentSoft : theme.surface);
-                label.setForeground(selected ? theme.onAccentSoft : theme.text);
+                label.setOpaque(inList);
+                label.setBackground(inList && selected ? theme.accentSoft : theme.surface);
+                label.setForeground(inList && selected ? theme.onAccentSoft : theme.text);
                 return label;
             }
         });

@@ -31,6 +31,7 @@ public final class DesktopTest {
             filter();
             updates();
             stats();
+            motion();
             dns();
             upstream();
             web();
@@ -272,6 +273,23 @@ public final class DesktopTest {
         reloaded.load();
         check(reloaded.check("local-block.example").blocked,
                 "gravity database reloaded");
+    }
+
+    // ------------------------------------------------------------------- motion
+
+    private static void motion() {
+        eq(0.0, Motion.EASE_OUT.apply(0), "ease out starts at zero");
+        eq(1.0, Motion.EASE_OUT.apply(1), "ease out ends at one");
+        check(Motion.EASE_OUT.apply(0.5) > 0.5, "ease out leads early");
+        eq(0.0, Motion.EASE_IN_OUT.apply(0), "ease in-out starts at zero");
+        eq(1.0, Motion.EASE_IN_OUT.apply(1), "ease in-out ends at one");
+        double[] value = {-1};
+        Motion.Tween tween = Motion.tween(3, 9, 0, Motion.EASE_OUT,
+                v -> value[0] = v);
+        eq(9.0, value[0], "zero duration tween applies target");
+        tween.stop();
+        Motion.tween(2, 2, 200, Motion.EASE_OUT, v -> value[0] = v);
+        eq(2.0, value[0], "tween without distance applies target");
     }
 
     private static void stats() {
