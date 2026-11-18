@@ -42,14 +42,14 @@ final class UpdateChecker {
 
     private UpdateChecker() { }
 
-    static Release check(String channel) throws Exception {
+    static Release check(android.content.Context context, String channel) throws Exception {
         String wanted = channel == null || channel.isEmpty() ? "stable" : channel;
         HttpURLConnection c = (HttpURLConnection) new URL(MANIFEST_URL).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(8000);
         c.setInstanceFollowRedirects(true);
         c.setRequestProperty("Accept", "application/json");
-        c.setRequestProperty("User-Agent", "Hole-Shield/" + "2.3.4");
+        c.setRequestProperty("User-Agent", "Hole-Shield/" + Device.versionName(context));
         try {
             int code = c.getResponseCode();
             if (code != 200) throw new Exception("Update server returned HTTP " + code);

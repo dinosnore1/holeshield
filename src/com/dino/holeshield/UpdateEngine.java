@@ -92,7 +92,7 @@ final class UpdateEngine {
         set(Phase.CHECKING, "Checking for updates…");
         work.execute(() -> {
             try {
-                UpdateChecker.Release found = UpdateChecker.check(channel);
+                UpdateChecker.Release found = UpdateChecker.check(app, channel);
                 release = found;
                 recordCheck(app);
                 int installed = Device.versionCode(app);
