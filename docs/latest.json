@@ -5,7 +5,7 @@
     "versionCode": 13,
     "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
     "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5-hotfix.apk",
-    "sha256": "ced27c488e73ee0d02a4a87f3611007569cb08646996afb7e8c42491a49064c7",
+    "sha256": "1ae37db0c40e228ad458bb6fdd4d82fc27e916e90ea10b471347756dd899aa17",
     "size": 281212,
     "notes": "Hole Shield 2.3.5.1 hotfix: updates move to their own About page below Settings on every screen, the update button reports checking, up to date, downloading, verifying and installing itself, APK downloads are checked against the published SHA-256 before the installer runs, and the desktop app gains in-app updates with the same verified download."
   },
@@ -14,7 +14,7 @@
     "versionCode": 13,
     "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
     "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5-hotfix.apk",
-    "sha256": "ced27c488e73ee0d02a4a87f3611007569cb08646996afb7e8c42491a49064c7",
+    "sha256": "1ae37db0c40e228ad458bb6fdd4d82fc27e916e90ea10b471347756dd899aa17",
     "size": 281212,
     "notes": "Hole Shield 2.3.5.1 hotfix: updates move to their own About page below Settings on every screen, the update button reports checking, up to date, downloading, verifying and installing itself, APK downloads are checked against the published SHA-256 before the installer runs, and the desktop app gains in-app updates with the same verified download."
   },
