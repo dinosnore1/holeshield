@@ -91,6 +91,16 @@ final class DnsService {
     }
 
     private boolean bind(int wanted, String address) {
+        // An ephemeral UDP port can collide with a TCP listener that Windows
+        // already owns, so ask the system for another one before giving up.
+        int attempts = wanted == 0 ? 5 : 1;
+        for (int i = 0; i < attempts; i++) {
+            if (bindOnce(wanted, address)) return true;
+        }
+        return false;
+    }
+
+    private boolean bindOnce(int wanted, String address) {
         try {
             InetSocketAddress udpAddress;
             if (address == null || address.isEmpty() || "0.0.0.0".equals(address)
