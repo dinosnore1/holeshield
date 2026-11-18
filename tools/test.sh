@@ -15,5 +15,8 @@ mkdir -p "$OUT"
   src/com/dino/holeshield/Blocklists.java \
   src/com/dino/holeshield/WebAuth.java \
   src/com/dino/holeshield/Gravity.java \
-  tools/TestDns.java
+  src/com/dino/holeshield/UpdateVerifier.java \
+  tools/TestDns.java \
+  tools/TestUpdate.java
 "$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestDns
+"$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestUpdate

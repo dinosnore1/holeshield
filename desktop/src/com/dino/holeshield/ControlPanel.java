@@ -44,7 +44,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -52,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.imageio.ImageIO;
 
 /** Native Swing control panel for the desktop resolver. */
 final class ControlPanel extends JFrame {
@@ -73,6 +76,7 @@ final class ControlPanel extends JFrame {
     private int warmGeneration;
     private boolean builtCompanion;
     private boolean builtDark;
+    private long notedCheckTime;
 
     private JLabel statusText;
     private JLabel statusDot;
@@ -138,6 +142,7 @@ final class ControlPanel extends JFrame {
             }
         });
         build();
+        app.updater().setListener(() -> SwingUtilities.invokeLater(this::onUpdateChanged));
         refreshAll();
         timer = new Timer(1500, e -> {
             if (!isVisible() || app.isApplying()) return;
@@ -190,8 +195,10 @@ final class ControlPanel extends JFrame {
         content.setBorder(new EmptyBorder(0, 0, 0, 0));
 
         String[] names = app.isCompanion()
-                ? new String[]{"Companion", "Query log", "Blocklists", "Rules", "Settings"}
-                : new String[]{"Overview", "Query log", "Blocklists", "Rules", "Settings"};
+                ? new String[]{"Companion", "Query log", "Blocklists", "Rules", "Settings",
+                        "About"}
+                : new String[]{"Overview", "Query log", "Blocklists", "Rules", "Settings",
+                        "About"};
         for (String name : names) {
             pageNames.add(name);
             // Pages are built on demand: only the landing page is constructed
@@ -216,6 +223,19 @@ final class ControlPanel extends JFrame {
         setJMenuBar(menu.component());
     }
 
+    private void onUpdateChanged() {
+        Page page = pages.get("About");
+        if (page instanceof AboutPage) ((AboutPage) page).syncUpdate();
+        // A settled check is the moment the pane's "Last checked" line changes.
+        Updater updater = app.updater();
+        long checkedAt = updater.checkedAt();
+        if (checkedAt > 0 && checkedAt != notedCheckTime
+                && updater.phase() != Updater.Phase.CHECKING) {
+            notedCheckTime = checkedAt;
+            app.noteUpdateCheck(checkedAt);
+        }
+    }
+
     private Page createPage(String name) {
         if (app.isCompanion()) {
             switch (name) {
@@ -224,6 +244,7 @@ final class ControlPanel extends JFrame {
                 case "Blocklists": return new CompanionListsPage();
                 case "Rules": return new CompanionRulesPage();
                 case "Settings": return new SettingsPage();
+                case "About": return new AboutPage();
                 default: return null;
             }
         }
@@ -234,6 +255,7 @@ final class ControlPanel extends JFrame {
             case "Blocklists": return new ListsPage();
             case "Rules": return new RulesPage();
             case "Settings": return new SettingsPage();
+            case "About": return new AboutPage();
             default: return null;
         }
     }
@@ -359,13 +381,15 @@ final class ControlPanel extends JFrame {
                         {"Query log", "list"},
                         {"Blocklists", "shield"},
                         {"Rules", "rules"},
-                        {"Settings", "settings"}}
+                        {"Settings", "settings"},
+                        {"About", "info"}}
                 : new String[][]{
                         {"Overview", "dashboard"},
                         {"Query log", "list"},
                         {"Blocklists", "shield"},
                         {"Rules", "rules"},
-                        {"Settings", "settings"}};
+                        {"Settings", "settings"},
+                        {"About", "info"}};
         for (String[] entry : entries) {
             Widgets.NavItem item = new Widgets.NavItem(entry[0], entry[1]);
             item.setOnClick(() -> selectPage(entry[0]));
@@ -653,12 +677,46 @@ final class ControlPanel extends JFrame {
         return panel;
     }
 
+    /** The application icon, read from the jar so the About pane needs no path. */
+    private static javax.swing.ImageIcon appIcon(int size) {
+        try (InputStream in = ControlPanel.class.getResourceAsStream("/icon-master.png")) {
+            if (in == null) return null;
+            BufferedImage source = ImageIO.read(in);
+            if (source == null) return null;
+            BufferedImage scaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING,
+                    RenderingHints.VALUE_RENDER_QUALITY);
+            g.drawImage(source, 0, 0, size, size, null);
+            g.dispose();
+            return new javax.swing.ImageIcon(scaled);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     /** Pins a fully built card to its natural height so its rows cannot be clipped. */
     private static void fitCard(Widgets.RoundedPanel card) {
         int height = card.getPreferredSize().height;
         card.setPreferredSize(new Dimension(100, height));
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
         relayout(card);
+    }
+
+    /** Re-measures a card whose content changed after it was first fitted. */
+    private static void refit(Widgets.RoundedPanel card) {
+        card.setPreferredSize(null);
+        card.setMaximumSize(null);
+        SwingUtilities.invokeLater(() -> {
+            card.revalidate();
+            int height = card.getPreferredSize().height;
+            card.setPreferredSize(new Dimension(100, height));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
+            if (card.getParent() != null) card.getParent().revalidate();
+            card.repaint();
+        });
     }
 
     /** Revalidates after the current event so a grown card is never clipped. */
@@ -2839,6 +2897,25 @@ final class ControlPanel extends JFrame {
         }
     }
 
+    /** A labelled switch row, shared by the Settings and About pages. */
+    private JComponent toggleRow(String label, Widgets.ToggleSwitch toggle,
+                                 String hint) {
+        JPanel row = new JPanel(new BorderLayout(14, 0));
+        row.setOpaque(false);
+        row.setBorder(new EmptyBorder(6, 0, 6, 0));
+        JPanel copy = new JPanel();
+        copy.setOpaque(false);
+        copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
+        copy.add(Widgets.label(label, 12, Font.PLAIN, 0));
+        if (hint != null) copy.add(Widgets.label(hint, 10.5f, Font.PLAIN, 2));
+        row.add(copy, BorderLayout.CENTER);
+        JPanel control = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 2));
+        control.setOpaque(false);
+        control.add(toggle);
+        row.add(control, BorderLayout.EAST);
+        return row;
+    }
+
     // ---------------------------------------------------------------- settings
 
     private final class SettingsPage extends Page {
@@ -3100,32 +3177,6 @@ final class ControlPanel extends JFrame {
             page.add(system);
             page.add(Box.createVerticalStrut(14));
 
-            // About
-            Widgets.RoundedPanel about = card(18, 18, 18, 18);
-            JPanel aboutCopy = new JPanel();
-            aboutCopy.setOpaque(false);
-            aboutCopy.setLayout(new BoxLayout(aboutCopy, BoxLayout.Y_AXIS));
-            aboutCopy.add(Widgets.label(DesktopApp.NAME + " " + DesktopApp.VERSION,
-                    15, Font.BOLD, 0));
-            aboutCopy.add(Widgets.hint("Local DNS filtering for Windows, Linux and macOS. "
-                    + "The desktop port uses the same gravity format as the Android app."));
-            JPanel links = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
-            links.setOpaque(false);
-            Widgets.PillButton privacy = new Widgets.PillButton("Privacy", "globe",
-                    Widgets.GHOST);
-            privacy.addActionListener(e -> AppDirs.browse(
-                    "https://dinosnore1.github.io/holeshield/"));
-            links.add(privacy);
-            Widgets.PillButton releases = new Widgets.PillButton("Releases", "download",
-                    Widgets.GHOST);
-            releases.addActionListener(e -> AppDirs.browse(
-                    "https://github.com/dinosnore1/holeshield/releases"));
-            links.add(releases);
-            aboutCopy.add(links);
-            about.add(aboutCopy, BorderLayout.CENTER);
-            fitCard(about);
-            page.add(about);
-
             scroll = pageScroll(page);
             loadValues();
         }
@@ -3150,24 +3201,6 @@ final class ControlPanel extends JFrame {
                 value.add(note);
             }
             row.add(value, BorderLayout.CENTER);
-            return row;
-        }
-
-        private JComponent toggleRow(String label, Widgets.ToggleSwitch toggle,
-                                     String hint) {
-            JPanel row = new JPanel(new BorderLayout(14, 0));
-            row.setOpaque(false);
-            row.setBorder(new EmptyBorder(6, 0, 6, 0));
-            JPanel copy = new JPanel();
-            copy.setOpaque(false);
-            copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
-            copy.add(Widgets.label(label, 12, Font.PLAIN, 0));
-            if (hint != null) copy.add(Widgets.label(hint, 10.5f, Font.PLAIN, 2));
-            row.add(copy, BorderLayout.CENTER);
-            JPanel control = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 2));
-            control.setOpaque(false);
-            control.add(toggle);
-            row.add(control, BorderLayout.EAST);
             return row;
         }
 
@@ -3353,6 +3386,306 @@ final class ControlPanel extends JFrame {
             }
             if (!loginState.getText().isEmpty()) return;
             loadValues();
+        }
+    }
+
+    // ------------------------------------------------------------------- about
+
+    private final class AboutPage extends Page {
+        private final JScrollPane scroll;
+        private final JLabel updateNotes = Widgets.label("", 11.5f, Font.PLAIN, 1);
+        private final JProgressBar updateBar = new JProgressBar(0, 1000);
+        private final Widgets.PillButton updateCheck = new Widgets.PillButton(
+                "Check now", "refresh", Widgets.OUTLINE);
+        private final Widgets.PillButton updateAction = new Widgets.PillButton(
+                "Download and install", "download", Widgets.PRIMARY);
+        private final Widgets.ToggleSwitch autoUpdate = new Widgets.ToggleSwitch(
+                prefs.getBool("autoUpdateCheck", true));
+        private final Widgets.ToggleSwitch showNotes = new Widgets.ToggleSwitch(
+                prefs.getBool("showUpdateNotes", true));
+        private final JLabel updateSubtitle = Widgets.hint("");
+        private final JLabel updateError = Widgets.label("", 11.5f, Font.PLAIN, 2);
+        private Widgets.RoundedPanel updateCardPanel;
+        private JPanel updateExtra;
+        private Updater.Phase updateShownPhase;
+        private boolean updateShownNotes;
+
+        AboutPage() {
+            VerticalPanel page = new VerticalPanel();
+
+            Widgets.RoundedPanel about = card(26, 20, 24, 20);
+            JPanel hero = new JPanel();
+            hero.setOpaque(false);
+            hero.setLayout(new BoxLayout(hero, BoxLayout.Y_AXIS));
+            JLabel appIcon = new JLabel(appIcon(76));
+            appIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
+            hero.add(appIcon);
+            JLabel aboutName = Widgets.label(DesktopApp.NAME, 21, Font.BOLD, 0);
+            aboutName.setAlignmentX(Component.CENTER_ALIGNMENT);
+            aboutName.setHorizontalAlignment(SwingConstants.CENTER);
+            aboutName.setBorder(new EmptyBorder(12, 0, 0, 0));
+            hero.add(aboutName);
+            JLabel aboutVersion = Widgets.label("Version " + DesktopApp.VERSION,
+                    11.5f, Font.PLAIN, 1);
+            aboutVersion.setAlignmentX(Component.CENTER_ALIGNMENT);
+            aboutVersion.setBorder(new EmptyBorder(4, 0, 0, 0));
+            hero.add(aboutVersion);
+            JLabel aboutBlurb = Widgets.label("<html><div style='text-align:center'>"
+                    + "Local DNS filtering for Windows, Linux and macOS.<br>"
+                    + "Blocks ads, trackers and malware for every device on your network."
+                    + "</div></html>", 12, Font.PLAIN, 1);
+            aboutBlurb.setAlignmentX(Component.CENTER_ALIGNMENT);
+            aboutBlurb.setHorizontalAlignment(SwingConstants.CENTER);
+            aboutBlurb.setBorder(new EmptyBorder(12, 0, 0, 0));
+            hero.add(aboutBlurb);
+            JPanel aboutActions = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+            aboutActions.setOpaque(false);
+            aboutActions.setAlignmentX(Component.CENTER_ALIGNMENT);
+            aboutActions.setBorder(new EmptyBorder(16, 0, 0, 0));
+            Widgets.PillButton notes = new Widgets.PillButton("Release notes", "list",
+                    Widgets.OUTLINE);
+            notes.addActionListener(e -> AppDirs.browse(
+                    "https://dinosnore1.github.io/holeshield/"));
+            aboutActions.add(notes);
+            Widgets.PillButton privacy = new Widgets.PillButton("Privacy", "globe",
+                    Widgets.OUTLINE);
+            privacy.addActionListener(e -> AppDirs.browse(
+                    "https://dinosnore1.github.io/holeshield/privacy.html"));
+            aboutActions.add(privacy);
+            hero.add(aboutActions);
+            JLabel copyright = Widgets.label("© 2026 Dino · Hole Shield is free and "
+                    + "open source", 10.5f, Font.PLAIN, 2);
+            copyright.setAlignmentX(Component.CENTER_ALIGNMENT);
+            copyright.setHorizontalAlignment(SwingConstants.CENTER);
+            copyright.setBorder(new EmptyBorder(18, 0, 0, 0));
+            hero.add(copyright);
+            about.add(hero, BorderLayout.CENTER);
+            fitCard(about);
+            page.add(about);
+            page.add(Box.createVerticalStrut(14));
+
+            Widgets.RoundedPanel updates = updatesCard();
+            syncUpdate();
+            fitCard(updates);
+            page.add(updates);
+
+            scroll = pageScroll(page);
+        }
+
+        @Override
+        JScrollPane scroll() {
+            return scroll;
+        }
+
+        @Override
+        void refresh() {
+            syncUpdate();
+        }
+
+        /** The updater's preferences, state and actions, directly below About. */
+        private Widgets.RoundedPanel updatesCard() {
+            Widgets.RoundedPanel card = card(18, 20, 18, 20);
+            updateCardPanel = card;
+
+            // The actions sit in the header so the state block below stays quiet.
+            JPanel headerActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+            headerActions.setOpaque(false);
+            headerActions.add(updateCheck);
+            headerActions.add(updateAction);
+            JPanel header = new JPanel(new BorderLayout(12, 0));
+            header.setOpaque(false);
+            JPanel headCopy = new JPanel();
+            headCopy.setOpaque(false);
+            headCopy.setLayout(new BoxLayout(headCopy, BoxLayout.Y_AXIS));
+            headCopy.add(Widgets.label("Updates", 15, Font.BOLD, 0));
+            headCopy.add(updateSubtitle);
+            header.add(headCopy, BorderLayout.CENTER);
+            header.add(headerActions, BorderLayout.EAST);
+            card.add(header, BorderLayout.NORTH);
+
+            JPanel body = new JPanel();
+            body.setOpaque(false);
+            body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+            body.setBorder(new EmptyBorder(10, 0, 0, 0));
+
+            autoUpdate.setSelected(prefs.getBool("autoUpdateCheck", true));
+            autoUpdate.setOnChange(value -> {
+                prefs.setBool("autoUpdateCheck", value);
+                app.inBackground(prefs::save, null);
+            });
+            showNotes.setSelected(prefs.getBool("showUpdateNotes", true));
+            showNotes.setOnChange(value -> {
+                prefs.setBool("showUpdateNotes", value);
+                app.inBackground(prefs::save, null);
+                syncUpdate();
+            });
+            body.add(toggleRow("Check for updates automatically", autoUpdate,
+                    "Looks for a new release once a day."));
+            body.add(toggleRow("Show what's new before updating", showNotes,
+                    "Lists the changes in the installer."));
+            // Kept in one panel so a quick check does not leave empty space.
+            updateExtra = new JPanel();
+            updateExtra.setOpaque(false);
+            updateExtra.setLayout(new BoxLayout(updateExtra, BoxLayout.Y_AXIS));
+            updateExtra.setAlignmentX(Component.LEFT_ALIGNMENT);
+            updateExtra.setBorder(new EmptyBorder(14, 0, 0, 0));
+            updateBar.setBorderPainted(false);
+            updateBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+            updateBar.setPreferredSize(new Dimension(100, 8));
+            updateBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 8));
+            updateExtra.add(updateBar);
+            updateNotes.setAlignmentX(Component.LEFT_ALIGNMENT);
+            updateExtra.add(updateNotes);
+            updateError.setAlignmentX(Component.LEFT_ALIGNMENT);
+            updateError.setBorder(new EmptyBorder(8, 0, 0, 0));
+            updateExtra.add(updateError);
+            updateExtra.setVisible(false);
+            body.add(updateExtra);
+            card.add(body, BorderLayout.CENTER);
+
+            updateCheck.addActionListener(e -> app.checkForUpdates());
+            updateAction.addActionListener(e -> {
+                if (app.updater().phase() == Updater.Phase.READY) app.installUpdate();
+                else app.updater().prepare();
+            });
+            return card;
+        }
+
+        /** Shows the updater's current phase inside the Check now button. */
+        void syncUpdate() {
+            if (updateCardPanel == null) return;
+            Updater updater = app.updater();
+            Updater.Phase phase = updater.phase();
+            boolean spinning = phase == Updater.Phase.CHECKING
+                    || phase == Updater.Phase.DOWNLOADING
+                    || phase == Updater.Phase.VERIFYING
+                    || phase == Updater.Phase.INSTALLING;
+            String label;
+            String icon;
+            int role = -1;
+            switch (phase) {
+                case CHECKING: label = "Checking…"; icon = "refresh"; break;
+                case CURRENT: label = "Up to date"; icon = "check"; role = 6; break;
+                case AVAILABLE: label = "Check again"; icon = "refresh"; break;
+                case DOWNLOADING: label = "Downloading…"; icon = "refresh"; break;
+                case VERIFYING: label = "Verifying…"; icon = "refresh"; break;
+                case READY: label = "Check again"; icon = "refresh"; break;
+                case INSTALLING: label = "Installing…"; icon = "refresh"; break;
+                case FAILED: label = "Retry check"; icon = "alert"; role = 3; break;
+                case UNSUPPORTED: label = "Check now"; icon = "info"; role = 2; break;
+                default: label = "Check now"; icon = "refresh"; break;
+            }
+            updateCheck.setText(label);
+            updateCheck.setIconName(icon);
+            updateCheck.setIconRole(role);
+            updateCheck.setSpinning(spinning);
+            updateCheck.setEnabled(!spinning);
+            updateCheck.setToolTipText(updater.message());
+
+            boolean notesVisible = showNotes.isSelected() && showsNotes(phase)
+                    && !updater.notes().isEmpty();
+            updateNotes.setVisible(notesVisible);
+            if (notesVisible) {
+                updateNotes.setText("<html><body style='width:500px'>"
+                        + escape(updater.notes()) + "</body></html>");
+            }
+            long checkedAt = updater.checkedAt() > 0 ? updater.checkedAt()
+                    : prefs.getLong("lastUpdateCheck", 0L);
+            long total = updater.total();
+            boolean barVisible = phase == Updater.Phase.DOWNLOADING;
+            updateBar.setVisible(barVisible);
+            updateBar.setValue(total > 0 ? (int) (updater.done() * 1000 / total) : 0);
+            updateBar.setMaximum(1000);
+            updateNotes.setBorder(new EmptyBorder(barVisible ? 10 : 0, 0, 0, 0));
+
+            boolean errorVisible = phase == Updater.Phase.FAILED
+                    || phase == Updater.Phase.UNSUPPORTED;
+            updateError.setVisible(errorVisible);
+            if (errorVisible) {
+                updateError.setText("<html><body style='width:640px'>"
+                        + escape(updater.message()) + "</body></html>");
+            }
+            updateExtra.setVisible(barVisible || notesVisible || errorVisible);
+            updateSubtitle.setText(subtitleText(checkedAt));
+
+            String details = phase == Updater.Phase.CURRENT ? "" : detailsText(updater, phase);
+
+            boolean canAct = phase == Updater.Phase.AVAILABLE || phase == Updater.Phase.READY
+                    || (phase == Updater.Phase.FAILED && updater.hasRelease());
+            updateAction.setVisible(canAct);
+            updateAction.setEnabled(!spinning);
+            updateAction.setText(phase == Updater.Phase.READY ? "Install and restart"
+                    : "Download and install");
+            updateAction.setToolTipText(details.isEmpty() ? null : details);
+            if (phase != updateShownPhase || notesVisible != updateShownNotes) {
+                if (phase == Updater.Phase.CURRENT
+                        && updateShownPhase != Updater.Phase.CURRENT) {
+                    updateCheck.popIcon();
+                }
+                updateShownPhase = phase;
+                updateShownNotes = notesVisible;
+                refit(updateCardPanel);
+            } else {
+                updateCardPanel.repaint();
+            }
+        }
+
+        /** Keeps the recency of the check in the card header, out of the body. */
+        private static String subtitleText(long checkedAt) {
+            String base = "Installers are checked against the published SHA-256";
+            if (checkedAt <= 0) return base + " before they run";
+            return base + " · " + lastCheckedText(checkedAt);
+        }
+
+        private static String lastCheckedText(long checkedAt) {
+            if (checkedAt <= 0) return "Last checked: never";
+            long minutes = Math.max(0,
+                    (System.currentTimeMillis() - checkedAt) / 60000L);
+            if (minutes < 1) return "Last checked: just now";
+            if (minutes < 60) return "Last checked: " + minutes + " min ago";
+            long hours = minutes / 60;
+            if (hours < 24) {
+                return "Last checked: " + hours + (hours == 1 ? " hour ago" : " hours ago");
+            }
+            long days = hours / 24;
+            if (days < 7) {
+                return "Last checked: " + days + (days == 1 ? " day ago" : " days ago");
+            }
+            return "Last checked: " + new java.text.SimpleDateFormat("d MMM yyyy",
+                    Locale.getDefault()).format(new java.util.Date(checkedAt));
+        }
+
+        private static boolean showsNotes(Updater.Phase phase) {
+            switch (phase) {
+                case AVAILABLE:
+                case READY:
+                case DOWNLOADING:
+                case INSTALLING:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /** The installer this build would fetch, or a note when the release has none. */
+        private static String detailsText(Updater updater, Updater.Phase phase) {
+            if (!updater.hasRelease()) return "";
+            String asset = updater.assetName();
+            if (!asset.isEmpty()) {
+                return asset + (updater.size() > 0 ? " · " + megabytes(updater.size()) : "");
+            }
+            // When the installed build is current the missing desktop asset is not
+            // actionable, so the pane stays quiet instead of flagging an old manifest.
+            return phase == Updater.Phase.CURRENT ? "" : "No installer for this system";
+        }
+
+        private static String megabytes(long bytes) {
+            if (bytes >= 1024L * 1024L) return (bytes / (1024L * 1024L)) + " MB";
+            return Math.max(1, bytes / 1024L) + " KB";
+        }
+
+        private static String escape(String value) {
+            return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         }
     }
 

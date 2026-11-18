@@ -38,6 +38,8 @@ final class Icons {
                 case 3: value = t.danger; break;
                 case 4: value = t.onAccent; break;
                 case 5: value = t.warn; break;
+                case 6: value = t.success; break;
+                case 7: value = t.faint; break;
                 default: value = t.text;
             }
             paint(g2, name, size, value);

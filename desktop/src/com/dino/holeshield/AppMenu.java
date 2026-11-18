@@ -4,7 +4,6 @@ import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.Font;
@@ -119,25 +118,14 @@ final class AppMenu {
         JMenu menu = menu("Help");
         menu.add(item("Documentation", 0,
                 () -> AppDirs.browse("https://dinosnore1.github.io/holeshield/")));
-        menu.add(item("Release notes", 0,
-                () -> AppDirs.browse("https://github.com/dinosnore1/holeshield/releases")));
+        menu.add(item("Check for updates…", 0, app::checkForUpdates));
         menu.addSeparator();
         menu.add(item("About " + DesktopApp.NAME, 0, this::showAbout));
         return menu;
     }
 
     private void showAbout() {
-        String mode = app.isCompanion()
-                ? "Companion console for " + app.bindSummary()
-                : "Desktop DNS filter on " + app.bindSummary();
-        JOptionPane.showMessageDialog(panel,
-                "<html><body style='width:320px'>"
-                        + "<b>" + DesktopApp.NAME + " " + DesktopApp.VERSION + "</b><br>"
-                        + "Local DNS filtering for Windows, Linux and macOS.<br><br>"
-                        + mode + "<br>"
-                        + "Data: " + AppDirs.dataDir().getAbsolutePath()
-                        + "</body></html>",
-                "About " + DesktopApp.NAME, JOptionPane.INFORMATION_MESSAGE);
+        panel.openPage("About");
     }
 
     // ------------------------------------------------------------------ state

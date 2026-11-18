@@ -9,9 +9,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Reads the public release manifest used by the in-app update check. The app
- * never installs an update by itself; it only reports a newer version and opens
- * the release page.
+ * Reads the public release manifest used by the in-app updater. Every
+ * download is checked against the SHA-256 published here before it is installed.
  */
 final class UpdateChecker {
 
@@ -24,15 +23,19 @@ final class UpdateChecker {
         final int versionCode;
         final String url;
         final String apk;
+        final String sha256;
+        final long size;
         final String notes;
 
         Release(String channel, String version, int versionCode, String url,
-                String apk, String notes) {
+                String apk, String sha256, long size, String notes) {
             this.channel = channel == null ? "stable" : channel;
             this.version = version == null ? "" : version;
             this.versionCode = versionCode;
             this.url = url == null ? "" : url;
             this.apk = apk == null ? "" : apk;
+            this.sha256 = sha256 == null ? "" : sha256;
+            this.size = size;
             this.notes = notes == null ? "" : notes;
         }
     }
@@ -70,6 +73,8 @@ final class UpdateChecker {
                     item.optInt("versionCode", 0),
                     item.optString("url", ""),
                     item.optString("apk", ""),
+                    item.optString("sha256", ""),
+                    item.optLong("size", 0L),
                     item.optString("notes", ""));
         } finally {
             c.disconnect();

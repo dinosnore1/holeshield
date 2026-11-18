@@ -219,8 +219,13 @@ final class Widgets {
 
     static class PillButton extends javax.swing.JButton {
         private final int variant;
-        private final String iconName;
+        private String iconName;
         private final int iconSize;
+        private int iconRole = -1;
+        private double iconScale = 1;
+        private Motion.Tween iconTween;
+        private javax.swing.Timer spinTimer;
+        private double spinAngle;
         private boolean selected;
         private double hoverAmt;
         private double pressAmt;
@@ -271,6 +276,48 @@ final class Widgets {
             this.selected = selected;
             animateSelect(selected ? 1 : 0);
             repaint();
+        }
+
+        /** Swaps the leading glyph without rebuilding the button. */
+        void setIconName(String name) {
+            if (java.util.Objects.equals(iconName, name)) return;
+            this.iconName = name;
+            revalidate();
+            repaint();
+        }
+
+        /** Overrides the glyph colour with a theme role (6 is success, 3 danger). */
+        void setIconRole(int role) {
+            if (iconRole == role) return;
+            this.iconRole = role;
+            repaint();
+        }
+
+        /** Draws a rotating ring in place of the glyph while work is in flight. */
+        void setSpinning(boolean spinning) {
+            if (spinning == (spinTimer != null)) return;
+            if (spinning) {
+                spinAngle = 0;
+                spinTimer = new javax.swing.Timer(16, e -> {
+                    spinAngle = (spinAngle + 0.10) % (Math.PI * 2);
+                    repaint();
+                });
+                spinTimer.start();
+            } else {
+                spinTimer.stop();
+                spinTimer = null;
+            }
+            repaint();
+        }
+
+        /** A short pop when the glyph changes to a confirmation mark. */
+        void popIcon() {
+            iconScale = 0.4;
+            if (iconTween != null) iconTween.stop();
+            iconTween = Motion.tween(0.4, 1, 220, Motion.EASE_OUT, value -> {
+                iconScale = value;
+                repaint();
+            });
         }
 
         /** Eases the hover/press/selection fills so state changes glide. */
@@ -404,9 +451,28 @@ final class Widgets {
             int x = (w - total) / 2;
             int baseline = (h - fm.getHeight()) / 2 + fm.getAscent();
             if (iconName != null) {
+                Color iconColor = fg;
+                if (iconRole == 6) iconColor = t.success;
+                else if (iconRole == 1) iconColor = t.accent;
+                else if (iconRole == 3) iconColor = t.danger;
+                else if (iconRole == 5) iconColor = t.warn;
                 Graphics2D iconG = (Graphics2D) g2.create();
-                iconG.translate(x, (h - iconSize) / 2);
-                Icons.paint(iconG, iconName, iconSize, fg);
+                iconG.translate(x + iconSize / 2.0, h / 2.0);
+                iconG.scale(iconScale, iconScale);
+                iconG.translate(-iconSize / 2.0, -iconSize / 2.0);
+                if (spinTimer != null) {
+                    iconG.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON);
+                    iconG.setColor(iconColor);
+                    iconG.setStroke(new BasicStroke(1.9f, BasicStroke.CAP_ROUND,
+                            BasicStroke.JOIN_ROUND));
+                    double inset = 2.6;
+                    iconG.draw(new java.awt.geom.Arc2D.Double(inset, inset,
+                            iconSize - inset * 2, iconSize - inset * 2,
+                            Math.toDegrees(spinAngle), 280, java.awt.geom.Arc2D.OPEN));
+                } else {
+                    Icons.paint(iconG, iconName, iconSize, iconColor);
+                }
                 iconG.dispose();
                 x += iconSize + (text.isEmpty() ? 0 : 8);
             }

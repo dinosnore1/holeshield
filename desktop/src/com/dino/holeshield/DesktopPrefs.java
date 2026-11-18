@@ -77,6 +77,9 @@ final class DesktopPrefs {
         if (!values.containsKey("launchAtLogin")) set("launchAtLogin", "false");
         if (!values.containsKey("closeToTray")) set("closeToTray", "true");
         if (!values.containsKey("logQueries")) set("logQueries", "true");
+        if (!values.containsKey("autoUpdateCheck")) set("autoUpdateCheck", "true");
+        if (!values.containsKey("showUpdateNotes")) set("showUpdateNotes", "true");
+        if (!values.containsKey("lastUpdateCheck")) set("lastUpdateCheck", "0");
     }
 
     synchronized String get(String key, String fallback) {

@@ -82,9 +82,11 @@ platform packaging notes. The GitHub Actions workflow
   `192.168.1.50 !example.com` allows, and `*.example.com` matches subdomains.
 - **Backup and restore.** Export settings, custom rules, blocklist sources and
   the query log as one JSON file through the system document picker.
-- **Update channel.** Choose Stable, Beta or Off in Settings → Updates and run
-  Check for updates. The app reads a public release manifest and opens the
-  release page when a newer build is available; it never installs silently.
+- **In-app updates.** The **About** screen holds the version, update controls and
+  the Stable/Beta/Off channel. The app reads a public release manifest, downloads
+  the APK, checks its SHA-256 and installs it through the Android package
+  installer, so nothing opens a browser. Android shows one confirmation prompt;
+  protection resumes after the update.
 - **Pause / resume** indefinitely or for 5/30 minutes, with timer state persisted
   across restarts. Notification actions, a Quick Settings tile and a home-screen
   widget expose pause, resume and status.
@@ -107,7 +109,8 @@ platform packaging notes. The GitHub Actions workflow
   details screen with copyable dashboard/DNS addresses.
 - **D-pad and touch UI.** The same screens work with a TV remote and with a
   finger. TV uses a persistent left navigation rail, and phones use a persistent
-  icon-based bottom bar for Home, Server, Gravity & rules, Query log and Settings. A **TV safe area** setting (Settings → System)
+  icon-based bottom bar for Home, Server, Gravity & rules, Query log, Settings
+  and About. A **TV safe area** setting (Settings → System)
   is off by default and can inset the layout for TVs that crop the outer edges. Log rows are focusable on TV and expose quick allow/block actions. TV keeps its focus rings and immersive fullscreen; phones use a compact
   layout, show the system bars and rebuild cleanly between portrait and
   landscape.

@@ -18,6 +18,9 @@ the same allow/deny rules and the same web dashboard.
 - Tray / menu-bar controls, pause timers and launch-at-login.
 - Companion mode that logs in to a Hole Shield system already running on the LAN.
 - Native installers that bundle a Java runtime.
+- In-app updates that verify a published SHA-256 and install the release for
+  this system without opening a browser. The **About** page holds the update
+  controls, a daily check and the "what's new" notes.
 
 ## Run from source
 
@@ -171,7 +174,12 @@ from `src/com/dino/holeshield/`; there are no copies to keep in sync.
 
 - The app does not install a privileged system service. Port 53 requires
   administrator/root, or the app runs on 5354.
-- Automatic desktop self-update is not implemented yet; use the Releases page.
-- Installers are unsigned until signing certificates are configured.
+- Updates are installed in place from **About → Updates** (or
+  **Help → Check for updates…**). The app downloads the installer for this
+  system, checks its SHA-256 against the published manifest, quits and runs a
+  small helper that installs the release and opens the app again. macOS and
+  Linux ask for an administrator password; Windows asks for elevation.
+- Installers are unsigned until signing certificates are configured, so macOS
+  and Windows may warn the first time a release is installed.
 - The dashboard is served over plain HTTP on the LAN. Set a password if other
   devices can reach it.

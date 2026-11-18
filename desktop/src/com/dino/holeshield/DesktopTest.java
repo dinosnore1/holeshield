@@ -30,6 +30,7 @@ public final class DesktopTest {
             gravity();
             filter();
             updates();
+            updater();
             stats();
             motion();
             dns();
@@ -233,6 +234,75 @@ public final class DesktopTest {
         prefs.setBool("categoryAds", true);
         filter.reloadRules();
         check(filter.check("doubleclick.net").blocked, "category switch restores");
+    }
+
+    private static void updater() throws Exception {
+        eq("macos-pkg", Updater.assetKey("Mac OS X", false, false), "macOS installer key");
+        eq("windows-msi", Updater.assetKey("Windows 11", false, false), "Windows installer key");
+        eq("linux-deb", Updater.assetKey("Linux", true, false), "Debian installer key");
+        eq("linux-rpm", Updater.assetKey("Linux", false, true), "RPM installer key");
+        eq("", Updater.assetKey("Linux", false, false), "no supported package manager");
+        eq("", Updater.assetKey("FreeBSD", true, true), "unknown system has no installer");
+
+        check(Updater.compareVersions("2.3.5", "2.3.6") < 0, "patch release is newer");
+        check(Updater.compareVersions("2.10.0", "2.9.9") > 0, "numeric version order");
+        check(Updater.compareVersions("2.3.5", "2.3.5") == 0, "same version");
+
+        String manifest = "{\"desktop\":{\"version\":\"2.3.6\",\"notes\":\"Fixes\","
+                + "\"assets\":{\"linux-deb\":{\"name\":\"hs.deb\",\"url\":\"https://x/hs.deb\","
+                + "\"sha256\":\"abc\",\"size\":12}}}}";
+        Updater.Release release = Updater.parse(manifest, "linux-deb");
+        eq("2.3.6", release.version, "manifest version");
+        eq("Fixes", release.notes, "manifest notes");
+        eq("hs.deb", release.name, "manifest asset name");
+        eq("https://x/hs.deb", release.url, "manifest asset url");
+        eq(12L, release.size, "manifest asset size");
+        Updater.Release missing = Updater.parse(manifest, "windows-msi");
+        eq("", missing.url, "missing platform asset is empty");
+        boolean rejected = false;
+        try {
+            Updater.parse("{\"stable\":{}}", "linux-deb");
+        } catch (IllegalStateException expected) {
+            rejected = true;
+        }
+        check(rejected, "manifest without a desktop release is rejected");
+
+        eq("Hole-Shield-2.3.6.pkg", Updater.safeName("Hole-Shield-2.3.6.pkg"),
+                "plain installer name kept");
+        eq("hs.deb", Updater.safeName("../../etc/hs.deb"), "path separators stripped");
+        eq("hs-rm--rf.deb", Updater.safeName("hs;rm -rf.deb"), "shell metacharacters replaced");
+        eq("", Updater.safeName(".."), "parent directory name refused");
+        eq("", Updater.safeName(null), "missing name is empty");
+
+        File file = new File(dir, "hash-check.txt");
+        Files.write(file.toPath(), "hole shield".getBytes(StandardCharsets.UTF_8));
+        String hash = Updater.sha256Hex(file);
+        eq("a62812623d66c8db3996ad2f355fe00f04e938f6f7804ee1a2b00a0a16846d8e", hash, "sha256 digest");
+        check(Updater.matches(hash, hash.toUpperCase()), "checksum compare ignores case");
+        check(!Updater.matches("", hash), "empty checksum never matches");
+        check(!Updater.matches(hash, hash.substring(1) + "0"), "wrong checksum rejected");
+
+        String mac = Updater.macScript(42, new File("/tmp/it's here/Hole Shield.pkg"),
+                "/Applications/Hole Shield.app", new File("/tmp/log.txt"));
+        check(mac.contains("PKG='/tmp/it'\\''s here/Hole Shield.pkg'"), "macOS script quotes apostrophes");
+        check(mac.contains("while kill -0 42"), "macOS script waits for this process");
+        check(mac.contains("/usr/sbin/installer -pkg '$PKG' -target /"), "macOS script runs the installer");
+        check(mac.contains("/usr/bin/open \"$APP\""), "macOS script reopens the app");
+
+        String windows = Updater.windowsScript(42, new File("C:\\it's\\Hole.msi"),
+                "C:\\Program Files\\Hole Shield\\Hole Shield.exe", new File("C:\\log.txt"));
+        check(windows.contains("it''s\\Hole.msi'"), "Windows script doubles apostrophes");
+        check(windows.contains("msiexec.exe"), "Windows script uses msiexec");
+        check(windows.contains("-Id $appPid"), "Windows script waits for this process");
+        check(windows.contains("Start-Process -FilePath $exe"), "Windows script reopens the app");
+
+        String linux = Updater.linuxScript(42, new File("/tmp/hs.deb"), "deb",
+                "\"/opt/Hole Shield/bin/holeshield\"", new File("/tmp/log"));
+        check(linux.contains("pkexec apt-get install -y \"$PKG\""), "Debian script uses apt");
+        check(linux.contains("kill -0 42"), "Linux script waits for this process");
+        check(linux.contains("nohup \"/opt/Hole Shield/bin/holeshield\""), "Linux script reopens the app");
+        String rpm = Updater.linuxScript(7, new File("/tmp/hs.rpm"), "rpm", "app", new File("/tmp/log"));
+        check(rpm.contains("pkexec rpm -U --replacepkgs"), "RPM script uses rpm");
     }
 
     private static void updates() throws Exception {
@@ -651,6 +721,14 @@ public final class DesktopTest {
         check(loaded.hasWebPassword(), "persisted password");
         check(WebAuth.verify(loaded.webPassword(), "secret"), "password verifies");
         check(!WebAuth.verify(loaded.webPassword(), "wrong"), "wrong password fails");
+        check(loaded.getBool("autoUpdateCheck", false), "update check defaults on");
+        check(loaded.getBool("showUpdateNotes", false), "update notes default on");
+        loaded.set("lastUpdateCheck", "1700000000000");
+        loaded.save();
+        DesktopPrefs reread = new DesktopPrefs(home);
+        reread.load();
+        eq(1700000000000L, reread.getLong("lastUpdateCheck", 0L),
+                "last update check persists");
     }
 
     // ------------------------------------------------------------------- helpers

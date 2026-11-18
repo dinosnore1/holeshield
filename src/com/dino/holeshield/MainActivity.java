@@ -3,7 +3,6 @@ package com.dino.holeshield;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -24,7 +23,6 @@ import android.net.Uri;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -41,6 +39,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -68,14 +67,14 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
- * One activity, five screens, no fragments and no libraries. Every action is a
+ * One activity, a handful of screens, no fragments and no libraries. Every action is a
  * focusable row or button, so the same UI works with a TV remote, a D-pad and
  * touch. The layout compacts itself on phones and uses a fullscreen immersive
  * presentation only on television devices.
  */
 public class MainActivity extends Activity {
 
-    private enum Screen { HOME, SETTINGS, LISTS, SERVER, LOG, NETWORK }
+    private enum Screen { HOME, SETTINGS, LISTS, SERVER, LOG, NETWORK, ABOUT }
 
     private static final int REQ_VPN = 41;
     private static final int REQ_NOTIFICATION = 42;
@@ -107,6 +106,16 @@ public class MainActivity extends Activity {
     private TextView heroTitle;
     private TextView heroStatus;
     private TextView heroSub;
+    private TextView updateSub;
+    private TextView updateCheck;
+    private TextView updateNotes;
+    private TextView updateMessage;
+    private LinearLayout updateExtra;
+    private LinearLayout updateCard;
+    private LinearLayout updateBar;
+    private View updateFill;
+    private View updateRest;
+    private Ui.SpinnerDrawable updateSpinner;
     private TextView primaryLabel;
     private TextView statQueries;
     private TextView statBlocked;
@@ -156,6 +165,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        UpdateEngine.setListener(this::onUpdateStateChanged);
         isTv = isTelevision(this);
         Ui.setCompact(!isTv);
         setRequestedOrientation(isTv
@@ -460,6 +470,7 @@ public class MainActivity extends Activity {
         navItems.put(Screen.LISTS, navItem("Gravity & rules", Screen.LISTS));
         navItems.put(Screen.LOG, navItem("Query log", Screen.LOG));
         navItems.put(Screen.SETTINGS, navItem("Settings", Screen.SETTINGS));
+        navItems.put(Screen.ABOUT, navItem("About", Screen.ABOUT));
         List<LinearLayout> items = new ArrayList<>(navItems.values());
         int[] ids = new int[items.size()];
         for (int i = 0; i < items.size(); i++) ids[i] = View.generateViewId();
@@ -511,7 +522,7 @@ public class MainActivity extends Activity {
     }
 
     private void updateNav() {
-        Screen selected = screen == Screen.NETWORK ? Screen.SETTINGS : screen;
+        Screen selected = screen;
         if (navItems != null) {
             for (Map.Entry<Screen, LinearLayout> entry : navItems.entrySet()) {
                 entry.getValue().setSelected(entry.getKey() == selected);
@@ -550,6 +561,8 @@ public class MainActivity extends Activity {
                 phoneNavItem("Log", R.drawable.ic_nav_log, Screen.LOG));
         phoneNavItems.put(Screen.SETTINGS,
                 phoneNavItem("Settings", R.drawable.ic_nav_settings, Screen.SETTINGS));
+        phoneNavItems.put(Screen.ABOUT,
+                phoneNavItem("About", R.drawable.ic_nav_about, Screen.ABOUT));
         for (TextView item : phoneNavItems.values()) {
             row.addView(item, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
                     Ui.dp(this, 2), 0, Ui.dp(this, 2), 0));
@@ -585,6 +598,10 @@ public class MainActivity extends Activity {
             show(screen);
         }
         vpnConsentNeeded = VpnService.prepare(this) != null;
+        if (UpdateEngine.phase() == UpdateEngine.Phase.NEEDS_PERMISSION
+                && UpdateEngine.permissionGranted(this)) {
+            UpdateEngine.install(this);
+        }
         if (!autoStarted && prefs.protectionWanted && !DnsVpnService.running
                 && !vpnConsentNeeded) {
             autoStarted = true;
@@ -635,6 +652,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (isFinishing()) UpdateEngine.setListener(null);
         handler.removeCallbacksAndMessages(null);
         io.shutdownNow();
         super.onDestroy();
@@ -733,6 +751,7 @@ public class MainActivity extends Activity {
                 case SERVER: content = serverScreen(); break;
                 case LOG: content = logScreen(); break;
                 case NETWORK: content = networkScreen(); break;
+                case ABOUT: content = aboutScreen(); break;
                 default: content = homeScreen(); break;
             }
             if (next == Screen.SETTINGS || next == Screen.LISTS) {
@@ -783,6 +802,17 @@ public class MainActivity extends Activity {
         heroTitle = null;
         heroStatus = null;
         heroSub = null;
+        updateSub = null;
+        updateCheck = null;
+        updateNotes = null;
+        updateMessage = null;
+        updateExtra = null;
+        updateCard = null;
+        updateBar = null;
+        updateFill = null;
+        updateRest = null;
+        if (updateSpinner != null) updateSpinner.stop();
+        updateSpinner = null;
         primaryLabel = null;
         statQueries = null;
         statBlocked = null;
@@ -2561,19 +2591,6 @@ public class MainActivity extends Activity {
                         themeIndex(), this::setThemeMode)), rowLp(0));
         add(col, appearance, 8);
 
-        col.addView(section("UPDATES"));
-        LinearLayout updates = Ui.column(this);
-        updates.addView(settingRow("Update channel",
-                "Stable, beta or off",
-                updateChannelLabel(), () -> chooseOption("Update channel",
-                        "Choose which releases to check",
-                        new String[]{"Stable", "Beta", "Off"},
-                        updateChannelIndex(), this::setUpdateChannel)), rowLp(0));
-        updates.addView(settingRow("Check for updates",
-                "Check the public release manifest",
-                lastUpdateCheckLabel(), this::checkForUpdates), rowLp(1));
-        add(col, updates, 8);
-
         col.addView(section("SYSTEM"));
         LinearLayout sys = Ui.column(this);
         sys.addView(settingRow("Restart protection", "Apply network changes",
@@ -2591,9 +2608,6 @@ public class MainActivity extends Activity {
                             new String[]{"Off", "5%", "10%", "12%", "15%"},
                             safeAreaIndex(), this::setSafeArea)), rowLp(sysRow++));
         }
-        sys.addView(settingRow(isTv ? "About Hole Shield TV" : "About Hole Shield",
-                "Version " + Device.versionName(this) + " · Material You · no analytics",
-                "", this::about), rowLp(sysRow++));
         sys.addView(settingRow("Back up settings", "Settings, rules, lists and query log as JSON",
                 "Export", this::startBackup), rowLp(sysRow++));
         sys.addView(settingRow("Restore settings", "Replace settings and query log from a backup",
@@ -2605,6 +2619,9 @@ public class MainActivity extends Activity {
                 + "the LAN DNS listener uses the high port shown on the server screen.",
                 12, Ui.FAINT, false);
         add(col, foot, 18);
+
+        // Keep the last focused card clear of the screen edge on TVs.
+        col.addView(Ui.spacer(this, isTv ? 20 : 14));
 
         initialFocus = p.getChildAt(0);
         return col;
@@ -2766,7 +2783,7 @@ public class MainActivity extends Activity {
     private void setUpdateChannel(int which) {
         prefs.updateChannel = which == 1 ? "beta" : which == 2 ? "off" : "stable";
         prefs.save(this);
-        show(Screen.SETTINGS);
+        show(Screen.ABOUT);
     }
 
     private String lastUpdateCheckLabel() {
@@ -2774,99 +2791,294 @@ public class MainActivity extends Activity {
                 ? "checked " + Ui.ago(prefs.lastUpdateCheck) : "Check now";
     }
 
-    private void checkForUpdates() {
-        if ("off".equals(prefs.updateChannel)) {
-            Ui.toast(this, "Updates are turned off");
-            return;
+    private void onUpdateStateChanged() {
+        if (screen != Screen.ABOUT) return;
+        if (UpdateEngine.phase() == UpdateEngine.Phase.DOWNLOADING) {
+            updateUpdateLive();
+        } else {
+            show(Screen.ABOUT);
         }
-        Ui.toast(this, "Checking for updates…");
-        final String channel = prefs.updateChannel;
-        io.execute(() -> {
-            UpdateChecker.Release release = null;
-            String error = null;
+    }
+
+    private LinearLayout aboutScreen() {
+        LinearLayout col = Ui.column(this);
+
+        // A centered hero, then the update controls, matching the desktop pane.
+        LinearLayout hero = Ui.column(this);
+        hero.setGravity(Gravity.CENTER_HORIZONTAL);
+        hero.setBackground(Ui.rounded(this, Ui.CARD, isTv ? 28 : 22, 1, Ui.STROKE));
+        int heroPad = Ui.dp(this, isTv ? 30 : 22);
+        hero.setPadding(heroPad, Ui.dp(this, isTv ? 26 : 22),
+                heroPad, Ui.dp(this, isTv ? 24 : 20));
+        ImageView appIcon = new ImageView(this);
+        appIcon.setImageResource(R.drawable.ic_launcher);
+        int iconSize = Ui.dp(this, isTv ? 84 : 68);
+        hero.addView(appIcon, new LinearLayout.LayoutParams(iconSize, iconSize));
+        TextView appName = Ui.text(this, isTv ? "Hole Shield TV" : "Hole Shield",
+                isTv ? 24 : 20, Ui.TEXT, true);
+        hero.addView(appName, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 14), 0, 0));
+        hero.addView(Ui.text(this, "Version " + Device.versionName(this),
+                isTv ? 13 : 12, Ui.FAINT, false),
+                Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 3), 0, 0));
+        TextView blurb = Ui.text(this, "Local DNS filtering that blocks ads, trackers "
+                + "and malware for every device on your network.",
+                isTv ? 13 : 12, Ui.DIM, false);
+        blurb.setGravity(Gravity.CENTER);
+        blurb.setMaxWidth(Ui.dp(this, isTv ? 620 : 420));
+        blurb.setLineSpacing(Ui.dp(this, 2), 1f);
+        hero.addView(blurb, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 12), 0, 0));
+
+        LinearLayout links = Ui.row(this);
+        links.setGravity(Gravity.CENTER);
+        TextView releaseNotes = Ui.button(this, "Release notes", false);
+        releaseNotes.setOnClickListener(v -> openSite(
+                "https://dinosnore1.github.io/holeshield/"));
+        links.addView(releaseNotes);
+        TextView privacy = Ui.button(this, "Privacy", false);
+        privacy.setOnClickListener(v -> openSite(
+                "https://dinosnore1.github.io/holeshield/privacy.html"));
+        links.addView(privacy, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), Ui.dp(this, 8), 0, 0, 0));
+        hero.addView(links, Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 16), 0, 0));
+
+        hero.addView(Ui.text(this, "© 2026 Dino · Free and open source",
+                isTv ? 11.5f : 11, Ui.FAINT, false),
+                Ui.margins(Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 16), 0, 0));
+        add(col, hero, 0);
+
+        add(col, updatesCard(), isTv ? 18 : 14);
+
+        // Kept separate so the Updates card stays about state and actions.
+        LinearLayout channel = card(isTv ? 24 : 18);
+        channel.addView(settingRow("Update channel", "Stable, beta or off",
+                updateChannelLabel(), () -> chooseOption("Update channel",
+                        "Choose which releases to check",
+                        new String[]{"Stable", "Beta", "Off"},
+                        updateChannelIndex(), this::setUpdateChannel)));
+        add(col, channel, isTv ? 16 : 12);
+
+        add(col, Ui.text(this, "Downloads come from the Hole Shield release manifest. "
+                + "Each file is checked against its published SHA-256 before Android "
+                + "asks you to confirm the install. Protection restarts after an update.",
+                isTv ? 13 : 11.5f, Ui.FAINT, false), 14);
+
+        col.addView(Ui.spacer(this, isTv ? 20 : 14));
+        initialFocus = updateCheck;
+        updateUpdateLive();
+        return col;
+    }
+
+    private LinearLayout updatesCard() {
+        LinearLayout card = card(isTv ? 28 : 20);
+        updateCard = card;
+
+        LinearLayout heading = Ui.row(this);
+        heading.addView(Ui.text(this, "Updates", isTv ? 20 : 17, Ui.TEXT, true),
+                Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        updateCheck = Ui.button(this, "Check now", false);
+        updateCheck.setTag("update-check");
+        updateCheck.setMinWidth(0);
+        updateCheck.setSingleLine(true);
+        updateCheck.setCompoundDrawablePadding(Ui.dp(this, 8));
+        updateCheck.setOnClickListener(v -> updatePrimaryAction());
+        updateSpinner = new Ui.SpinnerDrawable(this, Ui.PRIMARY);
+        heading.addView(updateCheck);
+        card.addView(heading);
+
+        updateSub = Ui.text(this, "", isTv ? 12.5f : 11.5f, Ui.FAINT, false);
+        updateSub.setLineSpacing(Ui.dp(this, 2), 1f);
+        card.addView(updateSub, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 6), 0, 0));
+
+        // Only shows the download bar, release notes or an explanation.
+        updateExtra = Ui.column(this);
+        updateExtra.setVisibility(View.GONE);
+        updateBar = progressTrack();
+        updateExtra.addView(updateBar, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                Ui.dp(this, 8)), 0, Ui.dp(this, 14), 0, 0));
+        updateNotes = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
+        updateNotes.setLineSpacing(Ui.dp(this, 3), 1f);
+        updateExtra.addView(updateNotes, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 12), 0, 0));
+        updateMessage = Ui.text(this, "", isTv ? 13 : 12, Ui.DIM, false);
+        updateMessage.setLineSpacing(Ui.dp(this, 3), 1f);
+        updateExtra.addView(updateMessage, Ui.margins(Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT), 0, Ui.dp(this, 10), 0, 0));
+        card.addView(updateExtra);
+        return card;
+    }
+
+    private LinearLayout progressTrack() {
+        LinearLayout track = Ui.row(this);
+        track.setBackground(Ui.rounded(this, Ui.SURFACE_CONTAINER_HIGHEST, 99));
+        updateFill = new View(this);
+        updateFill.setBackground(Ui.rounded(this, Ui.GREEN, 99));
+        track.addView(updateFill, Ui.lp(0, ViewGroup.LayoutParams.MATCH_PARENT, 0f));
+        updateRest = new View(this);
+        track.addView(updateRest, Ui.lp(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        return track;
+    }
+
+    private boolean updateBusy() {
+        switch (UpdateEngine.phase()) {
+            case CHECKING:
+            case DOWNLOADING:
+            case VERIFYING:
+            case READY:
+            case INSTALLING:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void updateUpdateLive() {
+        if (updateCheck == null) return;
+        UpdateEngine.Phase phase = UpdateEngine.phase();
+        UpdateChecker.Release release = UpdateEngine.release();
+        boolean newer = release != null
+                && UpdateChecker.isNewer(release, Device.versionCode(this));
+        boolean busy = updateBusy();
+
+        String label;
+        int icon = R.drawable.ic_refresh;
+        int iconColor = Ui.PRIMARY;
+        boolean spinning = false;
+        switch (phase) {
+            case CHECKING:
+                label = "Checking…";
+                spinning = true;
+                break;
+            case CURRENT:
+                label = "Up to date";
+                icon = R.drawable.ic_check;
+                iconColor = Ui.GREEN;
+                break;
+            case AVAILABLE:
+                label = "Download and install";
+                icon = R.drawable.ic_download;
+                break;
+            case DOWNLOADING:
+                label = "Downloading…";
+                spinning = true;
+                break;
+            case VERIFYING:
+                label = "Verifying…";
+                spinning = true;
+                break;
+            case READY:
+            case INSTALLING:
+                label = "Installing…";
+                spinning = true;
+                break;
+            case NEEDS_PERMISSION:
+                label = "Allow installs";
+                icon = R.drawable.ic_alert;
+                iconColor = Ui.AMBER;
+                break;
+            case INSTALLED:
+                label = "Up to date";
+                icon = R.drawable.ic_check;
+                iconColor = Ui.GREEN;
+                break;
+            case OFF:
+                label = "Updates are off";
+                icon = R.drawable.ic_info;
+                iconColor = Ui.DIM;
+                break;
+            case FAILED:
+                label = newer ? "Try again" : "Retry check";
+                icon = R.drawable.ic_alert;
+                iconColor = Ui.RED;
+                break;
+            default:
+                label = "Check now";
+                break;
+        }
+        updateCheck.setText(label);
+        if (spinning) {
+            updateCheck.setCompoundDrawablesWithIntrinsicBounds(updateSpinner,
+                    null, null, null);
+            updateSpinner.start();
+        } else {
+            updateSpinner.stop();
+            updateCheck.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
+            updateCheck.setCompoundDrawableTintList(ColorStateList.valueOf(iconColor));
+        }
+        // Keep the button focusable on TV while work is in flight; only the
+        // action is paused, otherwise the remote focus would fall back to nav.
+        updateCheck.setClickable(!busy);
+        updateCheck.setAlpha(busy ? 0.72f : 1f);
+        updateCheck.setContentDescription(label + (UpdateEngine.message().isEmpty()
+                ? "" : ". " + UpdateEngine.message()));
+
+        long checkedAt = Prefs.load(this).lastUpdateCheck;
+        updateSub.setText("Downloads are verified against the published SHA-256"
+                + (checkedAt > 0 ? " · Last checked " + Ui.ago(checkedAt) : ""));
+
+        boolean downloading = phase == UpdateEngine.Phase.DOWNLOADING;
+        updateBar.setVisibility(downloading ? View.VISIBLE : View.GONE);
+        if (downloading) {
+            float fraction = UpdateEngine.total() > 0
+                    ? Math.min(1f, (float) UpdateEngine.done() / UpdateEngine.total()) : 0f;
+            LinearLayout.LayoutParams fill =
+                    (LinearLayout.LayoutParams) updateFill.getLayoutParams();
+            LinearLayout.LayoutParams rest =
+                    (LinearLayout.LayoutParams) updateRest.getLayoutParams();
+            fill.weight = fraction;
+            rest.weight = 1f - fraction;
+            updateFill.setLayoutParams(fill);
+            updateRest.setLayoutParams(rest);
+        }
+
+        boolean notesVisible = release != null && release.notes != null
+                && !release.notes.isEmpty()
+                && (phase == UpdateEngine.Phase.AVAILABLE
+                        || phase == UpdateEngine.Phase.DOWNLOADING
+                        || phase == UpdateEngine.Phase.VERIFYING
+                        || phase == UpdateEngine.Phase.READY
+                        || phase == UpdateEngine.Phase.NEEDS_PERMISSION
+                        || phase == UpdateEngine.Phase.INSTALLING);
+        updateNotes.setVisibility(notesVisible ? View.VISIBLE : View.GONE);
+        if (notesVisible) {
+            updateNotes.setText("What's new\n" + release.notes);
+        }
+
+        boolean messageVisible = phase == UpdateEngine.Phase.FAILED
+                || phase == UpdateEngine.Phase.OFF
+                || phase == UpdateEngine.Phase.NEEDS_PERMISSION
+                || phase == UpdateEngine.Phase.INSTALLED;
+        updateMessage.setVisibility(messageVisible ? View.VISIBLE : View.GONE);
+        if (messageVisible) {
+            updateMessage.setText(UpdateEngine.message());
+        }
+        updateExtra.setVisibility(downloading || notesVisible || messageVisible
+                ? View.VISIBLE : View.GONE);
+    }
+
+    private void updatePrimaryAction() {
+        UpdateEngine.Phase phase = UpdateEngine.phase();
+        if (phase == UpdateEngine.Phase.NEEDS_PERMISSION) {
             try {
-                release = UpdateChecker.check(channel);
+                startActivity(UpdateEngine.permissionIntent(this));
             } catch (Exception e) {
-                error = e.getMessage() == null ? "Could not check for updates" : e.getMessage();
+                Ui.toast(this, "Open Settings and allow installs for Hole Shield");
             }
-            final UpdateChecker.Release result = release;
-            final String failure = error;
-            handler.post(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                prefs = Prefs.load(this);
-                prefs.lastUpdateCheck = System.currentTimeMillis();
-                prefs.save(this);
-                if (screen == Screen.SETTINGS) show(Screen.SETTINGS);
-                if (result == null) {
-                    Ui.toast(this, failure == null ? "Could not check for updates" : failure);
-                } else {
-                    showUpdateResult(result);
-                }
-            });
-        });
-    }
-
-    private void showUpdateResult(UpdateChecker.Release release) {
-        int installed = Device.versionCode(this);
-        boolean newer = UpdateChecker.isNewer(release, installed);
-        StringBuilder message = new StringBuilder();
-        message.append("Installed: ").append(Device.versionName(this));
-        message.append("\nLatest ").append(release.channel).append(": ")
-                .append(release.version);
-        message.append(newer
-                ? "\n\nA newer version is available."
-                : "\n\nYou are up to date.");
-        if (!release.notes.isEmpty()) {
-            message.append("\n\n").append(release.notes);
-        }
-        boolean canDownload = newer && !release.apk.isEmpty();
-        AlertDialog.Builder builder = Ui.builder(this)
-                .setTitle(newer ? "Update available" : "You're up to date")
-                .setMessage(message.toString())
-                .setPositiveButton(canDownload ? "Download update"
-                        : newer ? "Open release" : "Close", (d, w) -> {
-                    if (canDownload) downloadUpdate(release);
-                    else if (newer) openRelease(release.url);
-                });
-        if (newer) builder.setNegativeButton("Close", null);
-        builder.show();
-    }
-
-    private void downloadUpdate(UpdateChecker.Release release) {
-        try {
-            DownloadManager manager = getSystemService(DownloadManager.class);
-            if (manager == null) {
-                openRelease(release.url);
-                return;
-            }
-            DownloadManager.Request request = new DownloadManager.Request(
-                    Uri.parse(release.apk));
-            request.setTitle("Hole Shield " + release.version);
-            request.setDescription("Downloading the beta update");
-            request.setMimeType("application/vnd.android.package-archive");
-            request.setNotificationVisibility(
-                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            request.setAllowedOverMetered(true);
-            request.setAllowedOverRoaming(false);
-            request.setDestinationInExternalFilesDir(this,
-                    Environment.DIRECTORY_DOWNLOADS,
-                    "holeshield-" + release.version + ".apk");
-            manager.enqueue(request);
-            Ui.toast(this, "Downloading update… tap the notification to install");
-        } catch (Exception e) {
-            Ui.toast(this, "Could not start the download");
-        }
-    }
-
-    private void openRelease(String url) {
-        if (url == null || url.isEmpty()) {
-            Ui.toast(this, "No download link is configured");
             return;
         }
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-        } catch (Exception e) {
-            Ui.toast(this, "No browser is available");
+        if (updateBusy()) return;
+        UpdateChecker.Release release = UpdateEngine.release();
+        boolean newer = release != null && UpdateChecker.isNewer(release, Device.versionCode(this));
+        if (phase == UpdateEngine.Phase.AVAILABLE || (phase == UpdateEngine.Phase.FAILED && newer)) {
+            UpdateEngine.install(this);
+        } else {
+            UpdateEngine.check(this);
         }
     }
 
@@ -3446,24 +3658,12 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void about() {
-        String message = (isTv ? "Hole Shield TV " : "Hole Shield ")
-                + Device.versionName(this) + "\n\n"
-                + "A self-contained DNS filter for Android TV and Android "
-                + "phones. The app runs the gravity engine, query log, dashboard/API and "
-                + "an optional LAN DNS server. This device's own DNS is captured through "
-                + "a local, DNS-only VPN.\n\n"
-                + "No analytics, no accounts. The only network traffic is DNS, gravity "
-                + "downloads, and dashboard requests on your LAN.\n\n"
-                + "Limits: Android blocks port 53 for unrooted apps, so other devices must "
-                + "use the high LAN DNS port. DNS blocking cannot remove ads served from "
-                + "the same domain as the content (YouTube in-stream ads, for example). "
-                + "Some apps use DNS-over-TLS and need the capture option enabled.";
-        Ui.builder(this)
-                .setTitle("About")
-                .setMessage(message)
-                .setPositiveButton("Close", null)
-                .show();
+    private void openSite(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception e) {
+            Ui.toast(this, "No browser available");
+        }
     }
 
     private void add(LinearLayout parent, View child, int topMarginDp) {

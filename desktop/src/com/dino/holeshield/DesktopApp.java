@@ -31,6 +31,7 @@ public final class DesktopApp {
     private long lastCompanionAttempt;
     private long lastDashboardAt;
     private boolean companionAuthFailed;
+    private String lastCompanionStatus = "";
     private boolean headless;
     private boolean minimized;
     private boolean replace;
@@ -38,6 +39,7 @@ public final class DesktopApp {
     private String initialPage = "Overview";
     private final AtomicBoolean applying = new AtomicBoolean();
     private final AtomicBoolean stopping = new AtomicBoolean();
+    private final Updater updater = new Updater(AppDirs.dataDir());
 
     private DesktopApp(DesktopPrefs prefs) {
         this.prefs = prefs;
@@ -219,6 +221,7 @@ public final class DesktopApp {
         frame.setVisible(!minimized || tray == null);
         // Fill in the pages that startup skipped, once the window is up.
         SwingUtilities.invokeLater(frame::warmPages);
+        SwingUtilities.invokeLater(this::autoCheckUpdates);
         if (openDashboardAtStart) openDashboard();
         if (isCompanion()) {
             frame.setStatus(companionConnected()
@@ -383,6 +386,40 @@ public final class DesktopApp {
         frame.requestFocus();
         frame.warmPages();
         frame.refreshHeader();
+    }
+
+    Updater updater() {
+        return updater;
+    }
+
+    void checkForUpdates() {
+        if (frame != null) frame.openPage("About");
+        updater.check();
+    }
+
+    /** Records when the manifest was last read, so the pane can show it. */
+    void noteUpdateCheck(long at) {
+        prefs.set("lastUpdateCheck", String.valueOf(at));
+        inBackground(prefs::save, null);
+    }
+
+    /** Runs the daily check promised by the Updates pane, unless it is turned off. */
+    private void autoCheckUpdates() {
+        if (!prefs.getBool("autoUpdateCheck", true)) return;
+        if (updater.phase() != Updater.Phase.IDLE) return;
+        long last = prefs.getLong("lastUpdateCheck", 0L);
+        if (last > 0 && System.currentTimeMillis() - last < 24L * 60L * 60L * 1000L) return;
+        updater.check();
+    }
+
+    void installUpdate() {
+        int answer = javax.swing.JOptionPane.showConfirmDialog(frame,
+                "Hole Shield will close, install version " + updater.version()
+                        + " and open again.",
+                NAME, javax.swing.JOptionPane.OK_CANCEL_OPTION,
+                javax.swing.JOptionPane.QUESTION_MESSAGE);
+        if (answer != javax.swing.JOptionPane.OK_OPTION) return;
+        if (updater.startInstaller()) shutdown();
     }
 
     void openDataFolder() {
@@ -697,13 +734,23 @@ public final class DesktopApp {
         }
         SwingUtilities.invokeLater(() -> {
             if (generation != companionGeneration) return;
-            if (frame != null) frame.refreshAll();
+            if (frame != null) {
+                frame.refreshAll();
+                // Only speak up when the connection state actually changes, so a
+                // result message from an action is not overwritten every two seconds.
+                String status = companionStatus();
+                if (!status.equals(lastCompanionStatus)) {
+                    lastCompanionStatus = status;
+                    frame.setStatus(status);
+                }
+            }
             if (tray != null) tray.update();
         });
     }
 
     private void stopCompanion() {
         companionGeneration++;
+        lastCompanionStatus = "";
         if (companionPoller != null) {
             companionPoller.shutdownNow();
             companionPoller = null;

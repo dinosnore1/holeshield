@@ -1,9 +1,15 @@
 package com.dino.holeshield;
 
+import android.animation.ValueAnimator;
+import android.view.animation.LinearInterpolator;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -609,5 +615,62 @@ final class Ui {
         if (s < 3600) return (s / 60) + " min ago";
         if (s < 86400) return (s / 3600) + " h ago";
         return (s / 86400) + " d ago";
+    }
+
+    /**
+     * A rotating ring used in place of a button glyph while work is in flight.
+     * Start it when the work begins and stop it before swapping the compound
+     * drawable back to a static icon.
+     */
+    static final class SpinnerDrawable extends Drawable {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final ValueAnimator animator;
+        private final int size;
+        private float angle;
+
+        SpinnerDrawable(Context c, int color) {
+            size = dp(c, 18);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(c, 2));
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setColor(color);
+            animator = ValueAnimator.ofFloat(0f, 360f);
+            animator.setDuration(850);
+            animator.setRepeatCount(ValueAnimator.INFINITE);
+            animator.setInterpolator(new LinearInterpolator());
+            animator.addUpdateListener(a -> {
+                angle = (float) a.getAnimatedValue();
+                invalidateSelf();
+            });
+        }
+
+        void start() {
+            if (!animator.isStarted()) animator.start();
+        }
+
+        void stop() {
+            animator.cancel();
+            angle = 0;
+        }
+
+        @Override public void draw(Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            float inset = Math.max(1.5f, size * 0.12f);
+            canvas.drawArc(b.left + inset, b.top + inset,
+                    b.right - inset, b.bottom - inset,
+                    angle, 270, false, paint);
+        }
+
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+
+        @Override public void setColorFilter(ColorFilter filter) {
+            paint.setColorFilter(filter);
+        }
+
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
+
+        @Override public int getIntrinsicWidth() { return size; }
+
+        @Override public int getIntrinsicHeight() { return size; }
     }
 }
