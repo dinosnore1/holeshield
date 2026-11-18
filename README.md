@@ -88,7 +88,9 @@ platform packaging notes. The GitHub Actions workflow
   the Stable/Beta/Off channel. The app reads a public release manifest, downloads
   the APK, checks its SHA-256 and installs it through the Android package
   installer, so nothing opens a browser. Android shows one confirmation prompt;
-  protection resumes after the update.
+  protection resumes after the update. Some operator-locked TV firmware refuses
+  app-initiated installs; there the card reports that no prompt arrived and the
+  APK can be installed with `adb` instead.
 - **Pause / resume** indefinitely or for 5/30 minutes, with timer state persisted
   across restarts. Notification actions, a Quick Settings tile and a home-screen
   widget expose pause, resume and status.

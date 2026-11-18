@@ -91,6 +91,15 @@ verify this build.
   the channel card, the spinner while checking, the green **Up to date** tick
   with **Last checked just now**, and focus staying on the check button after
   the state changed.
+- Checked on a phone (Redmi K40, Android 17): all six bottom tabs, the hero
+  card, the Updates card, the check result with release notes and the channel
+  card.
+- Checked the download path on the TV against a local manifest: check,
+  download, SHA-256 verification, the handoff to `PackageInstaller` and the
+  two-minute no-prompt failure all behaved as designed. That box is an
+  operator-locked model whose PackageInstaller suppresses app-initiated
+  installs (`InstallStart` returns before showing a prompt), so it cannot
+  finish an in-app install; side-loading the APK with `adb` still works.
 - Phone presentation was exercised on the same device at roughly 427 dp: the
   six-tab bottom bar, the stacked hero and the wrapped Updates subtitle.
 
@@ -108,5 +117,9 @@ verify this build.
 - Android version 2.3.5.1 (`versionCode 13`); desktop version 2.3.5.
 - Android needs **Install unknown apps** permission for Hole Shield the first
   time it installs an update. The About page offers to open that setting.
+- Some operator-locked TV firmware (the JMSB200A box used for testing, for
+  example) blocks every app-initiated install at the system installer. There
+  the update card reports that no install prompt arrived and the APK has to be
+  installed with `adb install -r` or the device's own installer.
 - The app never uploads queries or browsing history, and the updater only
   fetches the public release manifest and the installer listed in it.
