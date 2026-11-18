@@ -14,10 +14,11 @@ SDK command-line tools.
 
 The latest prebuilt APK is attached to the
 [GitHub release](https://github.com/dinosnore1/holeshield/releases/latest).
-The current source build is **2.3.5** and is published as a stable release.
+The current source build is **2.3.5.1**, a hotfix on top of 2.3.5, and is
+published as a stable release.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.3.5 (`versionCode 12`)
+- **Version:** 2.3.5.1 (`versionCode 13`)
 - **Desktop:** Java 17 Swing app with a bundled-runtime installer for Windows,
   Linux and macOS (see `desktop/README.md`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
@@ -38,9 +39,10 @@ already running on the LAN instead of starting a local resolver.
 ./desktop/tools/package.sh    # app image + PKG, DEB/RPM or MSI/EXE
 ```
 
-The **2.3.5 release** includes one universal macOS package for Intel and Apple
-Silicon, Windows MSI/EXE and Linux DEB/RPM, with companion mode for logging in
-to another Hole Shield system on the LAN. See
+The **2.3.5 hotfix release** includes one universal macOS package for Intel and
+Apple Silicon, Windows MSI/EXE and Linux DEB/RPM, with companion mode for
+logging in to another Hole Shield system on the LAN and in-app updates on every
+platform. See
 [`desktop/README.md`](desktop/README.md) for setup, port 53 permissions and
 platform packaging notes. The GitHub Actions workflow
 `.github/workflows/desktop.yml` builds all three platforms.

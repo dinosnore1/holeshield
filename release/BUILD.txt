@@ -1,12 +1,12 @@
 Hole Shield — release build record
 ==================================
 
-Version:       2.3.5
-versionCode:   12
+Version:       2.3.5.1 (2.3.5 hotfix)
+versionCode:   13
 Package:       com.dino.holeshield
 Min SDK:       26 (Android 8.0)
 Target SDK:    36 (Android 16)
-Built:         2026-11-13
+Built:         2026-11-18
 
 Artifacts (local, not committed)
 --------------------------------
@@ -17,11 +17,14 @@ build/holeshield.apk
 
 Use build/holeshield.apk for direct GitHub installs.
 
-Desktop (2.3.5)
----------------
-Published with the v2.3.5-holeshield release, built by GitHub Actions on macOS,
-Ubuntu and Windows. Adds companion mode for logging in to a Hole Shield system
-already running on the LAN.
+Desktop (2.3.5 hotfix)
+-----------------------
+Published with the v2.3.5-hotfix-holeshield release, built by GitHub Actions on
+macOS, Ubuntu and Windows. Keeps desktop version 2.3.5 and adds in-app updates
+with SHA-256 verification, plus the dedicated About page.
+
+The original 2.3.5 desktop installers were published with the
+v2.3.5-holeshield release and added companion mode.
 
 Hole-Shield-2.3.5-universal.pkg
   Universal macOS package for Intel and Apple Silicon (unsigned).

@@ -282,9 +282,11 @@ public final class DesktopTest {
         check(!Updater.matches("", hash), "empty checksum never matches");
         check(!Updater.matches(hash, hash.substring(1) + "0"), "wrong checksum rejected");
 
-        String mac = Updater.macScript(42, new File("/tmp/it's here/Hole Shield.pkg"),
-                "/Applications/Hole Shield.app", new File("/tmp/log.txt"));
-        check(mac.contains("PKG='/tmp/it'\\''s here/Hole Shield.pkg'"), "macOS script quotes apostrophes");
+        File macPkg = new File(dir, "it's here/Hole Shield.pkg");
+        String mac = Updater.macScript(42, macPkg,
+                "/Applications/Hole Shield.app", new File(dir, "log.txt"));
+        String quotedPkg = macPkg.getAbsolutePath().replace("'", "'\\''");
+        check(mac.contains("PKG='" + quotedPkg + "'"), "macOS script quotes apostrophes");
         check(mac.contains("while kill -0 42"), "macOS script waits for this process");
         check(mac.contains("/usr/sbin/installer -pkg '$PKG' -target /"), "macOS script runs the installer");
         check(mac.contains("/usr/bin/open \"$APP\""), "macOS script reopens the app");
