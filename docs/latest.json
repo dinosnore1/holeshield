@@ -1,51 +1,51 @@
 {
-  "updated": "2026-11-17T00:00:00Z",
+  "updated": "2026-11-19T00:00:00Z",
   "stable": {
-    "version": "2.3.5",
-    "versionCode": 12,
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-holeshield",
-    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5.apk",
-    "sha256": "52aee79c85106144d094f810d1e013d80e80424ee81a136df4fb755ce393c741",
-    "size": 268490,
-    "notes": "Hole Shield 2.3.5 stable: gravity lists merge before the cap so every domain is charged once, Ads gets first claim on the shared budget (its whole list when the limit is off), disabled categories hand their share to the enabled ones, SafeSearch is part of the Adult category, and the dashboard chart defaults to Live with a one-second refresh."
+    "version": "2.3.5.1",
+    "versionCode": 13,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5-hotfix.apk",
+    "sha256": "ced27c488e73ee0d02a4a87f3611007569cb08646996afb7e8c42491a49064c7",
+    "size": 281212,
+    "notes": "Hole Shield 2.3.5.1 hotfix: updates move to their own About page below Settings on every screen, the update button reports checking, up to date, downloading, verifying and installing itself, APK downloads are checked against the published SHA-256 before the installer runs, and the desktop app gains in-app updates with the same verified download."
   },
   "beta": {
-    "version": "2.3.5",
-    "versionCode": 12,
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-holeshield",
-    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5.apk",
-    "sha256": "52aee79c85106144d094f810d1e013d80e80424ee81a136df4fb755ce393c741",
-    "size": 268490,
-    "notes": "Hole Shield 2.3.5 stable: gravity lists merge before the cap so every domain is charged once, Ads gets first claim on the shared budget (its whole list when the limit is off), disabled categories hand their share to the enabled ones, SafeSearch is part of the Adult category, and the dashboard chart defaults to Live with a one-second refresh."
+    "version": "2.3.5.1",
+    "versionCode": 13,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5-hotfix.apk",
+    "sha256": "ced27c488e73ee0d02a4a87f3611007569cb08646996afb7e8c42491a49064c7",
+    "size": 281212,
+    "notes": "Hole Shield 2.3.5.1 hotfix: updates move to their own About page below Settings on every screen, the update button reports checking, up to date, downloading, verifying and installing itself, APK downloads are checked against the published SHA-256 before the installer runs, and the desktop app gains in-app updates with the same verified download."
   },
   "desktop": {
     "version": "2.3.5",
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-holeshield",
-    "notes": "Desktop 2.3.5: companion mode logs in to a Hole Shield system already running on the LAN, mirrors its live summary and remote controls, and opens its dashboard; installers are attached to the combined 2.3.5 release.",
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
+    "notes": "Desktop 2.3.5 with in-app updates: a dedicated About page below Settings checks the release manifest, downloads the installer for this system, verifies its SHA-256 and installs it with the platform installer. Companion mode is unchanged.",
     "assets": {
       "macos-pkg": {
         "name": "Hole-Shield-2.3.5-universal.pkg",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-holeshield/Hole-Shield-2.3.5-universal.pkg",
-        "sha256": "db71489159adaffaa5065815ce473b26398592e0d6e530de8e099195192e1c4e",
-        "size": 49108009
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/Hole-Shield-2.3.5-universal.pkg",
+        "sha256": "bb890f865bad679de22047590b6ad8e49b3e6787fab07e38b883f71ad5308471",
+        "size": 49285388
       },
       "windows-msi": {
         "name": "Hole-Shield-2.3.5.msi",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-holeshield/Hole-Shield-2.3.5.msi",
-        "sha256": "a9f6587ebc053fe7923ad3a98f64fff69e0a4a38ed4118500c4bb7ac2e01c316",
-        "size": 25474386
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/Hole-Shield-2.3.5.msi",
+        "sha256": "3a8f60378e536410e54e16f1ab6a2e420de410e9678ae650691f6d42a3f9dc43",
+        "size": 25564498
       },
       "linux-deb": {
         "name": "holeshield_2.3.5-1_amd64.deb",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-holeshield/holeshield_2.3.5-1_amd64.deb",
-        "sha256": "0b77ff0f4d8f7adb7df73ceb7968f8209b278f78f323123e27f5b8f5b4140ce8",
-        "size": 21586406
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/holeshield_2.3.5-1_amd64.deb",
+        "sha256": "4b6f6d03fe4ed7bc6111d0053b6b77687105376abd37f85c7ddc85bd3e053cc8",
+        "size": 21650914
       },
       "linux-rpm": {
         "name": "holeshield-2.3.5-1.x86_64.rpm",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-holeshield/holeshield-2.3.5-1.x86_64.rpm",
-        "sha256": "cd57883f8434839b65dde97dd0f215ebb8201ce943967eec9524a67283cd345d",
-        "size": 28439131
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/holeshield-2.3.5-1.x86_64.rpm",
+        "sha256": "74d78e036ffeef88c5cb1471ede2432cd480dc2cccb9497303cacb1299aefcb0",
+        "size": 28525715
       }
     }
   }
