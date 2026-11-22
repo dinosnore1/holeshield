@@ -513,7 +513,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   <section class="cards">
     <div class="card neutral">
       <div class="cardHead"><span class="label">Total queries</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg></span></div>
-      <b id="total">0</b><small>today</small>
+      <b id="total">0</b><small>30 days</small>
     </div>
     <div class="card red">
       <div class="cardHead"><span class="label">Blocked</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6Z"/><path d="m9 9 6 6M15 9l-6 6"/></svg></span></div>
@@ -529,7 +529,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     </div>
     <div class="card amber">
       <div class="cardHead"><span class="label">Active clients</span><span class="cardIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></div>
-      <b id="clients">0</b><small>today</small>
+      <b id="clients">0</b><small>observed</small>
     </div>
   </section>
 
@@ -646,6 +646,10 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         <thead><tr><th>Time</th><th>Client</th><th>Domain</th><th>Category</th><th>Type</th><th>Status</th><th>Upstream</th><th>ms</th><th>Rule</th></tr></thead>
         <tbody id="queries"><tr><td colspan="9" class="note">Loading…</td></tr></tbody>
       </table>
+    </div>
+    <div class="filters">
+      <button id="queryNewer" class="small" disabled>Newer</button>
+      <button id="queryOlder" class="small" disabled>Older</button>
     </div>
   </section>
 
@@ -1009,6 +1013,8 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
 
   function renderQueries(data){
     var rows = (data && data.queries) || [];
+    $("#queryNewer").disabled = queryOffset === 0;
+    $("#queryOlder").disabled = rows.length < 150;
     var body = $("#queries");
     if(!rows.length){
       body.innerHTML = '<tr><td colspan="9" class="note">No matching queries.</td></tr>';
@@ -1024,7 +1030,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         ? '<button class="small" data-allow="' + esc(q.domain) + '" title="Allow this exact domain">Allow</button>'
         : '<button class="small danger" data-deny="' + esc(q.domain) + '" title="Block this exact domain">Block</button>';
       return '<tr>' +
-        '<td class="mono">' + esc(clock(q.time)) + '</td>' +
+        '<td class="mono">' + esc(new Date(q.time * 1000).toLocaleString()) + '</td>' +
         '<td>' + esc(c.name || c.ip || "?") + '<div class="note" style="font-size:10.5px">' + esc(c.ip || "") + '</div></td>' +
         '<td class="domain">' + esc(q.domain) + '</td>' +
         '<td><span class="tag">' + esc(cat) + '</span></td>' +
@@ -1264,13 +1270,27 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     }).join("");
   }
 
+  var queryOffset = 0;
+  var queryRequest = 0;
   function loadQueries(){
-    var qs = "length=150";
+    var request = ++queryRequest;
+    var qs = "length=150&start=" + queryOffset;
     if(state.filter === "blocked") qs += "&blocked=true";
     if(state.filter === "allowed") qs += "&blocked=false";
     if(state.search) qs += "&search=" + encodeURIComponent(state.search);
-    safe("/api/queries?" + qs).then(function(d){ if(d) renderQueries(d); });
+    safe("/api/queries?" + qs).then(function(d){
+      if(d && request === queryRequest) renderQueries(d);
+    });
   }
+
+  $("#queryNewer").addEventListener("click", function(){
+    queryOffset = Math.max(0, queryOffset - 150);
+    loadQueries();
+  });
+  $("#queryOlder").addEventListener("click", function(){
+    queryOffset += 150;
+    loadQueries();
+  });
 
   function loadRules(){
     Promise.all([
@@ -1291,13 +1311,14 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   }
 
   function loadAll(){
+    if (queryOffset === 0) loadQueries();
     Promise.all([
       safe("/api/stats/summary"),
       safe("/api/stats/top_domains?blocked=true&count=8"),
       safe("/api/stats/top_domains?blocked=false&count=8"),
       safe("/api/stats/top_clients?count=8"),
       safe("/api/stats/query_types"),
-      safe("/api/queries?length=150"),
+      null,
       safe("/api/info/host"),
       safe("/api/lists"),
       safe("/api/stats/history?range=" + encodeURIComponent(state.chartRange)),
@@ -1311,7 +1332,6 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         return {name: x.name && x.name !== x.ip ? x.name + " · " + x.ip : x.ip, count: x.count};
       }), "name", "count", "No clients yet.");
       if(a[4]) renderTypes(a[4]);
-      if(a[5]) renderQueries(a[5]);
       if(a[6]) renderInfo(a[6]);
       if(a[7]) renderLists(a[7]);
       if(a[8]) { renderHistory(a[8]); renderCategoryCounts(a[8]); }
@@ -1429,6 +1449,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   $$("[data-filter]").forEach(function(b){
     b.addEventListener("click", function(){
       state.filter = b.getAttribute("data-filter");
+      queryOffset = 0;
       $$("[data-filter]").forEach(function(x){ x.classList.toggle("active", x === b); });
       loadQueries();
     });
@@ -1436,6 +1457,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   var searchTimer = null;
   $("#search").addEventListener("input", function(){
     state.search = this.value.trim();
+    queryOffset = 0;
     clearTimeout(searchTimer);
     searchTimer = setTimeout(loadQueries, 250);
   });

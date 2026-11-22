@@ -468,34 +468,25 @@ final class WebDashboard {
     }
 
     private Json.Obj queries(HttpExchange exchange) {
-        int start = clamp(parseInt(param(exchange, "start"), 0), 0, 100000);
+        int start = clamp(parseInt(param(exchange, "start"), 0), 0,
+                Integer.MAX_VALUE - 500);
         int length = clamp(parseInt(param(exchange, "length"), 100), 1, 500);
         String blocked = param(exchange, "blocked");
         String client = param(exchange, "client").toLowerCase(Locale.US);
         String domain = param(exchange, "domain").toLowerCase(Locale.US);
         String search = param(exchange, "search").toLowerCase(Locale.US);
         Json.Arr arr = new Json.Arr();
-        int skipped = 0;
-        int id = 0;
-        for (StatsStore.Entry e : stats.all()) {
-            id++;
-            if (!blocked.isEmpty()) {
-                boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
-                if (want != e.blocked) continue;
-            }
-            if (!client.isEmpty()
-                    && !e.client.toLowerCase(Locale.US).contains(client)) continue;
-            if (!domain.isEmpty()
-                    && !e.domain.toLowerCase(Locale.US).contains(domain)) continue;
-            if (!search.isEmpty()
-                    && !e.domain.toLowerCase(Locale.US).contains(search)
-                    && !e.client.toLowerCase(Locale.US).contains(search)
-                    && !DnsService.clientName(e.client).toLowerCase(Locale.US)
-                    .contains(search)) continue;
-            if (skipped++ < start) continue;
-            if (arr.size() >= length) break;
+        int id = start;
+        boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
+        for (StatsStore.Entry e : stats.logPage(start, length, entry ->
+                (blocked.isEmpty() || want == entry.blocked)
+                        && entry.client.toLowerCase(Locale.US).contains(client)
+                        && entry.domain.toLowerCase(Locale.US).contains(domain)
+                        && (search.isEmpty() || entry.domain.toLowerCase(Locale.US).contains(search)
+                        || entry.client.toLowerCase(Locale.US).contains(search)
+                        || DnsService.clientName(entry.client).toLowerCase(Locale.US).contains(search)))) {
             arr.add(new Json.Obj()
-                    .put("id", id)
+                    .put("id", ++id)
                     .put("time", e.at / 1000.0)
                     .put("type", e.typeName())
                     .put("domain", e.domain)

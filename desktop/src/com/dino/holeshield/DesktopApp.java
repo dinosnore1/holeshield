@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 /** Entry point for the Windows, Linux and macOS build. */
 public final class DesktopApp {
 
-    static final String VERSION = "2.3.5";
+    static final String VERSION = "2.3.6";
     static final String NAME = "Hole Shield";
 
     private final DesktopPrefs prefs;
@@ -850,7 +850,7 @@ public final class DesktopApp {
             CompanionClient.Snapshot snapshot = companionSnapshot;
             return snapshot == null ? 0 : snapshot.blocked;
         }
-        return stats == null ? 0 : stats.blocked();
+        return stats == null ? 0 : stats.todayBlocked();
     }
     int dnsPort() {
         if (isCompanion()) {

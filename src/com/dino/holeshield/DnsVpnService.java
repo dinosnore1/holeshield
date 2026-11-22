@@ -516,7 +516,7 @@ public class DnsVpnService extends VpnService implements DnsUpstream.Protector {
     private void updateNotification() {
         if (!running) return;
         Prefs p = prefs == null ? Prefs.load(this) : prefs;
-        String blocked = Stats.blocked() + " blocked today";
+        String blocked = Stats.todayBlocked() + " blocked today";
         String text;
         if (!p.blockingActive()) {
             if (p.scheduleEnabled && !p.scheduleActiveNow()) {

@@ -932,7 +932,7 @@ public class MainActivity extends Activity {
         // Stats row
         LinearLayout stats = Ui.row(this);
         statQueries = statCard(stats, isTv ? "DNS QUERIES" : "QUERIES",
-                "today, all clients", Ui.GREEN);
+                "last 30 days", Ui.GREEN);
         statBlocked = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
         statRate = statCard(stats, "BLOCK RATE", "of all lookups", Ui.BLUE);
         trimLastMargin(stats);
@@ -1114,7 +1114,7 @@ public class MainActivity extends Activity {
             String label;
             if (running && prefs.blockingActive()) {
                 color = Ui.GREEN;
-                label = "● ACTIVE · " + Ui.count(Stats.blocked()) + " blocked today";
+                label = "● ACTIVE · " + Ui.count(Stats.blocked()) + " blocked · 30 days";
             } else if (running) {
                 color = Ui.AMBER;
                 label = "● PAUSED";
@@ -1276,7 +1276,7 @@ public class MainActivity extends Activity {
 
         if (isTv) {
             LinearLayout stats = Ui.row(this);
-            serverQ = statCard(stats, "QUERIES", "today, all clients", Ui.GREEN);
+            serverQ = statCard(stats, "QUERIES", "last 30 days", Ui.GREEN);
             serverB = statCard(stats, "BLOCKED", "gravity & rules", Ui.RED);
             serverPct = statCard(stats, "PERCENT", "of all queries", Ui.AMBER);
             serverGravity = statCard(stats, "ON LISTS", "domains", Ui.BLUE);
@@ -1284,7 +1284,7 @@ public class MainActivity extends Activity {
             add(col, stats, 18);
         } else {
             LinearLayout stats1 = Ui.row(this);
-            serverQ = statCard(stats1, "QUERIES", "today, all clients", Ui.GREEN);
+            serverQ = statCard(stats1, "QUERIES", "last 30 days", Ui.GREEN);
             serverB = statCard(stats1, "BLOCKED", "gravity & rules", Ui.RED);
             trimLastMargin(stats1);
             add(col, stats1, 14);
@@ -2159,7 +2159,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout logScreen() {
         LinearLayout col = Ui.column(this);
-        add(col, subHeader("Query log", "Newest first · the last 2,000 lookups stay on the device"), 0);
+        add(col, subHeader("Query log", "Newest first · 30 days of history stay on the device"), 0);
 
         LinearLayout actions = Ui.row(this);
         TextView clear = Ui.button(this, "Clear log", false);
@@ -2179,7 +2179,7 @@ public class MainActivity extends Activity {
         int shown = Math.min(logPage, entries.size());
         LinearLayout list = card(22);
         if (entries.isEmpty()) {
-            TextView empty = Ui.text(this, "No queries logged yet today. "
+            TextView empty = Ui.text(this, "No queries in the retained history. "
                     + "Turn on protection and open an app to generate DNS traffic.",
                     14, Ui.DIM, false);
             empty.setLineSpacing(Ui.dp(this, 4), 1f);
@@ -2270,8 +2270,8 @@ public class MainActivity extends Activity {
             add(col, more, isTv ? 16 : 12);
         }
 
-        TextView note = Ui.text(this, "Counts reset at midnight. The dashboard keeps the same "
-                + "log on its Query log table and exposes it at /api/queries.",
+        TextView note = Ui.text(this, "This screen shows recent queries. Browse older entries "
+                + "in the web dashboard’s Query log.",
                 isTv ? 12 : 11.5f, Ui.FAINT, false);
         add(col, note, isTv ? 16 : 12);
         return col;

@@ -364,7 +364,7 @@ public final class DesktopTest {
         eq(2.0, value[0], "tween without distance applies target");
     }
 
-    private static void stats() {
+    private static void stats() throws Exception {
         File home = new File(dir, "stats");
         StatsStore store = new StatsStore(home);
         store.load();
@@ -400,6 +400,116 @@ public final class DesktopTest {
         eq(1L, loaded.blocked(), "persisted blocked");
         eq(2, loaded.uniqueDomains(), "persisted domains");
         eq(2, loaded.clientCount(), "persisted clients");
+        eq(3L, loaded.todayQueries(), "today queries");
+        eq(3, loaded.log(10).size(), "query log tail reloaded");
+        eq("ads.example.com", loaded.log(1).get(0).domain,
+                "newest query is first");
+
+        File windowDir = new File(dir, "stats-window");
+        StatsStore window = new StatsStore(windowDir);
+        window.load();
+        long day = 24L * 60L * 60L * 1000L;
+        window.record(new StatsStore.Entry(now - 29L * day, "192.168.2.10",
+                "old.example.com", DnsPacket.TYPE_A, "BLOCKED", "gravity", 0, 1,
+                "", "Ads", true, false));
+        window.record(new StatsStore.Entry(now - 31L * day, "192.168.2.10",
+                "expired.example.com", DnsPacket.TYPE_A, "BLOCKED", "gravity", 0, 1,
+                "", "Ads", true, false));
+        window.save();
+        StatsStore windowLoaded = new StatsStore(windowDir);
+        windowLoaded.load();
+        eq(1L, windowLoaded.queries(), "31-day-old query expires");
+        eq(1L, windowLoaded.blocked(), "31-day-old block expires");
+        eq(0L, windowLoaded.todayQueries(), "expired entry is not today");
+        File boundaryDir = new File(dir, "stats-rolling-boundary");
+        StatsStore boundary = new StatsStore(boundaryDir);
+        boundary.load();
+        boundary.record(new StatsStore.Entry(now - 30L * day + 60000L,
+                "192.168.2.10", "boundary.example.com", DnsPacket.TYPE_A,
+                "BLOCKED", "gravity", 0, 1, "", "Ads", true, false));
+        boundary.record(new StatsStore.Entry(now - 30L * day - 60000L,
+                "192.168.2.10", "expired-boundary.example.com", DnsPacket.TYPE_A,
+                "BLOCKED", "gravity", 0, 1, "", "Ads", true, false));
+        boundary.save();
+        StatsStore boundaryLoaded = new StatsStore(boundaryDir);
+        boundaryLoaded.load();
+        eq(1L, boundaryLoaded.queries(),
+                "rolling boundary retains only the unexpired query after restart");
+        String expiredKey = new java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.US).format(new java.util.Date(now - 31L * day));
+        check(!new File(new File(windowDir, "querylog"), expiredKey + ".tsv").exists(),
+                "expired query log day deleted");
+        eq(1, windowLoaded.log(10).size(), "expired query log entry gone");
+
+        File pagedDir = new File(dir, "stats-paged");
+        StatsStore paged = new StatsStore(pagedDir);
+        paged.load();
+        for (int i = 0; i < 21500; i++) {
+            paged.record(new StatsStore.Entry(now + i, "192.168.2.10",
+                    "q" + i + ".example.com", DnsPacket.TYPE_A, "FORWARDED",
+                    "DoH", 0, 1, "", "", false, false));
+        }
+        paged.save();
+        StatsStore pagedLoaded = new StatsStore(pagedDir);
+        pagedLoaded.load();
+        List<StatsStore.Entry> olderPage = pagedLoaded.log(2500);
+        eq(2500, olderPage.size(), "paged log reaches older days");
+        eq("q21499.example.com", olderPage.get(0).domain,
+                "paged log starts with newest");
+        eq("q19000.example.com", olderPage.get(2499).domain,
+                "paged log ends with oldest");
+        eq(StatsStore.EXPORT_MAX, pagedLoaded.log(100000).size(),
+                "export snapshot stays bounded");
+        eq("q0.example.com", pagedLoaded.logPage(21499, 1, e -> true).get(0).domain,
+                "paging reaches past the export cap");
+        eq("q1.example.com", pagedLoaded.logPage(1, 2,
+                e -> e.domain.equals("q1.example.com") || e.domain.equals("q2.example.com"))
+                .get(0).domain, "paging applies filters before offset");
+
+        File legacyDir = new File(dir, "stats-legacy");
+        legacyDir.mkdirs();
+        String yesterday = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                .format(new java.util.Date(now - day));
+        Files.write(new File(legacyDir, "stats.txt").toPath(),
+                ("V 1\nC 100,10,5,80,1\nD " + yesterday + " 10,3\n")
+                        .getBytes(StandardCharsets.UTF_8));
+        StatsStore legacy = new StatsStore(legacyDir);
+        legacy.load();
+        eq(10L, legacy.queries(), "dated legacy queries kept on upgrade");
+        eq(3L, legacy.blocked(), "dated legacy blocks kept on upgrade");
+        eq(0L, legacy.todayQueries(), "undated lifetime queries are not attributed to today");
+        legacy.save();
+        check(Files.readString(new File(legacyDir, "stats.txt").toPath())
+                .contains("L 100,10,5,80,1"), "undated legacy totals preserved separately");
+        StatsStore legacyAgain = new StatsStore(legacyDir);
+        legacyAgain.load();
+        eq(10L, legacyAgain.queries(), "legacy totals are not counted twice");
+        eq(3L, legacyAgain.blocked(), "legacy blocks are not counted twice");
+
+        File migrateDir = new File(dir, "stats-log-migrate");
+        migrateDir.mkdirs();
+        String todayKey = new java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.US).format(new java.util.Date(now));
+        String yesterdayKey = new java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.US).format(new java.util.Date(now - day));
+        Files.write(new File(migrateDir, "query_log.tsv").toPath(),
+                ((now + "\t192.168.2.10\ttoday.example.com\t1\tBLOCKED\tgravity\t0\t1\t\tAds\t1\t0\n")
+                        + (now - day + "\t192.168.2.10\tyesterday.example.com\t1\tFORWARDED\tDoH\t0\t9\t\t\t0\t0\n"))
+                        .getBytes(StandardCharsets.UTF_8));
+        StatsStore migrated = new StatsStore(migrateDir);
+        migrated.load();
+        check(!new File(migrateDir, "query_log.tsv").exists(),
+                "legacy log file removed after migration");
+        check(new File(new File(migrateDir, "querylog"), todayKey + ".tsv").isFile(),
+                "legacy log split into today");
+        check(new File(new File(migrateDir, "querylog"), yesterdayKey + ".tsv").isFile(),
+                "legacy log split into yesterday");
+        eq(2, migrated.log(10).size(), "legacy log entries reloaded");
+        eq("today.example.com", migrated.log(1).get(0).domain,
+                "legacy log keeps newest first");
+        migrated.clear();
+        File[] left = new File(migrateDir, "querylog").listFiles();
+        check(left != null && left.length == 0, "clear removes query log days");
     }
 
     private static void dns() throws Exception {

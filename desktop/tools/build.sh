@@ -26,6 +26,7 @@ SHARED=(
   "src/com/dino/holeshield/HostsParser.java"
   "src/com/dino/holeshield/Blocklists.java"
   "src/com/dino/holeshield/WebAuth.java"
+  "src/com/dino/holeshield/ReverseLogReader.java"
 )
 find desktop/src -name '*.java' | sort > "$OUT/sources.txt"
 for f in "${SHARED[@]}"; do echo "$f" >> "$OUT/sources.txt"; done

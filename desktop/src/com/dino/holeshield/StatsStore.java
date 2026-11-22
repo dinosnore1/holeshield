@@ -17,18 +17,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPOutputStream;
 
 /** Thread-safe query log, counters and chart history for the desktop app. */
 final class StatsStore {
 
+    /** Entries kept in memory for the live chart and the recent list. */
     static final int LOG_MAX = 2000;
-    private static final int HISTORY_MAX = 72;
-    private static final int DAILY_MAX = 40;
-    private static final SimpleDateFormat HOUR = new SimpleDateFormat("yyyy-MM-dd-HH", Locale.US);
-    private static final SimpleDateFormat DAY = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    /** Upper bound for exports and web paging through the on-disk history. */
+    static final int EXPORT_MAX = 20000;
+    /** Rolling window for the counters and charts. */
+    private static final int HISTORY_MAX = 30 * 24;
+    private static final int DAILY_MAX = 30;
+    private final SimpleDateFormat HOUR = new SimpleDateFormat("yyyy-MM-dd-HH", Locale.US);
+    private final SimpleDateFormat DAY = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
     static final class Entry {
         final long at;
@@ -96,13 +102,20 @@ final class StatsStore {
     private final HashMap<String, Integer> upstreamCounts = new HashMap<>();
     private final HashMap<String, Integer> categoryCounts = new HashMap<>();
 
-    private long total;
-    private long blocked;
-    private long cached;
-    private long forwarded;
-    private long errors;
+    private long legacyTotal;
+    private long legacyBlocked;
+    private long legacyCached;
+    private long legacyForwarded;
+    private long legacyErrors;
+    private boolean legacySeen;
     private int dirty;
+    private File logDir;
+    private BufferedWriter logWriter;
+    private String logWriterDay = "";
+    private boolean logDirty;
     private long lastSave;
+    private long lastTrim;
+    private final ReverseLogReader.BoundaryCache boundary = new ReverseLogReader.BoundaryCache();
     private boolean saveQueued;
     private ScheduledExecutorService saver;
     private static final Object WRITE_LOCK = new Object();
@@ -115,6 +128,7 @@ final class StatsStore {
     synchronized void load() {
         AppDirs.ensureDir(dir);
         File stats = new File(dir, "stats.txt");
+        int version = 1;
         if (stats.isFile()) {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(
                     new FileInputStream(stats), StandardCharsets.UTF_8))) {
@@ -122,14 +136,17 @@ final class StatsStore {
                 while ((line = r.readLine()) != null) {
                     String[] f = line.split(" ", 4);
                     if (f.length < 2) continue;
-                    if ("C".equals(f[0]) && f.length >= 2) {
+                    if ("V".equals(f[0]) && f.length >= 2) {
+                        version = (int) parseLong(f[1]);
+                    } else if (("C".equals(f[0]) && version < 2) || "L".equals(f[0])) {
                         String[] n = f[1].split(",");
                         if (n.length >= 5) {
-                            total = parseLong(n[0]);
-                            blocked = parseLong(n[1]);
-                            cached = parseLong(n[2]);
-                            forwarded = parseLong(n[3]);
-                            errors = parseLong(n[4]);
+                            legacyTotal = parseLong(n[0]);
+                            legacyBlocked = parseLong(n[1]);
+                            legacyCached = parseLong(n[2]);
+                            legacyForwarded = parseLong(n[3]);
+                            legacyErrors = parseLong(n[4]);
+                            legacySeen = true;
                         }
                     } else if ("H".equals(f[0]) && f.length >= 3) {
                         String[] n = f[2].split(",");
@@ -139,53 +156,35 @@ final class StatsStore {
                     } else if ("D".equals(f[0]) && f.length >= 3) {
                         String[] n = f[2].split(",");
                         if (n.length >= 2) {
-                            daily.put(f[1], new long[]{parseLong(n[0]), parseLong(n[1])});
+                            daily.put(f[1], new long[]{parseLong(n[0]), parseLong(n[1]),
+                                    n.length > 2 ? parseLong(n[2]) : 0L,
+                                    n.length > 3 ? parseLong(n[3]) : 0L,
+                                    n.length > 4 ? parseLong(n[4]) : 0L});
                         }
                     }
                 }
             } catch (Exception ignored) { }
         }
 
-        File logFile = new File(dir, "query_log.tsv");
-        if (logFile.isFile()) {
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(
-                    new FileInputStream(logFile), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = r.readLine()) != null && log.size() < LOG_MAX) {
-                    String[] f = line.split("\t", -1);
-                    if (f.length < 12) continue;
-                    Entry e = new Entry(parseLong(f[0]), unescape(f[1]), unescape(f[2]),
-                            (int) parseLong(f[3]), unescape(f[4]), unescape(f[5]),
-                            (int) parseLong(f[6]), parseLong(f[7]), unescape(f[8]),
-                            unescape(f[9]), "1".equals(f[10]), "1".equals(f[11]));
-                    log.addLast(e);
-                    index(e);
-                }
-            } catch (Exception ignored) { }
-        }
-        if (total == 0 && !log.isEmpty()) {
-            // Recover counters if an older build left a log without totals.
+        openLog();
+        loadLogTail();
+        if (daily.isEmpty() && version < 2) {
+            // Recover dated counters if the old build left only the log.
             for (Entry e : log) {
-                total++;
-                if (e.blocked) blocked++;
-                if (e.cached) cached++;
-                if ("ERROR".equals(e.status)) errors++;
-                if (!e.blocked && !e.cached && !"ERROR".equals(e.status)) forwarded++;
+                count(bucketForDay(DAY.format(new Date(e.at))), e);
             }
         }
         trimHistory();
         lastSave = System.currentTimeMillis();
+        lastTrim = lastSave;
     }
 
     synchronized void record(Entry entry) {
+        if (System.currentTimeMillis() - entry.at >= ReverseLogReader.RETENTION_MS) return;
         log.addFirst(entry);
         while (log.size() > LOG_MAX) log.removeLast();
         index(entry);
-        total++;
-        if (entry.blocked) blocked++;
-        if (entry.cached) cached++;
-        if ("ERROR".equals(entry.status)) errors++;
-        if (!entry.blocked && !entry.cached && !"ERROR".equals(entry.status)) forwarded++;
+        appendLog(entry);
 
         long now = entry.at;
         String hourKey = HOUR.format(new Date(now));
@@ -197,17 +196,31 @@ final class StatsStore {
         hour[0]++;
         if (entry.blocked) hour[1]++;
 
-        String dayKey = DAY.format(new Date(now));
-        long[] day = daily.get(dayKey);
-        if (day == null) {
-            day = new long[2];
-            daily.put(dayKey, day);
-        }
-        day[0]++;
-        if (entry.blocked) day[1]++;
+        count(bucketForDay(DAY.format(new Date(now))), entry);
 
         dirty++;
+        if ((dirty & 0xFF) == 0 || now - lastTrim > 60000L) {
+            trimHistory();
+            lastTrim = now;
+        }
         queueSave();
+    }
+
+    private long[] bucketForDay(String key) {
+        long[] existing = daily.get(key);
+        if (existing == null) {
+            existing = new long[5];
+            daily.put(key, existing);
+        }
+        return existing;
+    }
+
+    private static void count(long[] bucket, Entry e) {
+        bucket[0]++;
+        if (e.blocked) bucket[1]++;
+        if (e.cached) bucket[2]++;
+        if (!e.blocked && !e.cached && !"ERROR".equals(e.status)) bucket[3]++;
+        if ("ERROR".equals(e.status)) bucket[4]++;
     }
 
     /**
@@ -233,7 +246,10 @@ final class StatsStore {
                 domainCounts.merge(e.domain, 1, Integer::sum);
             }
         }
-        if (!e.client.isEmpty()) clientCounts.merge(e.client, 1, Integer::sum);
+        if (!e.client.isEmpty()
+                && (clientCounts.size() < 5000 || clientCounts.containsKey(e.client))) {
+            clientCounts.merge(e.client, 1, Integer::sum);
+        }
         typeCounts.merge(e.typeName(), 1, Integer::sum);
         if (!e.upstream.isEmpty()) upstreamCounts.merge(e.upstream, 1, Integer::sum);
         if (e.blocked) {
@@ -243,40 +259,100 @@ final class StatsStore {
     }
 
     private void trimHistory() {
+        String dayCutoff = DAY.format(new Date(
+                System.currentTimeMillis() - ReverseLogReader.RETENTION_MS));
+        java.util.Iterator<String> days = daily.keySet().iterator();
+        while (days.hasNext()) {
+            if (days.next().compareTo(dayCutoff) >= 0) continue;
+            days.remove();
+        }
+
+        java.util.Calendar hourCal = java.util.Calendar.getInstance();
+        hourCal.add(java.util.Calendar.HOUR_OF_DAY, -(HISTORY_MAX - 1));
+        String hourCutoff = HOUR.format(hourCal.getTime());
+        java.util.Iterator<String> hours = hourly.keySet().iterator();
+        while (hours.hasNext()) {
+            if (hours.next().compareTo(hourCutoff) >= 0) continue;
+            hours.remove();
+        }
         while (hourly.size() > HISTORY_MAX) {
             String first = hourly.keySet().iterator().next();
             hourly.remove(first);
         }
-        while (daily.size() > DAILY_MAX) {
-            String first = daily.keySet().iterator().next();
-            daily.remove(first);
-        }
     }
 
-    synchronized long queries() { return total; }
-    synchronized long blocked() { return blocked; }
-    synchronized long cached() { return cached; }
-    synchronized long forwarded() { return forwarded; }
-    synchronized long errors() { return errors; }
+    private long windowSum(int index) {
+        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
+        String firstDay;
+        long sum = 0;
+        List<File> files;
+        synchronized (this) {
+            firstDay = DAY.format(new Date(cutoff));
+            for (Map.Entry<String, long[]> bucket : daily.entrySet()) {
+                if (bucket.getKey().compareTo(firstDay) > 0) sum += bucket.getValue()[index];
+            }
+            if (!daily.containsKey(firstDay)) return sum;
+            files = logFilesNewestFirst();
+        }
+        return sum + boundary.get(files, firstDay, cutoff, index,
+                StatsStore::parseLogLine, e -> e.at, StatsStore::count);
+    }
+
+    long queries() { return windowSum(0); }
+    long blocked() { return windowSum(1); }
+    long cached() { return windowSum(2); }
+    long forwarded() { return windowSum(3); }
+    long errors() { return windowSum(4); }
+
+    synchronized long todayQueries() {
+        long[] value = daily.get(DAY.format(new Date()));
+        return value == null ? 0 : value[0];
+    }
+
+    synchronized long todayBlocked() {
+        long[] value = daily.get(DAY.format(new Date()));
+        return value == null ? 0 : value[1];
+    }
+
     synchronized int uniqueDomains() { return domainCounts.size(); }
     synchronized int clientCount() { return clientCounts.size(); }
 
-    synchronized double rate() {
-        return total == 0 ? 0.0 : blocked * 100.0 / total;
+    double rate() {
+        long total = queries();
+        return total == 0 ? 0.0 : blocked() * 100.0 / total;
     }
 
     synchronized List<Entry> log(int limit) {
-        int max = Math.max(1, Math.min(LOG_MAX, limit));
-        ArrayList<Entry> out = new ArrayList<>(Math.min(max, log.size()));
-        for (Entry e : log) {
+        int max = Math.max(0, Math.min(EXPORT_MAX, limit));
+        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
+        if (max <= log.size() || logDir == null) {
+            ArrayList<Entry> out = new ArrayList<>(Math.min(max, log.size()));
+            for (Entry e : log) {
+                if (out.size() >= max) break;
+                if (e.at < cutoff) continue;
+                out.add(e);
+            }
+            return out;
+        }
+        flushLog();
+        ArrayList<Entry> out = new ArrayList<>(Math.min(max, 4096));
+        for (File file : logFilesNewestFirst()) {
+            ArrayDeque<Entry> part = readNewest(file, max - out.size());
+            out.addAll(part);
             if (out.size() >= max) break;
-            out.add(e);
         }
         return out;
     }
 
-    synchronized List<Entry> all() {
-        return new ArrayList<>(log);
+    List<Entry> logPage(int start, int length, java.util.function.Predicate<Entry> filter) {
+        List<File> files;
+        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
+        synchronized (this) {
+            flushLog();
+            files = logFilesNewestFirst();
+        }
+        return ReverseLogReader.page(files, start, length, cutoff,
+                StatsStore::parseLogLine, e -> e.at, filter);
     }
 
     synchronized List<Top> topDomains(boolean blockedOnly, int count) {
@@ -395,7 +471,7 @@ final class StatsStore {
         out.append("time,client,domain,type,status,upstream,rcode,ms,rule,category\n");
         String needle = search == null ? "" : search.toLowerCase(Locale.US);
         SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-        for (Entry e : log) {
+        for (Entry e : log(EXPORT_MAX)) {
             if (mode == 1 && !e.blocked) continue;
             if (mode == 2 && e.blocked) continue;
             if (!needle.isEmpty() && !e.domain.toLowerCase(Locale.US).contains(needle)
@@ -417,7 +493,7 @@ final class StatsStore {
     synchronized Json.Arr exportJson(boolean blockedFilter, boolean filterBlocked, String search) {
         Json.Arr arr = new Json.Arr();
         String needle = search == null ? "" : search.toLowerCase(Locale.US);
-        for (Entry e : log) {
+        for (Entry e : log(EXPORT_MAX)) {
             if (filterBlocked && e.blocked != blockedFilter) continue;
             if (!needle.isEmpty() && !e.domain.toLowerCase(Locale.US).contains(needle)
                     && !e.client.toLowerCase(Locale.US).contains(needle)) continue;
@@ -448,55 +524,229 @@ final class StatsStore {
 
     void save() {
         String summary;
-        String logText;
         synchronized (this) {
             saveQueued = false;
+            trimHistory();
+            flushLog();
             summary = summaryText();
-            logText = logText();
             dirty = 0;
             lastSave = System.currentTimeMillis();
         }
         synchronized (WRITE_LOCK) {
             AppDirs.ensureDir(dir);
             write(new File(dir, "stats.txt"), summary);
-            write(new File(dir, "query_log.tsv"), logText);
         }
     }
 
     private String summaryText() {
         StringBuilder out = new StringBuilder();
-        out.append("V 1\n");
-        out.append("C ").append(total).append(',').append(blocked).append(',')
-                .append(cached).append(',').append(forwarded).append(',')
-                .append(errors).append('\n');
+        out.append("V 2\n");
+        // Keep undated legacy totals for reference without attributing them to today.
+        if (legacySeen) {
+            out.append("L ").append(legacyTotal).append(',').append(legacyBlocked).append(',')
+                    .append(legacyCached).append(',').append(legacyForwarded).append(',')
+                    .append(legacyErrors).append('\n');
+        }
         for (Map.Entry<String, long[]> e : hourly.entrySet()) {
             out.append("H ").append(e.getKey()).append(' ')
                     .append(e.getValue()[0]).append(',').append(e.getValue()[1]).append('\n');
         }
         for (Map.Entry<String, long[]> e : daily.entrySet()) {
+            long[] v = e.getValue();
             out.append("D ").append(e.getKey()).append(' ')
-                    .append(e.getValue()[0]).append(',').append(e.getValue()[1]).append('\n');
+                    .append(v[0]).append(',').append(v[1]).append(',')
+                    .append(v[2]).append(',').append(v[3]).append(',')
+                    .append(v[4]).append('\n');
         }
         return out.toString();
     }
 
-    private String logText() {
-        StringBuilder logText = new StringBuilder();
-        for (Entry e : log) {
-            logText.append(e.at).append('\t')
-                    .append(escape(e.client)).append('\t')
-                    .append(escape(e.domain)).append('\t')
-                    .append(e.type).append('\t')
-                    .append(escape(e.status)).append('\t')
-                    .append(escape(e.upstream)).append('\t')
-                    .append(e.rcode).append('\t')
-                    .append(e.ms).append('\t')
-                    .append(escape(e.rule)).append('\t')
-                    .append(escape(e.category)).append('\t')
-                    .append(e.blocked ? '1' : '0').append('\t')
-                    .append(e.cached ? '1' : '0').append('\n');
+    /** Opens (and if needed migrates) the date-partitioned query log. */
+    private void openLog() {
+        closeLogWriter(false);
+        logDir = new File(dir, "querylog");
+        File legacy = new File(dir, "query_log.tsv");
+        if (!ReverseLogReader.initialize(logDir, legacy,
+                System.currentTimeMillis() - ReverseLogReader.RETENTION_MS,
+                StatsStore::parseLogLine, e -> e.at, e -> DAY.format(new Date(e.at)),
+                StatsStore::writeLogEntry)) {
+            System.err.println("Hole Shield: could not initialize query history");
+            logDir = null;
+            return;
         }
-        return logText.toString();
+        pruneLogFiles(false);
+    }
+
+    /** Fills the in-memory ring from the newest entries on disk. */
+    private void loadLogTail() {
+        log.clear();
+        if (logDir == null) return;
+        for (File file : logFilesNewestFirst()) {
+            ArrayDeque<Entry> part = readNewest(file, LOG_MAX - log.size());
+            if (part.isEmpty()) continue;
+            for (Entry e : part) {
+                log.addLast(e);
+                index(e);
+            }
+            if (log.size() >= LOG_MAX) break;
+        }
+    }
+
+    private void appendLog(Entry e) {
+        if (logDir == null) return;
+        String key = DAY.format(new Date(e.at));
+        try {
+            if (logWriter == null || !key.equals(logWriterDay)) {
+                boolean rollover = logWriter != null;
+                closeLogWriter(false);
+                logWriter = new BufferedWriter(new OutputStreamWriter(
+                        new FileOutputStream(new File(logDir, key + ".tsv"), true),
+                        StandardCharsets.UTF_8));
+                logWriterDay = key;
+                if (rollover) pruneLogFiles(false);
+            }
+            writeLogEntry(logWriter, e);
+            logDirty = true;
+        } catch (Exception ex) {
+            closeLogWriter(false);
+        }
+    }
+
+    private void flushLog() {
+        if (logWriter == null || !logDirty) return;
+        try {
+            logWriter.flush();
+            logDirty = false;
+        } catch (Exception ignored) { }
+    }
+
+    private void closeLogWriter(boolean compressClosedDay) {
+        String finished = logWriterDay;
+        if (logWriter != null) {
+            try {
+                logWriter.close();
+            } catch (Exception ignored) { }
+            logWriter = null;
+        }
+        logWriterDay = "";
+        logDirty = false;
+        if (compressClosedDay && finished != null && !finished.isEmpty()
+                && !finished.equals(DAY.format(new Date()))) {
+            compressDay(finished);
+        }
+    }
+
+    private static void writeLogEntry(BufferedWriter w, Entry e) throws Exception {
+        w.write(Long.toString(e.at)); w.write('\t');
+        w.write(escape(e.client)); w.write('\t');
+        w.write(escape(e.domain)); w.write('\t');
+        w.write(Integer.toString(e.type)); w.write('\t');
+        w.write(escape(e.status)); w.write('\t');
+        w.write(escape(e.upstream)); w.write('\t');
+        w.write(Integer.toString(e.rcode)); w.write('\t');
+        w.write(Long.toString(e.ms)); w.write('\t');
+        w.write(escape(e.rule)); w.write('\t');
+        w.write(escape(e.category)); w.write('\t');
+        w.write(e.blocked ? '1' : '0'); w.write('\t');
+        w.write(e.cached ? '1' : '0'); w.write('\n');
+    }
+
+    private static Entry parseLogLine(String line) {
+        String[] f = line.split("\t", -1);
+        if (f.length < 12) return null;
+        try {
+            return new Entry(parseLong(f[0]), unescape(f[1]), unescape(f[2]),
+                    (int) parseLong(f[3]), unescape(f[4]), unescape(f[5]),
+                    (int) parseLong(f[6]), parseLong(f[7]), unescape(f[8]),
+                    unescape(f[9]), "1".equals(f[10]), "1".equals(f[11]));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /** Newest day first. */
+    private List<File> logFilesNewestFirst() {
+        ArrayList<File> files = new ArrayList<>();
+        if (logDir == null) return files;
+        File[] all = logDir.listFiles();
+        if (all == null) return files;
+        TreeMap<String, File> byDay =
+                new TreeMap<>(java.util.Collections.reverseOrder());
+        for (File f : all) {
+            String name = f.getName();
+            String key = dayFromFile(name);
+            if (key == null) continue;
+            byDay.put(key + (name.endsWith(".gz") ? "a" : "b"), f);
+        }
+        files.addAll(byDay.values());
+        return files;
+    }
+
+    /** Newest-first entries from one day file, capped at {@code limit}. */
+    private static ArrayDeque<Entry> readNewest(File file, int limit) {
+        return new ArrayDeque<>(ReverseLogReader.page(java.util.Collections.singletonList(file),
+                0, limit, System.currentTimeMillis() - ReverseLogReader.RETENTION_MS,
+                StatsStore::parseLogLine, e -> e.at, e -> true));
+    }
+
+    private static String dayFromFile(String name) {
+        if (name.length() < 14) return null;
+        if (!name.endsWith(".tsv") && !name.endsWith(".tsv.gz")) return null;
+        return name.substring(0, 10);
+    }
+
+    /** Deletes expired days and compresses closed days. */
+    private void pruneLogFiles(boolean compress) {
+        if (logDir == null) return;
+        File[] all = logDir.listFiles();
+        if (all == null) return;
+        String cutoff = DAY.format(new Date(
+                System.currentTimeMillis() - ReverseLogReader.RETENTION_MS));
+        String todayKey = DAY.format(new Date());
+        for (File f : all) {
+            String name = f.getName();
+            String key = dayFromFile(name);
+            if (key == null) {
+                continue;
+            }
+            if (key.compareTo(cutoff) < 0) {
+                f.delete();
+            } else if (compress && key.compareTo(todayKey) < 0 && name.endsWith(".tsv")) {
+                compressDay(key);
+            }
+        }
+    }
+
+    private void compressDay(String key) {
+        if (logDir == null) return;
+        File plain = new File(logDir, key + ".tsv");
+        if (!plain.isFile()) return;
+        File gz = new File(logDir, key + ".tsv.gz");
+        // Never replace an existing archive: the plain file may contain only
+        // later entries for this day, not a complete replacement.
+        if (gz.exists()) return;
+        File tmp = new File(logDir, key + ".tsv.gz.tmp");
+        try (FileInputStream in = new FileInputStream(plain);
+             GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream(tmp))) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+        } catch (Exception ex) {
+            tmp.delete();
+            return;
+        }
+        if (!tmp.renameTo(gz)) {
+            tmp.delete();
+            return;
+        }
+        plain.delete();
+    }
+
+    private void deleteLogFiles() {
+        if (logDir == null) return;
+        File[] all = logDir.listFiles();
+        if (all == null) return;
+        for (File f : all) f.delete();
     }
 
     private static void write(File file, String text) {
@@ -548,6 +798,8 @@ final class StatsStore {
     }
 
     synchronized void clear() {
+        closeLogWriter(false);
+        deleteLogFiles();
         log.clear();
         hourly.clear();
         daily.clear();
@@ -556,7 +808,8 @@ final class StatsStore {
         typeCounts.clear();
         upstreamCounts.clear();
         categoryCounts.clear();
-        total = blocked = cached = forwarded = errors = 0;
+        legacyTotal = legacyBlocked = legacyCached = legacyForwarded = legacyErrors = 0;
+        legacySeen = false;
         save();
     }
 }

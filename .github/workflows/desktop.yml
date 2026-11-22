@@ -11,11 +11,13 @@ on:
       - "src/com/dino/holeshield/HostsParser.java"
       - "src/com/dino/holeshield/Blocklists.java"
       - "src/com/dino/holeshield/WebAuth.java"
+      - "src/com/dino/holeshield/ReverseLogReader.java"
       - ".github/workflows/desktop.yml"
   pull_request:
     paths:
       - "desktop/**"
       - "assets/dashboard.html"
+      - "src/com/dino/holeshield/ReverseLogReader.java"
   workflow_dispatch:
 
 jobs:
@@ -155,8 +157,8 @@ jobs:
             --arm "$ARM_APP" \
             --intel "$INTEL_APP" \
             --out desktop/build/dist \
-            --version 2.3.5
-          sudo installer -pkg desktop/build/dist/Hole-Shield-2.3.5-universal.pkg -target /
+            --version 2.3.6
+          sudo installer -pkg desktop/build/dist/Hole-Shield-2.3.6-universal.pkg -target /
           ./desktop/tools/smoke.sh "/Applications/Hole Shield.app/Contents/MacOS/Hole Shield"
 
       - uses: actions/upload-artifact@v4

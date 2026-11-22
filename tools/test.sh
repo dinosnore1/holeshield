@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the desktop (no-device) checks for DNS, packet, blocklist and web-auth code.
+# Runs the Android JVM checks without a device.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -15,8 +15,11 @@ mkdir -p "$OUT"
   src/com/dino/holeshield/Blocklists.java \
   src/com/dino/holeshield/WebAuth.java \
   src/com/dino/holeshield/Gravity.java \
+  src/com/dino/holeshield/StatsHistoryCodec.java \
   src/com/dino/holeshield/UpdateVerifier.java \
   tools/TestDns.java \
-  tools/TestUpdate.java
+  tools/TestUpdate.java \
+  tools/TestStatsHistory.java
 "$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestDns
 "$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestUpdate
+"$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestStatsHistory

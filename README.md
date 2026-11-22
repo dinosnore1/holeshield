@@ -14,11 +14,10 @@ SDK command-line tools.
 
 The latest prebuilt APK is attached to the
 [GitHub release](https://github.com/dinosnore1/holeshield/releases/latest).
-The current source build is **2.3.5.1**, a hotfix on top of 2.3.5, and is
-published as a stable release.
+The current source build is **2.3.6**.
 
 - **Package:** `com.dino.holeshield`
-- **Version:** 2.3.5.1 (`versionCode 13`)
+- **Version:** 2.3.6 (`versionCode 14`)
 - **Desktop:** Java 17 Swing app with a bundled-runtime installer for Windows,
   Linux and macOS (see `desktop/README.md`)
 - **Launcher label:** **Hole Shield** on phones, **Hole Shield TV** on televisions
@@ -35,11 +34,11 @@ Companion mode lets the desktop app log in to a Hole Shield system that is
 already running on the LAN instead of starting a local resolver.
 
 ```bash
-./desktop/tools/test.sh       # 199 headless core checks
+./desktop/tools/test.sh       # headless core checks
 ./desktop/tools/package.sh    # app image + PKG, DEB/RPM or MSI/EXE
 ```
 
-The **2.3.5 hotfix release** includes one universal macOS package for Intel and
+Desktop packages include one universal macOS package for Intel and
 Apple Silicon, Windows MSI/EXE and Linux DEB/RPM, with companion mode for
 logging in to another Hole Shield system on the LAN and in-app updates on every
 platform. See
@@ -95,8 +94,12 @@ platform packaging notes. The GitHub Actions workflow
   across restarts. Notification actions, a Quick Settings tile and a home-screen
   widget expose pause, resume and status.
 - **Query log and counters** for queries, blocks, cache hits, forwards, errors,
-  clients, types, top domains and upstreams. The log survives app restarts and
-  is rolled over daily.
+  clients, types, top domains and upstreams. Query history and the main
+  counters cover the preceding 30 days across app restarts. Use **Older**
+  and **Newer** in the web dashboard to browse retained history. The native
+  log views, export snapshots and top lists show bounded subsets.
+  The widget, Android notification and legacy “today” counters still show
+  the current local day.
 - **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional
   username/password login. Desktop uses a sticky section sidebar with scroll
   spy; phones use a fixed icon bottom bar. New passwords are stored as PBKDF2 hashes, repeated
@@ -417,7 +420,7 @@ src/com/dino/holeshield/
   Blocklist.java             gravity lists, custom rules, downloads
   Blocklists.java            maximum preset and existing-install migration
   HostsParser.java           hosts/adblock line parsing and IP rejection
-  Stats.java                 persisted daily counters and query log
+  Stats.java                 rolling 30-day counters and query log
   WebServer.java             dashboard HTTP server, v6/v5 API subset, auth
   LanDnsServer.java          UDP + TCP LAN DNS listener
   Prefs.java                 persisted settings and pause state

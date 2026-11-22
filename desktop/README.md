@@ -146,7 +146,8 @@ dashboard API. The installers are unsigned by default; see
 - Linux: `$XDG_CONFIG_HOME/holeshield` or `~/.config/holeshield`
 
 The directory contains `settings.properties`, `gravity.bin`,
-`gravity.properties`, `stats.txt` and `query_log.tsv`. Set
+`gravity.properties`, `stats.txt` and a `querylog/` directory for retained
+query history. The older `query_log.tsv` is migrated on first launch. Set
 `HOLESH_DESKTOP_HOME` to override it.
 
 ## Source layout

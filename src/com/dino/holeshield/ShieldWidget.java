@@ -69,7 +69,7 @@ public class ShieldWidget extends AppWidgetProvider {
         String sub;
         if (running && blocking) {
             status = "Protected";
-            sub = Stats.blocked() + " blocked today";
+            sub = Stats.todayBlocked() + " blocked today";
         } else if (running && prefs.scheduleEnabled && !prefs.scheduleActiveNow()) {
             status = "Outside hours";
             sub = "Blocking resumes at " + Prefs.timeLabel(prefs.scheduleStart);

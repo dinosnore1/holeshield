@@ -477,7 +477,7 @@ final class WebServer {
         String format = r.param("format", "csv").toLowerCase(Locale.US);
         String blocked = r.param("blocked", "");
         String search = r.param("search", "").toLowerCase(Locale.US);
-        List<Stats.Entry> all = Stats.log(2000);
+        List<Stats.Entry> all = Stats.log(Stats.EXPORT_MAX);
         SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
         if ("json".equals(format)) {
             JSONArray arr = new JSONArray();
@@ -599,35 +599,25 @@ final class WebServer {
     }
 
     private JSONObject queries(Request r) throws Exception {
-        int start = clamp(parseInt(r.param("start", "0"), 0), 0, 100000);
+        int start = clamp(parseInt(r.param("start", "0"), 0), 0, Integer.MAX_VALUE - 500);
         int length = clamp(parseInt(r.param("length", "100"), 100), 1, 500);
         String blocked = r.param("blocked", "");
-        String client = r.param("client", "");
-        String domain = r.param("domain", "");
+        String client = r.param("client", "").toLowerCase(Locale.US);
+        String domain = r.param("domain", "").toLowerCase(Locale.US);
         String search = r.param("search", "").toLowerCase(Locale.US);
-        List<Stats.Entry> all = Stats.log(2000);
+        boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
+        List<Stats.Entry> all = Stats.logPage(start, length, e ->
+                (blocked.isEmpty() || want == e.blocked)
+                        && e.client.toLowerCase(Locale.US).contains(client)
+                        && e.domain.toLowerCase(Locale.US).contains(domain)
+                        && (search.isEmpty() || e.domain.toLowerCase(Locale.US).contains(search)
+                        || e.client.toLowerCase(Locale.US).contains(search)
+                        || DnsEngine.clientName(e.client).toLowerCase(Locale.US).contains(search)));
         JSONArray arr = new JSONArray();
-        int skipped = 0;
-        int id = 0;
+        int id = start;
         for (Stats.Entry e : all) {
-            id++;
-            if (!blocked.isEmpty()) {
-                boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
-                if (want != e.blocked) continue;
-            }
-            if (!client.isEmpty() && !e.client.toLowerCase(Locale.US)
-                    .contains(client.toLowerCase(Locale.US))) continue;
-            if (!domain.isEmpty() && !e.domain.toLowerCase(Locale.US)
-                    .contains(domain.toLowerCase(Locale.US))) continue;
-            if (!search.isEmpty()
-                    && !e.domain.toLowerCase(Locale.US).contains(search)
-                    && !e.client.toLowerCase(Locale.US).contains(search)
-                    && !DnsEngine.clientName(e.client).toLowerCase(Locale.US)
-                    .contains(search)) continue;
-            if (skipped++ < start) continue;
-            if (arr.length() >= length) break;
             JSONObject o = new JSONObject();
-            o.put("id", id);
+            o.put("id", ++id);
             o.put("time", e.at / 1000.0);
             o.put("type", e.typeName());
             o.put("domain", e.domain);
@@ -953,9 +943,9 @@ final class WebServer {
         }
         JSONObject o = new JSONObject();
         o.put("domains_being_blocked", Blocklist.activeGravityDomains());
-        o.put("dns_queries_today", Stats.queries());
-        o.put("ads_blocked_today", Stats.blocked());
-        o.put("ads_percentage_today", Stats.rate());
+        o.put("dns_queries_today", Stats.todayQueries());
+        o.put("ads_blocked_today", Stats.todayBlocked());
+        o.put("ads_percentage_today", Stats.todayRate());
         o.put("unique_domains", Stats.uniqueDomains());
         o.put("queries_forwarded", Stats.forwarded());
         o.put("queries_cached", Stats.cached());

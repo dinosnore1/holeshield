@@ -14,7 +14,8 @@ $Shared = @(
   "src\com\dino\holeshield\Gravity.java",
   "src\com\dino\holeshield\HostsParser.java",
   "src\com\dino\holeshield\Blocklists.java",
-  "src\com\dino\holeshield\WebAuth.java"
+  "src\com\dino\holeshield\WebAuth.java",
+  "src\com\dino\holeshield\ReverseLogReader.java"
 ) | ForEach-Object { Join-Path $Root $_ }
 $All = $Sources + $Shared
 $ArgFile = Join-Path $Out "sources.txt"

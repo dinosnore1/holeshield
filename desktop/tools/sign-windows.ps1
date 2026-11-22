@@ -1,6 +1,6 @@
 param(
   [string]$Dist = "",
-  [string]$Version = "2.3.5",
+  [string]$Version = "2.3.6",
   [string]$AppExe = ""
 )
 $ErrorActionPreference = "Stop"
