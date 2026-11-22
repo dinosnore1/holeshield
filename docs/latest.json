@@ -1,51 +1,51 @@
 {
-  "updated": "2026-11-19T00:00:00Z",
+  "updated": "2026-11-22T18:56:02Z",
   "stable": {
-    "version": "2.3.5.1",
-    "versionCode": 13,
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
-    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5-hotfix.apk",
-    "sha256": "1ae37db0c40e228ad458bb6fdd4d82fc27e916e90ea10b471347756dd899aa17",
-    "size": 281212,
-    "notes": "Hole Shield 2.3.5.1 hotfix: updates move to their own About page below Settings on every screen, the update button reports checking, up to date, downloading, verifying and installing itself, APK downloads are checked against the published SHA-256 before the installer runs, and the desktop app gains in-app updates with the same verified download."
+    "version": "2.3.6",
+    "versionCode": 14,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.6-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.6.apk",
+    "sha256": "bf5aacef8a533b78bd999525c5941af05d55436c3395158b9d8abcd4bae62c82",
+    "size": 285308,
+    "notes": "Rolling 30-day DNS statistics and query history, with paging in the web dashboard."
   },
   "beta": {
-    "version": "2.3.5.1",
-    "versionCode": 13,
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
-    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.5-hotfix.apk",
-    "sha256": "1ae37db0c40e228ad458bb6fdd4d82fc27e916e90ea10b471347756dd899aa17",
-    "size": 281212,
-    "notes": "Hole Shield 2.3.5.1 hotfix: updates move to their own About page below Settings on every screen, the update button reports checking, up to date, downloading, verifying and installing itself, APK downloads are checked against the published SHA-256 before the installer runs, and the desktop app gains in-app updates with the same verified download."
+    "version": "2.3.6",
+    "versionCode": 14,
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.6-holeshield",
+    "apk": "https://dinosnore1.github.io/holeshield/holeshield-2.3.6.apk",
+    "sha256": "bf5aacef8a533b78bd999525c5941af05d55436c3395158b9d8abcd4bae62c82",
+    "size": 285308,
+    "notes": "Rolling 30-day DNS statistics and query history, with paging in the web dashboard."
   },
   "desktop": {
-    "version": "2.3.5",
-    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.5-hotfix-holeshield",
-    "notes": "Desktop 2.3.5 with in-app updates: a dedicated About page below Settings checks the release manifest, downloads the installer for this system, verifies its SHA-256 and installs it with the platform installer. Companion mode is unchanged.",
+    "version": "2.3.6",
+    "url": "https://github.com/dinosnore1/holeshield/releases/tag/v2.3.6-holeshield",
+    "notes": "Rolling 30-day DNS statistics and query history, with paging in the web dashboard.",
     "assets": {
       "macos-pkg": {
-        "name": "Hole-Shield-2.3.5-universal.pkg",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/Hole-Shield-2.3.5-universal.pkg",
-        "sha256": "bb890f865bad679de22047590b6ad8e49b3e6787fab07e38b883f71ad5308471",
-        "size": 49285388
+        "name": "Hole-Shield-2.3.6-universal.pkg",
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.6-holeshield/Hole-Shield-2.3.6-universal.pkg",
+        "sha256": "61627d2abf916313d64f552c7e28953ac789f7bd9b648e6b9b113f97504aeadb",
+        "size": 49309120
       },
       "windows-msi": {
-        "name": "Hole-Shield-2.3.5.msi",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/Hole-Shield-2.3.5.msi",
-        "sha256": "3a8f60378e536410e54e16f1ab6a2e420de410e9678ae650691f6d42a3f9dc43",
-        "size": 25564498
+        "name": "Hole-Shield-2.3.6.msi",
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.6-holeshield/Hole-Shield-2.3.6.msi",
+        "sha256": "ce7c0f9044f4cf20f5aefd233d220b9e7a938f8da1e3c1b6a3579ccbe82c9879",
+        "size": 25572690
       },
       "linux-deb": {
-        "name": "holeshield_2.3.5-1_amd64.deb",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/holeshield_2.3.5-1_amd64.deb",
-        "sha256": "4b6f6d03fe4ed7bc6111d0053b6b77687105376abd37f85c7ddc85bd3e053cc8",
-        "size": 21650914
+        "name": "holeshield_2.3.6-1_amd64.deb",
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.6-holeshield/holeshield_2.3.6-1_amd64.deb",
+        "sha256": "8d2c7a60d8fd99c5aaf74c81269fdd2fef66cd2fce5a93576a0678f2e1762c95",
+        "size": 21674588
       },
       "linux-rpm": {
-        "name": "holeshield-2.3.5-1.x86_64.rpm",
-        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.5-hotfix-holeshield/holeshield-2.3.5-1.x86_64.rpm",
-        "sha256": "74d78e036ffeef88c5cb1471ede2432cd480dc2cccb9497303cacb1299aefcb0",
-        "size": 28525715
+        "name": "holeshield-2.3.6-1.x86_64.rpm",
+        "url": "https://github.com/dinosnore1/holeshield/releases/download/v2.3.6-holeshield/holeshield-2.3.6-1.x86_64.rpm",
+        "sha256": "d37f090c5fc3a03060534be3e507cd40587da146ef957faa399080680bdf430e",
+        "size": 28539085
       }
     }
   }

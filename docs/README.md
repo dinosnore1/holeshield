@@ -5,7 +5,8 @@ Published at <https://dinosnore1.github.io/holeshield/>.
 - `index.html` — landing page
 - `privacy.html` — privacy policy
 - `latest.json` — app update manifest
-- `holeshield-2.3.5-hotfix.apk` — current Android APK (2.3.5.1)
+- `holeshield-2.3.6.apk` — current stable Android APK
+- `holeshield-2.3.5-hotfix.apk` — previous Android hotfix (2.3.5.1)
 - `holeshield-2.3.5.apk` — previous stable APK
 - `holeshield-2.3.4.apk` — previous stable APK
 - `holeshield-2.3.3.apk` — older stable APK
