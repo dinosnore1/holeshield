@@ -30,9 +30,9 @@ jobs:
         os: [macos-15-intel, macos-15, ubuntu-22.04, windows-2022]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload macOS app input
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: holeshield-mac-input-${{ matrix.os }}
           path: desktop/build/dist/Hole Shield.app
@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload Linux and Windows installers
         if: runner.os != 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: holeshield-desktop-${{ matrix.os }}
           path: |
@@ -132,14 +132,14 @@ jobs:
     if: needs.build.result == 'success'
     runs-on: macos-15-intel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: holeshield-mac-input-macos-15
           path: artifacts/arm
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: holeshield-mac-input-macos-15-intel
           path: artifacts/intel
@@ -161,7 +161,7 @@ jobs:
           sudo installer -pkg desktop/build/dist/Hole-Shield-2.3.6-universal.pkg -target /
           ./desktop/tools/smoke.sh "/Applications/Hole Shield.app/Contents/MacOS/Hole Shield"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: holeshield-desktop-macos-universal
           path: desktop/build/dist/*universal*
