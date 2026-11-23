@@ -27,6 +27,7 @@ SHARED=(
   "src/com/dino/holeshield/Blocklists.java"
   "src/com/dino/holeshield/WebAuth.java"
   "src/com/dino/holeshield/Retention.java"
+  "src/com/dino/holeshield/ListFetchProgress.java"
   "src/com/dino/holeshield/ReverseLogReader.java"
 )
 find desktop/src -name '*.java' | sort > "$OUT/sources.txt"

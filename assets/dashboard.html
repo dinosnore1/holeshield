@@ -282,6 +282,10 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .source-row .source-health{display:flex;align-items:center;gap:5px;min-width:0;max-width:38%}
 .source-health .badge,.source-row button{flex:none}
 .source-health .health-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px}
+.source-health .fetching,.source-health .queued{color:var(--green)}
+.source-health .fetching::before{width:8px;height:8px;background:transparent;border:1px solid currentColor;border-right-color:transparent;animation:fetch-spin .85s linear infinite}
+@keyframes fetch-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.source-health .fetching::before{animation:none}}
 @media(max-width:480px){.list .source-row{gap:6px}.source-row button{padding-inline:8px}}
 .bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px}
 .bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--blue))}
@@ -726,7 +730,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       <ul class="list" id="lists"><li class="empty">No blocklist sources.</li></ul>
       <form id="listForm" class="row" style="margin-top:12px">
         <input id="listUrl" type="text" placeholder="https://example.com/hosts" autocomplete="off" spellcheck="false">
-        <button type="submit">Add list</button>
+        <button id="addListBtn" type="submit">Add list</button>
       </form>
       <div id="listMsg" class="msg"></div>
       <div class="row" style="margin-top:14px">
@@ -1287,23 +1291,50 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     }
   }
 
+  var listData = null, listHealth = null, listMarkup = "";
+  var healthRequest = 0, appliedHealthRequest = 0;
   function renderLists(data, health){
     var lists = (data && data.lists) || [];
     var byAddress = new Map(((health && health.lists) || []).map(function(row){
       return [row.address, row];
     }));
     var el = $("#lists");
-    if(!lists.length){ el.innerHTML = '<li class="empty">No blocklist sources.</li>'; return; }
-    el.innerHTML = lists.map(function(l){
+    var markup = lists.length ? lists.map(function(l){
       var status = byAddress.get(l.address);
       var detail = status ? (status.ok ? fmt(status.count) + " domains" : (status.error || "Download failed"))
-        : (health && health.updating ? "Updating" : (health ? "Not checked" : "Health unavailable"));
+        : (health ? "Not fetched" : "Health unavailable");
       var badge = status ? '<span class="badge ' + (status.ok ? 'allow">OK' : 'deny">Failed') + '</span>' : "";
+      var progress = health && health.updating && health.progress && health.progress[l.address];
+      if(progress === "FETCHING" || progress === "QUEUED"){
+        badge = progress === "FETCHING" ? '<span class="badge fetching">Fetching</span>'
+          : '<span class="badge queued">Queued</span>';
+        detail = "";
+      } else if(progress === "DOWNLOADED" || progress === "FAILED" || progress === "SKIPPED"){
+        badge = progress === "FAILED" ? '<span class="badge deny">Failed</span>'
+          : (progress === "DOWNLOADED" ? '<span class="badge allow">Downloaded</span>'
+            : '<span class="badge">Skipped</span>');
+        detail = "";
+      }
       return '<li class="source-row"><span class="name" title="' + esc(l.address) + '">' + esc(l.address) + '</span>' +
         '<span class="source-health" title="' + esc(detail) + '">' + badge +
         '<span class="health-detail">' + esc(detail) + '</span></span>' +
         '<button class="small danger" data-list="' + esc(l.id) + '">Remove</button></li>';
-    }).join("");
+    }).join("") : '<li class="empty">No blocklist sources.</li>';
+    if(markup !== listMarkup){
+      el.innerHTML = markup;
+      listMarkup = markup;
+    }
+  }
+
+  function loadListHealth(){
+    var request = ++healthRequest;
+    return safe("/api/lists/health").then(function(data){
+      if(data && request >= appliedHealthRequest){
+        appliedHealthRequest = request;
+        listHealth = data;
+        if(listData) renderLists(listData, listHealth);
+      }
+    });
   }
 
   function renderRules(data){
@@ -1361,6 +1392,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
 
   function loadAll(){
     if (queryOffset === 0) loadQueries();
+    loadListHealth();
     Promise.all([
       safe("/api/stats/summary"),
       safe("/api/stats/top_domains?blocked=true&count=8"),
@@ -1371,7 +1403,6 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       safe("/api/info/host"),
       safe("/api/lists"),
       safe("/api/stats/history?range=" + encodeURIComponent(state.chartRange)),
-      safe("/api/lists/health"),
       safe("/api/settings/categories")
     ]).then(function(a){
       renderSummary(a[0]);
@@ -1382,9 +1413,12 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       }), "name", "count", "No clients yet.");
       if(a[4]) renderTypes(a[4]);
       if(a[6]) renderInfo(a[6]);
-      if(a[7]) renderLists(a[7], a[9]);
+      if(a[7]) {
+        listData = a[7];
+        renderLists(listData, listHealth);
+      }
       if(a[8]) { renderHistory(a[8]); renderCategoryCounts(a[8]); }
-      if(a[10]) { renderCategorySwitches(a[10]); renderCategoryLevels(a[10]); }
+      if(a[9]) { renderCategorySwitches(a[9]); renderCategoryLevels(a[9]); }
     });
   }
 
@@ -1612,10 +1646,15 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   $("#listForm").addEventListener("submit", function(ev){
     ev.preventDefault();
     var url = $("#listUrl").value.trim();
-    if(!url) return;
+    var button = $("#addListBtn");
+    if(!url || button.disabled) return;
+    button.disabled = true;
+    button.textContent = "Adding…";
+    msg("#listMsg", "", null);
     api("/api/lists", {method:"POST", body:JSON.stringify({address:url, type:"block"})})
       .then(function(){ $("#listUrl").value=""; msg("#listMsg","List added. Update gravity to apply it.", true); loadAll(); })
-      .catch(function(e){ msg("#listMsg", e.message, false); });
+      .catch(function(e){ msg("#listMsg", e.message, false); })
+      .finally(function(){ button.disabled = false; button.textContent = "Add list"; });
   });
 
   $("#lists").addEventListener("click", function(ev){
@@ -1630,6 +1669,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     msg("#actionMsg", "Starting gravity update…", null);
     api("/api/action/gravity", {method:"POST"}).then(function(){
       msg("#actionMsg", "Gravity update started. This can take a minute.", true);
+      loadListHealth();
       setTimeout(loadAll, 3000);
     }).catch(function(e){ msg("#actionMsg", e.message, false); });
   });
@@ -1669,6 +1709,10 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   checkAuth();
   loadAll();
   loadRules();
+  setInterval(function(){
+    if(!document.hidden && listHealth && listHealth.updating
+        && $("#login").classList.contains("hidden")) loadListHealth();
+  }, 1200);
   setInterval(function(){
     if(document.hidden) return;
     if(!$("#login").classList.contains("hidden")) return;

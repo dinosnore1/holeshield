@@ -243,6 +243,7 @@ final class Blocklist {
     };
     private static volatile int[] categoryCounts = new int[CATEGORY_PRIORITY.length];
     private static volatile boolean updating = false;
+    private static final ListFetchProgress fetchProgress = new ListFetchProgress();
     private static final Object RELOAD_LOCK = new Object();
     private static volatile int revision;
 
@@ -870,6 +871,10 @@ final class Blocklist {
         return updating;
     }
 
+    static java.util.Map<String, ListFetchProgress.State> fetchProgress() {
+        return fetchProgress.snapshot();
+    }
+
     // -------------------------------------------------------------- health
 
     static List<Health> parseHealth(String text) {
@@ -890,7 +895,7 @@ final class Blocklist {
 
     // -------------------------------------------------------------- downloading
 
-    static void updateAsync(Context context, Done done) {
+    static synchronized void updateAsync(Context context, Done done) {
         if (updating) {
             post(done, false, "An update is already running");
             return;
@@ -902,6 +907,7 @@ final class Blocklist {
             String message;
             try {
                 Prefs p = Prefs.load(app);
+                String initialUrls = p.blocklistUrls;
                 // Keep the configured tier authoritative so preset updates and
                 // new list sources are picked up by the next gravity refresh.
                 for (String key : Blocklists.CATEGORY_KEYS) {
@@ -926,7 +932,11 @@ final class Blocklist {
                 for (String url : urls) {
                     // A category the user switched off keeps its sources in the
                     // settings, but its list is neither downloaded nor counted.
-                    if (!categoryOn(p, url)) continue;
+                    if (!categoryOn(p, url)) {
+                        fetchProgress.set(url, ListFetchProgress.State.SKIPPED);
+                        continue;
+                    }
+                    fetchProgress.set(url, ListFetchProgress.State.QUEUED);
                     switch (Blocklists.categoryOf(url)) {
                         case Blocklists.CATEGORY_TRACKERS:
                             trackerUrls.add(url);
@@ -977,6 +987,9 @@ final class Blocklist {
                         + piracyCount + gamblingCount + datingCount + socialCount
                         + otherCount;
                 if (listsOk == 0 || domains == 0) {
+                    Prefs latest = Prefs.load(app);
+                    latest.listHealth = joinHealth(health);
+                    latest.save(app);
                     throw new Exception(errors.length() > 0 ? errors.toString()
                             : "No domains found");
                 }
@@ -988,6 +1001,13 @@ final class Blocklist {
                 File legacy = new File(app.getFilesDir(), LEGACY_FILE);
                 if (legacy.exists()) legacy.delete();
 
+                // A source can be added while downloads are in flight. Do not
+                // overwrite the user's newer settings with the update snapshot.
+                Prefs latest = Prefs.load(app);
+                if (java.util.Objects.equals(latest.blocklistUrls, initialUrls)) {
+                    latest.blocklistUrls = p.blocklistUrls;
+                }
+                p = latest;
                 p.lastUpdate = System.currentTimeMillis();
                 p.adsDomains = adsCount;
                 p.trackerDomains = trackerCount;
@@ -1007,6 +1027,7 @@ final class Blocklist {
             } catch (Exception e) {
                 message = e.getMessage() == null ? "Update failed" : e.getMessage();
             } finally {
+                fetchProgress.clear();
                 updating = false;
             }
             post(done, ok, message);
@@ -1026,19 +1047,25 @@ final class Blocklist {
         try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
                 new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
             for (String url : urls) {
-                if (count[0] >= limit) break;
+                if (count[0] >= limit) {
+                    fetchProgress.set(url, ListFetchProgress.State.SKIPPED);
+                    continue;
+                }
                 int before = count[0];
+                fetchProgress.set(url, ListFetchProgress.State.FETCHING);
                 try {
                     downloadInto(url, w, seen, count, limit);
                     int added = count[0] - before;
                     tally[0]++;
                     health.add(new Health(url, true, added, "",
                             System.currentTimeMillis()));
+                    fetchProgress.set(url, ListFetchProgress.State.DOWNLOADED);
                 } catch (Exception e) {
                     tally[1]++;
                     String error = e.getMessage() == null ? "failed" : e.getMessage();
                     health.add(new Health(url, false, 0, error,
                             System.currentTimeMillis()));
+                    fetchProgress.set(url, ListFetchProgress.State.FAILED);
                     if (errors.length() < 180) {
                         if (errors.length() > 0) errors.append("; ");
                         errors.append(Prefs.hostOf(url)).append(": ").append(error);

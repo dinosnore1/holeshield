@@ -227,6 +227,12 @@ final class WebServer {
             JSONObject root = new JSONObject();
             root.put("lists", arr);
             root.put("updating", Blocklist.isUpdating());
+            JSONObject progress = new JSONObject();
+            for (java.util.Map.Entry<String, ListFetchProgress.State> e
+                    : Blocklist.fetchProgress().entrySet()) {
+                progress.put(e.getKey(), e.getValue().name());
+            }
+            root.put("progress", progress);
             sendJson(out, 200, root.toString());
             return;
         }

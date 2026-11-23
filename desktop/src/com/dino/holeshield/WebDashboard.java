@@ -176,8 +176,11 @@ final class WebDashboard {
                         .put("error", h.error)
                         .put("at", h.at));
             }
+            Json.Obj progress = new Json.Obj();
+            filter.fetchProgress().forEach((url, state) -> progress.put(url, state.name()));
             sendJson(exchange, 200, new Json.Obj()
                     .put("lists", lists)
+                    .put("progress", progress)
                     .put("updating", filter.isUpdating()));
             return;
         }

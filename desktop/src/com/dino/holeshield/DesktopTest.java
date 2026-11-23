@@ -317,7 +317,15 @@ public final class DesktopTest {
 
         com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer
                 .create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        var fetching = new java.util.concurrent.CountDownLatch(1);
+        var respond = new java.util.concurrent.CountDownLatch(1);
         server.createContext("/list.txt", exchange -> {
+            fetching.countDown();
+            try {
+                respond.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             byte[] body = ("# local test list\n0.0.0.0 local-block.example\n"
                     + "0.0.0.0 sub.local-block.example\n").getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, body.length);
@@ -327,12 +335,21 @@ public final class DesktopTest {
         });
         server.start();
         int port = server.getAddress().getPort();
-        prefs.set("blocklistUrls", "http://127.0.0.1:" + port + "/list.txt");
+        String listUrl = "http://127.0.0.1:" + port + "/list.txt";
+        prefs.set("blocklistUrls", listUrl);
         filter.updateBlocklists(null, null);
+        try {
+            check(fetching.await(5, java.util.concurrent.TimeUnit.SECONDS), "list server received request");
+            eq(ListFetchProgress.State.FETCHING, filter.fetchProgress().get(listUrl),
+                    "only the active list is fetching");
+        } finally {
+            respond.countDown();
+        }
         for (int i = 0; i < 100 && filter.isUpdating(); i++) {
             Thread.sleep(50);
         }
         check(!filter.isUpdating(), "list update finished");
+        check(filter.fetchProgress().isEmpty(), "transient list progress cleared");
         check(filter.lastError().isEmpty(), "list update succeeded: " + filter.lastError());
         check(filter.check("local-block.example").blocked, "downloaded domain blocked");
         check(filter.check("x.local-block.example").blocked, "downloaded subdomain blocked");

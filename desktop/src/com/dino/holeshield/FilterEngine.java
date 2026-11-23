@@ -170,6 +170,7 @@ final class FilterEngine {
     private volatile boolean blockSubdomains = true;
     private volatile int categoryMask = Gravity.ALL;
     private volatile boolean updating;
+    private final ListFetchProgress fetchProgress = new ListFetchProgress();
     private volatile String lastError = "";
     private volatile long lastUpdate;
     private volatile int gravityCount;
@@ -691,6 +692,10 @@ final class FilterEngine {
 
     boolean isUpdating() { return updating; }
 
+    java.util.Map<String, ListFetchProgress.State> fetchProgress() {
+        return fetchProgress.snapshot();
+    }
+
     String lastError() { return lastError; }
 
     /** Ceiling for the merged index when the user disables the size limit. */
@@ -741,7 +746,7 @@ final class FilterEngine {
 
     // --------------------------------------------------------------- updates
 
-    void updateBlocklists(Progress progress, Runnable done) {
+    synchronized void updateBlocklists(Progress progress, Runnable done) {
         if (updating) return;
         updating = true;
         Thread worker = new Thread(() -> {
@@ -750,6 +755,7 @@ final class FilterEngine {
             } catch (Throwable e) {
                 lastError = e.getMessage() == null ? e.toString() : e.getMessage();
             } finally {
+                fetchProgress.clear();
                 updating = false;
                 if (done != null) done.run();
             }
@@ -773,7 +779,10 @@ final class FilterEngine {
         prefs.save();
         List<String> urls = new ArrayList<>();
         for (String url : listUrls()) {
-            if (sourceEnabled(url)) urls.add(url);
+            boolean enabled = sourceEnabled(url);
+            fetchProgress.set(url, enabled ? ListFetchProgress.State.QUEUED
+                    : ListFetchProgress.State.SKIPPED);
+            if (enabled) urls.add(url);
         }
         if (urls.isEmpty()) {
             lastError = "Add at least one blocklist source first.";
@@ -784,7 +793,13 @@ final class FilterEngine {
         AtomicInteger completed = new AtomicInteger();
         List<Future<SourceResult>> futures = new ArrayList<>();
         for (String url : urls) {
-            futures.add(pool.submit((Callable<SourceResult>) () -> downloadSource(url)));
+            futures.add(pool.submit((Callable<SourceResult>) () -> {
+                fetchProgress.set(url, ListFetchProgress.State.FETCHING);
+                SourceResult result = downloadSource(url);
+                fetchProgress.set(url, result.ok ? ListFetchProgress.State.DOWNLOADED
+                        : ListFetchProgress.State.FAILED);
+                return result;
+            }));
         }
         LongBuffer[] buffers = new LongBuffer[CATEGORY_BITS.length];
         for (int i = 0; i < buffers.length; i++) buffers[i] = new LongBuffer(4096);

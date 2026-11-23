@@ -16,6 +16,7 @@ $Shared = @(
   "src\com\dino\holeshield\Blocklists.java",
   "src\com\dino\holeshield\WebAuth.java",
   "src\com\dino\holeshield\Retention.java",
+  "src\com\dino\holeshield\ListFetchProgress.java",
   "src\com\dino\holeshield\ReverseLogReader.java"
 ) | ForEach-Object { Join-Path $Root $_ }
 $All = $Sources + $Shared
