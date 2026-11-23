@@ -279,6 +279,10 @@ html[data-theme="light"] .pauseControl:focus-within{box-shadow:0 0 0 3px rgba(27
 .list .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text)}
 .list b{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
 .list .empty{color:var(--muted);padding:6px 0}
+.source-row .source-health{display:flex;align-items:center;gap:5px;min-width:0;max-width:38%}
+.source-health .badge,.source-row button{flex:none}
+.source-health .health-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px}
+@media(max-width:480px){.list .source-row{gap:6px}.source-row button{padding-inline:8px}}
 .bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px}
 .bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--blue))}
 .type-row{display:flex;align-items:center;gap:10px;margin:10px 0}
@@ -720,8 +724,6 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     <div class="panel">
       <h3 style="margin-top:18px">Lists &amp; actions</h3>
       <ul class="list" id="lists"><li class="empty">No blocklist sources.</li></ul>
-      <h3 style="margin-top:18px">List health</h3>
-      <div id="listHealth"><div class="note">No download results yet.</div></div>
       <form id="listForm" class="row" style="margin-top:12px">
         <input id="listUrl" type="text" placeholder="https://example.com/hosts" autocomplete="off" spellcheck="false">
         <button type="submit">Add list</button>
@@ -1241,19 +1243,6 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     });
   }
 
-  function renderHealth(data){
-    var rows = (data && data.lists) || [];
-    var el = $("#listHealth");
-    if(!rows.length){ el.innerHTML = '<div class="note">No download results yet.</div>'; return; }
-    el.innerHTML = rows.map(function(x){
-      var detail = x.ok ? fmt(x.count) + " domains" : (x.error || "failed");
-      return '<div class="rule"><span class="badge ' + (x.ok ? "allow" : "deny") + '">' +
-        (x.ok ? "OK" : "FAIL") + '</span><code title="' + esc(x.address) + '">' +
-        esc((x.address || "").replace(/^https?:\/\//, "")) + '</code>' +
-        '<span class="tag">' + esc(detail) + '</span></div>';
-    }).join("");
-  }
-
   function renderTypes(data){
     var rows = (data && data.types) || [];
     var el = $("#types");
@@ -1298,12 +1287,21 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     }
   }
 
-  function renderLists(data){
+  function renderLists(data, health){
     var lists = (data && data.lists) || [];
+    var byAddress = new Map(((health && health.lists) || []).map(function(row){
+      return [row.address, row];
+    }));
     var el = $("#lists");
     if(!lists.length){ el.innerHTML = '<li class="empty">No blocklist sources.</li>'; return; }
     el.innerHTML = lists.map(function(l){
-      return '<li><span class="name">' + esc(l.address) + '</span>' +
+      var status = byAddress.get(l.address);
+      var detail = status ? (status.ok ? fmt(status.count) + " domains" : (status.error || "Download failed"))
+        : (health && health.updating ? "Updating" : (health ? "Not checked" : "Health unavailable"));
+      var badge = status ? '<span class="badge ' + (status.ok ? 'allow">OK' : 'deny">Failed') + '</span>' : "";
+      return '<li class="source-row"><span class="name" title="' + esc(l.address) + '">' + esc(l.address) + '</span>' +
+        '<span class="source-health" title="' + esc(detail) + '">' + badge +
+        '<span class="health-detail">' + esc(detail) + '</span></span>' +
         '<button class="small danger" data-list="' + esc(l.id) + '">Remove</button></li>';
     }).join("");
   }
@@ -1384,9 +1382,8 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       }), "name", "count", "No clients yet.");
       if(a[4]) renderTypes(a[4]);
       if(a[6]) renderInfo(a[6]);
-      if(a[7]) renderLists(a[7]);
+      if(a[7]) renderLists(a[7], a[9]);
       if(a[8]) { renderHistory(a[8]); renderCategoryCounts(a[8]); }
-      if(a[9]) renderHealth(a[9]);
       if(a[10]) { renderCategorySwitches(a[10]); renderCategoryLevels(a[10]); }
     });
   }
