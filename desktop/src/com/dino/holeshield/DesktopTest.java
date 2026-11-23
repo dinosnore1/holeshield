@@ -431,10 +431,22 @@ public final class DesktopTest {
                 "192.168.2.10", "expired-boundary.example.com", DnsPacket.TYPE_A,
                 "BLOCKED", "gravity", 0, 1, "", "Ads", true, false));
         boundary.save();
+        File boundaryLog = new File(boundaryDir, "querylog");
+        String cutoffDay = Retention.dayKey(now - 30L * day);
+        // Inject a row that was once retained but has since aged out.
+        long expiredAt = now - 30L * day - 1000;
+        if (!Retention.dayKey(expiredAt).equals(cutoffDay)) expiredAt = now - 31L * day;
+        File oldPartition = new File(boundaryLog, Retention.dayKey(expiredAt) + ".tsv");
+        Files.writeString(oldPartition.toPath(),
+                expiredAt + "\tclient\tstartup-expired.example.com\t1\tBLOCKED\tgravity\t0\t1\t\tAds\t1\t0\n",
+                java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
         StatsStore boundaryLoaded = new StatsStore(boundaryDir);
         boundaryLoaded.load();
         eq(1L, boundaryLoaded.queries(),
                 "rolling boundary retains only the unexpired query after restart");
+        check(!oldPartition.exists()
+                        || !Files.readString(oldPartition.toPath()).contains("startup-expired.example.com"),
+                "startup physically removes expired rows, including partial days");
         String expiredKey = new java.text.SimpleDateFormat("yyyy-MM-dd",
                 java.util.Locale.US).format(new java.util.Date(now - 31L * day));
         check(!new File(new File(windowDir, "querylog"), expiredKey + ".tsv").exists(),
@@ -452,6 +464,7 @@ public final class DesktopTest {
         paged.save();
         StatsStore pagedLoaded = new StatsStore(pagedDir);
         pagedLoaded.load();
+        eq(21500L, pagedLoaded.queries(), "all burst rows count after restart");
         List<StatsStore.Entry> olderPage = pagedLoaded.log(2500);
         eq(2500, olderPage.size(), "paged log reaches older days");
         eq("q21499.example.com", olderPage.get(0).domain,
@@ -465,6 +478,18 @@ public final class DesktopTest {
         eq("q1.example.com", pagedLoaded.logPage(1, 2,
                 e -> e.domain.equals("q1.example.com") || e.domain.equals("q2.example.com"))
                 .get(0).domain, "paging applies filters before offset");
+        File restoredDir = new File(dir, "stats-restored");
+        File restoredLog = new File(restoredDir, "querylog");
+        check(restoredLog.mkdirs(), "create desktop backup restore directory");
+        File[] partitions = new File(pagedDir, "querylog").listFiles();
+        for (File partition : partitions) {
+            Files.copy(partition.toPath(), new File(restoredLog, partition.getName()).toPath());
+        }
+        StatsStore restored = new StatsStore(restoredDir);
+        restored.load();
+        eq(21500L, restored.queries(), "desktop partition backup restores without summary file");
+        eq("q0.example.com", restored.logPage(21499, 1, e -> true).get(0).domain,
+                "desktop partition backup preserves older history");
 
         File derivedDir = new File(dir, "stats-derived");
         derivedDir.mkdirs();
@@ -494,16 +519,16 @@ public final class DesktopTest {
                         .getBytes(StandardCharsets.UTF_8));
         StatsStore legacy = new StatsStore(legacyDir);
         legacy.load();
-        eq(10L, legacy.queries(), "dated legacy queries kept on upgrade");
-        eq(3L, legacy.blocked(), "dated legacy blocks kept on upgrade");
+        eq(0L, legacy.queries(), "legacy queries without retained rows are excluded");
+        eq(0L, legacy.blocked(), "legacy blocks without retained rows are excluded");
         eq(0L, legacy.todayQueries(), "undated lifetime queries are not attributed to today");
         legacy.save();
         check(Files.readString(new File(legacyDir, "stats.txt").toPath())
                 .contains("L 100,10,5,80,1"), "undated legacy totals preserved separately");
         StatsStore legacyAgain = new StatsStore(legacyDir);
         legacyAgain.load();
-        eq(10L, legacyAgain.queries(), "legacy totals are not counted twice");
-        eq(3L, legacyAgain.blocked(), "legacy blocks are not counted twice");
+        eq(0L, legacyAgain.queries(), "legacy totals stay excluded after restart");
+        eq(0L, legacyAgain.blocked(), "legacy blocks stay excluded after restart");
 
         File migrateDir = new File(dir, "stats-log-migrate");
         migrateDir.mkdirs();

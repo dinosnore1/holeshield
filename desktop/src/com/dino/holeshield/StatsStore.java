@@ -8,17 +8,17 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -111,13 +111,10 @@ final class StatsStore {
     private long legacyForwarded;
     private long legacyErrors;
     private boolean legacySeen;
-    private int dirty;
     private File logDir;
     private BufferedWriter logWriter;
     private String logWriterDay = "";
     private boolean logDirty;
-    private long lastSave;
-    private long lastTrim;
     private final ReverseLogReader.BoundaryCache boundary = new ReverseLogReader.BoundaryCache();
     private boolean saveQueued;
     private ScheduledExecutorService saver;
@@ -151,19 +148,6 @@ final class StatsStore {
                             legacyErrors = parseLong(n[4]);
                             legacySeen = true;
                         }
-                    } else if ("H".equals(f[0]) && f.length >= 3) {
-                        String[] n = f[2].split(",");
-                        if (n.length >= 2) {
-                            hourly.put(f[1], new long[]{parseLong(n[0]), parseLong(n[1])});
-                        }
-                    } else if ("D".equals(f[0]) && f.length >= 3) {
-                        String[] n = f[2].split(",");
-                        if (n.length >= 2) {
-                            daily.put(f[1], new long[]{parseLong(n[0]), parseLong(n[1]),
-                                    n.length > 2 ? parseLong(n[2]) : 0L,
-                                    n.length > 3 ? parseLong(n[3]) : 0L,
-                                    n.length > 4 ? parseLong(n[4]) : 0L});
-                        }
                     }
                 }
             } catch (Exception ignored) { }
@@ -173,20 +157,22 @@ final class StatsStore {
         loadLogTail();
         rebuildFromRecords();
         trimHistory();
-        lastSave = System.currentTimeMillis();
-        lastTrim = lastSave;
+        if (saver == null) {
+            startSaver();
+            saver.scheduleWithFixedDelay(this::pruneLogFiles, 15, 15, TimeUnit.MINUTES);
+        }
     }
 
     /**
      * Rebuilds the daily and hourly counters and the top lists from the
-     * retained rows. Days that no longer have a log file keep their stored
-     * aggregate, because that history was discarded by an older build and
-     * cannot be recovered.
+     * retained rows. Legacy aggregates without matching history must not
+     * enter the rolling totals.
      */
     private void rebuildFromRecords() {
         HashMap<String, long[]> dayCounts = new HashMap<>();
         HashMap<String, long[]> hourCounts = new HashMap<>();
-        Set<String> logDays = new HashSet<>();
+        daily.clear();
+        hourly.clear();
         domainCounts.clear();
         clientCounts.clear();
         typeCounts.clear();
@@ -194,13 +180,6 @@ final class StatsStore {
         categoryCounts.clear();
         long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
         if (logDir != null) {
-            File[] all = logDir.listFiles();
-            if (all != null) {
-                for (File f : all) {
-                    String key = dayFromFile(f.getName());
-                    if (key != null) logDays.add(key);
-                }
-            }
             for (File file : logFilesNewestFirst()) {
                 scan(file, cutoff, e -> {
                     String dayKey = DAY.format(new Date(e.at));
@@ -222,10 +201,6 @@ final class StatsStore {
                 });
             }
         }
-        for (String key : logDays) {
-            daily.remove(key);
-            hourly.keySet().removeIf(hour -> hour.startsWith(key + "-"));
-        }
         daily.putAll(dayCounts);
         hourly.putAll(hourCounts);
     }
@@ -245,7 +220,7 @@ final class StatsStore {
     }
 
     synchronized void record(Entry entry) {
-        if (System.currentTimeMillis() - entry.at >= ReverseLogReader.RETENTION_MS) return;
+        if (Retention.expired(entry.at, System.currentTimeMillis())) return;
         log.addFirst(entry);
         while (log.size() > LOG_MAX) log.removeLast();
         index(entry);
@@ -263,11 +238,6 @@ final class StatsStore {
 
         count(bucketForDay(DAY.format(new Date(now))), entry);
 
-        dirty++;
-        if ((dirty & 0xFF) == 0 || now - lastTrim > 60000L) {
-            trimHistory();
-            lastTrim = now;
-        }
         queueSave();
     }
 
@@ -295,14 +265,16 @@ final class StatsStore {
     private void queueSave() {
         if (saveQueued) return;
         saveQueued = true;
-        if (saver == null) {
-            saver = Executors.newSingleThreadScheduledExecutor(runnable -> {
-                Thread thread = new Thread(runnable, "stats-save");
-                thread.setDaemon(true);
-                return thread;
-            });
-        }
+        if (saver == null) startSaver();
         saver.schedule(this::save, SAVE_DELAY_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void startSaver() {
+        saver = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "stats-save");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     private void index(Entry e) {
@@ -594,8 +566,6 @@ final class StatsStore {
             trimHistory();
             flushLog();
             summary = summaryText();
-            dirty = 0;
-            lastSave = System.currentTimeMillis();
         }
         synchronized (WRITE_LOCK) {
             AppDirs.ensureDir(dir);
@@ -628,7 +598,7 @@ final class StatsStore {
 
     /** Opens (and if needed migrates) the date-partitioned query log. */
     private void openLog() {
-        closeLogWriter(false);
+        closeLogWriter();
         logDir = new File(dir, "querylog");
         File legacy = new File(dir, "query_log.tsv");
         if (!ReverseLogReader.initialize(logDir, legacy,
@@ -639,7 +609,7 @@ final class StatsStore {
             logDir = null;
             return;
         }
-        pruneLogFiles(false);
+        pruneLogFiles();
     }
 
     /** Fills the in-memory ring from the newest entries on disk. */
@@ -662,18 +632,16 @@ final class StatsStore {
         String key = DAY.format(new Date(e.at));
         try {
             if (logWriter == null || !key.equals(logWriterDay)) {
-                boolean rollover = logWriter != null;
-                closeLogWriter(false);
+                closeLogWriter();
                 logWriter = new BufferedWriter(new OutputStreamWriter(
                         new FileOutputStream(new File(logDir, key + ".tsv"), true),
                         StandardCharsets.UTF_8));
                 logWriterDay = key;
-                if (rollover) pruneLogFiles(false);
             }
             writeLogEntry(logWriter, e);
             logDirty = true;
         } catch (Exception ex) {
-            closeLogWriter(false);
+            closeLogWriter();
         }
     }
 
@@ -685,8 +653,7 @@ final class StatsStore {
         } catch (Exception ignored) { }
     }
 
-    private void closeLogWriter(boolean compressClosedDay) {
-        String finished = logWriterDay;
+    private void closeLogWriter() {
         if (logWriter != null) {
             try {
                 logWriter.close();
@@ -695,10 +662,6 @@ final class StatsStore {
         }
         logWriterDay = "";
         logDirty = false;
-        if (compressClosedDay && finished != null && !finished.isEmpty()
-                && !finished.equals(DAY.format(new Date()))) {
-            compressDay(finished);
-        }
     }
 
     private static void writeLogEntry(BufferedWriter w, Entry e) throws Exception {
@@ -760,51 +723,62 @@ final class StatsStore {
         return name.substring(0, 10);
     }
 
-    /** Deletes expired days and compresses closed days. */
-    private void pruneLogFiles(boolean compress) {
-        if (logDir == null) return;
-        File[] all = logDir.listFiles();
-        if (all == null) return;
-        String cutoff = DAY.format(new Date(
-                System.currentTimeMillis() - ReverseLogReader.RETENTION_MS));
-        String todayKey = DAY.format(new Date());
-        for (File f : all) {
-            String name = f.getName();
-            String key = dayFromFile(name);
-            if (key == null) {
-                continue;
-            }
-            if (key.compareTo(cutoff) < 0) {
-                f.delete();
-            } else if (compress && key.compareTo(todayKey) < 0 && name.endsWith(".tsv")) {
-                compressDay(key);
+    /** Deletes expired days and trims the one partition spanning the cutoff. */
+    private void pruneLogFiles() {
+        List<File> files;
+        synchronized (this) {
+            trimHistory();
+            files = logFilesNewestFirst();
+        }
+        long cutoff = Retention.cutoff(System.currentTimeMillis());
+        String firstDay = Retention.dayKey(cutoff);
+        for (File file : files) {
+            String key = dayFromFile(file.getName());
+            if (key.compareTo(firstDay) < 0) {
+                synchronized (this) {
+                    if (!key.equals(logWriterDay)) file.delete();
+                }
+            } else if (key.equals(firstDay)) {
+                trimBoundaryFile(file, key, cutoff);
             }
         }
     }
 
-    private void compressDay(String key) {
-        if (logDir == null) return;
-        File plain = new File(logDir, key + ".tsv");
-        if (!plain.isFile()) return;
-        File gz = new File(logDir, key + ".tsv.gz");
-        // Never replace an existing archive: the plain file may contain only
-        // later entries for this day, not a complete replacement.
-        if (gz.exists()) return;
-        File tmp = new File(logDir, key + ".tsv.gz.tmp");
-        try (FileInputStream in = new FileInputStream(plain);
-             GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream(tmp))) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
-        } catch (Exception ex) {
-            tmp.delete();
-            return;
+    private void trimBoundaryFile(File file, String key, long cutoff) {
+        java.nio.file.Path tmp = null;
+        try {
+            long length = file.length();
+            boolean gzip = file.getName().endsWith(".gz");
+            tmp = Files.createTempFile(file.getParentFile().toPath(), "query-trim-", ".tmp");
+            boolean expired = false;
+            try (FileInputStream in = new FileInputStream(file);
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(
+                         gzip ? new GZIPInputStream(in) : in, StandardCharsets.UTF_8));
+                 java.io.OutputStream out = Files.newOutputStream(tmp);
+                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                         gzip ? new GZIPOutputStream(out) : out, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    Entry entry = parseLogLine(line);
+                    if (entry != null && entry.at < cutoff) {
+                        expired = true;
+                    } else {
+                        writer.write(line);
+                        writer.newLine();
+                    }
+                }
+            }
+            synchronized (this) {
+                if (expired && !key.equals(logWriterDay) && file.length() == length) {
+                    Files.move(tmp, file.toPath(), StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } catch (java.io.IOException e) {
+            System.err.println("Hole Shield: could not trim query partition " + file.getName());
+        } finally {
+            if (tmp != null) tmp.toFile().delete();
         }
-        if (!tmp.renameTo(gz)) {
-            tmp.delete();
-            return;
-        }
-        plain.delete();
     }
 
     private void deleteLogFiles() {
@@ -863,7 +837,7 @@ final class StatsStore {
     }
 
     synchronized void clear() {
-        closeLogWriter(false);
+        closeLogWriter();
         deleteLogFiles();
         log.clear();
         hourly.clear();
