@@ -20,7 +20,7 @@ import java.util.zip.GZIPInputStream;
 
 /** Reads complete UTF-8 log rows newest first, using fixed-size disk reads. */
 final class ReverseLogReader implements Closeable {
-    static final long RETENTION_MS = 30L * 24 * 60 * 60 * 1000;
+    static final long RETENTION_MS = Retention.WINDOW_MS;
 
     @FunctionalInterface
     interface RowWriter<E> {

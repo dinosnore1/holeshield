@@ -15,11 +15,11 @@ mkdir -p "$OUT"
   src/com/dino/holeshield/Blocklists.java \
   src/com/dino/holeshield/WebAuth.java \
   src/com/dino/holeshield/Gravity.java \
-  src/com/dino/holeshield/StatsHistoryCodec.java \
+  src/com/dino/holeshield/Retention.java \
   src/com/dino/holeshield/UpdateVerifier.java \
   tools/TestDns.java \
   tools/TestUpdate.java \
-  tools/TestStatsHistory.java
+  tools/TestRetention.java
 "$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestDns
 "$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestUpdate
-"$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestStatsHistory
+"$JAVA_HOME/bin/java" -cp "$OUT" com.dino.holeshield.TestRetention
