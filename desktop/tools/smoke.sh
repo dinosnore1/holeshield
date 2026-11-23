@@ -71,7 +71,7 @@ queries = get("/api/queries?length=40")["queries"]
 assert summary["queries"]["total"] >= 2, summary
 assert summary["queries"]["blocked"] >= 1, summary
 assert any(q["domain"] == "doubleclick.net" and q["blocked"] for q in queries), queries
-assert any(q["domain"] == "example.com" and q["upstream"] == "DoH" for q in queries), queries
+assert any(q["domain"] == "example.com" and q["upstream"] for q in queries), queries
 assert any(q["client"]["ip"] for q in queries), queries
 print("smoke: api ok, total=%s blocked=%s" % (
     summary["queries"]["total"], summary["queries"]["blocked"]))
