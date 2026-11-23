@@ -750,6 +750,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
       <button id="queryNewer" class="small" disabled>Newer</button>
       <button id="queryOlder" class="small" disabled>Older</button>
     </div>
+    <div id="queryStatus" class="note" role="status"></div>
   </section>
 
   <section id="rule-panel" class="grid2">
@@ -1500,14 +1501,34 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
 
   var queryOffset = 0;
   var queryRequest = 0;
-  function loadQueries(){
+  var queryInFlight = false;
+  var searchTimer = null;
+  function invalidateQueries(){
+    clearTimeout(searchTimer);
+    searchTimer = null;
+    queryRequest++;
+    queryInFlight = false;
+    $("#queryNewer").disabled = true;
+    $("#queryOlder").disabled = true;
+  }
+  function loadQueries(automatic){
+    if(automatic && (queryInFlight || searchTimer !== null)) return;
     var request = ++queryRequest;
+    queryInFlight = true;
     var qs = "length=150&start=" + queryOffset;
     if(state.filter === "blocked") qs += "&blocked=true";
     if(state.filter === "allowed") qs += "&blocked=false";
     if(state.search) qs += "&search=" + encodeURIComponent(state.search);
-    safe("/api/queries?" + qs).then(function(d){
-      if(d && request === queryRequest) renderQueries(d);
+    if(!automatic) $("#queryStatus").textContent = state.search ? "Searching…" : "Loading queries…";
+    api("/api/queries?" + qs).then(function(d){
+      if(request !== queryRequest) return;
+      renderQueries(d);
+      $("#queryStatus").textContent = state.search
+        ? (d.queries || []).length + " matches on this page" : "";
+    }).catch(function(){
+      if(request === queryRequest) $("#queryStatus").textContent = "Could not load queries. Try again.";
+    }).finally(function(){
+      if(request === queryRequest) queryInFlight = false;
     });
   }
 
@@ -1539,7 +1560,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   }
 
   function loadAll(){
-    if (queryOffset === 0) loadQueries();
+    if (queryOffset === 0) loadQueries(true);
     loadListHealth();
     Promise.all([
       safe("/api/stats/summary"),
@@ -1680,16 +1701,20 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     b.addEventListener("click", function(){
       state.filter = b.getAttribute("data-filter");
       queryOffset = 0;
+      invalidateQueries();
       $$("[data-filter]").forEach(function(x){ x.classList.toggle("active", x === b); });
       loadQueries();
     });
   });
-  var searchTimer = null;
   $("#search").addEventListener("input", function(){
     state.search = this.value.trim();
     queryOffset = 0;
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(loadQueries, 250);
+    invalidateQueries();
+    $("#queryStatus").textContent = state.search ? "Searching…" : "Loading queries…";
+    searchTimer = setTimeout(function(){
+      searchTimer = null;
+      loadQueries();
+    }, 250);
   });
 
   $("#ruleForm").addEventListener("submit", function(ev){

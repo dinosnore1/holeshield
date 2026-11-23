@@ -616,13 +616,8 @@ final class WebServer {
         String domain = r.param("domain", "").toLowerCase(Locale.US);
         String search = r.param("search", "").toLowerCase(Locale.US);
         boolean want = "true".equalsIgnoreCase(blocked) || "1".equals(blocked);
-        List<Stats.Entry> all = Stats.logPage(start, length, e ->
-                (blocked.isEmpty() || want == e.blocked)
-                        && e.client.toLowerCase(Locale.US).contains(client)
-                        && e.domain.toLowerCase(Locale.US).contains(domain)
-                        && (search.isEmpty() || e.domain.toLowerCase(Locale.US).contains(search)
-                        || e.client.toLowerCase(Locale.US).contains(search)
-                        || DnsEngine.clientName(e.client).toLowerCase(Locale.US).contains(search)));
+        List<Stats.Entry> all = Stats.logPage(start, length, blocked.isEmpty() ? null : want,
+                client, domain, search);
         JSONArray arr = new JSONArray();
         int id = start;
         for (Stats.Entry e : all) {

@@ -14,6 +14,9 @@ final class DnsEngine {
     static final String VPN_CLIENT6 = "fd00:111:221::2";
     // InetAddress.getHostAddress() does not always compress zero groups.
     static final String VPN_CLIENT6_FULL = "fd00:111:221:0:0:0:0:2";
+    static final String[] DEVICE_CLIENTS = {VPN_CLIENT, "10.111.221.1",
+            VPN_CLIENT6, VPN_CLIENT6_FULL, "fd00:111:221::1", "fd00:111:221:0:0:0:0:1"};
+    static final String[] LOOPBACK_CLIENTS = {"127.0.0.1", "::1", "0:0:0:0:0:0:0:1"};
 
     private final Context context;
     private final DnsUpstream upstream;
@@ -104,14 +107,8 @@ final class DnsEngine {
 
     static String clientName(String ip) {
         if (ip == null || ip.isEmpty()) return "unknown";
-        if (VPN_CLIENT.equals(ip) || "10.111.221.1".equals(ip)
-                || VPN_CLIENT6.equals(ip) || VPN_CLIENT6_FULL.equals(ip)
-                || "fd00:111:221::1".equals(ip)
-                || "fd00:111:221:0:0:0:0:1".equals(ip)) {
-            return "this device";
-        }
-        if ("127.0.0.1".equals(ip) || "::1".equals(ip)
-                || "0:0:0:0:0:0:0:1".equals(ip)) return "localhost";
+        for (String client : DEVICE_CLIENTS) if (client.equals(ip)) return "this device";
+        for (String client : LOOPBACK_CLIENTS) if (client.equals(ip)) return "localhost";
         return ip;
     }
 

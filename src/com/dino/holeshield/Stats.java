@@ -254,11 +254,12 @@ final class Stats {
 
     static synchronized List<Entry> log(int limit) {
         int max = Math.max(0, Math.min(EXPORT_MAX, limit));
-        return QueryDb.page(0, max, null);
+        return QueryDb.page(0, max, null, "", "", "");
     }
 
-    static List<Entry> logPage(int start, int length, java.util.function.Predicate<Entry> filter) {
-        return QueryDb.page(start, length, filter);
+    static List<Entry> logPage(int start, int length, Boolean blocked, String client,
+                               String domain, String search) {
+        return QueryDb.page(start, length, blocked, client, domain, search);
     }
 
     private static long topSince() {

@@ -74,6 +74,10 @@ assert summary["queries"]["allowed"] >= 1, summary
 assert any(q["domain"] == "doubleclick.net" and q["blocked"] for q in queries), queries
 assert any(q["domain"] == "example.com" and q["upstream"] for q in queries), queries
 assert any(q["client"]["ip"] for q in queries), queries
+matches = get("/api/queries?length=10&search=DOUBLECLICK&blocked=true")["queries"]
+assert matches and all(q["domain"] == "doubleclick.net" and q["blocked"] for q in matches), matches
+assert not get("/api/queries?search=doubleclick&blocked=false")["queries"]
+assert get("/api/queries?search=this%20computer")["queries"]
 print("smoke: api ok, total=%s blocked=%s" % (
     summary["queries"]["total"], summary["queries"]["blocked"]))
 PY

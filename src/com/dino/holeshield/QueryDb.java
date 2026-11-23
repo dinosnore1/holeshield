@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -269,40 +268,53 @@ final class QueryDb {
         }
     }
 
-    /** Newest-first page, with an optional in-memory filter. */
-    static synchronized List<Stats.Entry> page(int offset, int limit, Predicate<Stats.Entry> filter) {
+    /** Filter in SQLite, then return only the requested newest-first page. */
+    static synchronized List<Stats.Entry> page(int offset, int limit, Boolean blocked,
+                                                String client, String domain, String search) {
         List<Stats.Entry> out = new ArrayList<>();
         if (helper == null || limit <= 0) return out;
         flush();
-        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
-        try {
-            SQLiteDatabase db = helper.getReadableDatabase();
-            if (filter == null) {
-                try (Cursor c = db.rawQuery("SELECT " + COLUMNS
-                        + " FROM queries WHERE at >= ? ORDER BY at DESC, id DESC LIMIT ? OFFSET ?",
-                        new String[]{Long.toString(cutoff), Integer.toString(limit),
-                                Integer.toString(Math.max(0, offset))})) {
-                    while (c.moveToNext()) out.add(read(c));
-                }
-                return out;
-            }
-            int skipped = 0;
-            try (Cursor c = db.rawQuery("SELECT " + COLUMNS
-                    + " FROM queries WHERE at >= ? ORDER BY at DESC, id DESC",
-                    new String[]{Long.toString(cutoff)})) {
-                while (c.moveToNext()) {
-                    Stats.Entry e = read(c);
-                    if (!filter.test(e)) continue;
-                    if (skipped < offset) {
-                        skipped++;
-                        continue;
-                    }
-                    out.add(e);
-                    if (out.size() >= limit) break;
-                }
-            }
-        } catch (Exception ignored) { }
+        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
+                .append(" FROM queries WHERE at >= ?");
+        List<String> args = new ArrayList<>();
+        args.add(Long.toString(Retention.cutoff(System.currentTimeMillis())));
+        if (blocked != null) {
+            sql.append(" AND blocked = ?");
+            args.add(blocked ? "1" : "0");
+        }
+        if (!client.isEmpty()) {
+            sql.append(" AND instr(lower(client), ?) > 0");
+            args.add(client);
+        }
+        if (!domain.isEmpty()) {
+            sql.append(" AND instr(lower(domain), ?) > 0");
+            args.add(domain);
+        }
+        if (!search.isEmpty()) {
+            sql.append(" AND (instr(lower(domain), ?) > 0 OR instr(lower(client), ?) > 0");
+            args.add(search);
+            args.add(search);
+            if ("this device".contains(search)) addClients(sql, args, DnsEngine.DEVICE_CLIENTS);
+            if ("localhost".contains(search)) addClients(sql, args, DnsEngine.LOOPBACK_CLIENTS);
+            sql.append(")");
+        }
+        sql.append(" ORDER BY at DESC, id DESC LIMIT ? OFFSET ?");
+        args.add(Integer.toString(limit));
+        args.add(Integer.toString(Math.max(0, offset)));
+        try (Cursor c = helper.getReadableDatabase().rawQuery(sql.toString(), args.toArray(new String[0]))) {
+            while (c.moveToNext()) out.add(read(c));
+        }
         return out;
+    }
+
+    private static void addClients(StringBuilder sql, List<String> args, String[] clients) {
+        sql.append(" OR client IN (");
+        for (int i = 0; i < clients.length; i++) {
+            if (i > 0) sql.append(',');
+            sql.append('?');
+            args.add(clients[i]);
+        }
+        sql.append(')');
     }
 
     private static Stats.Entry read(Cursor c) {

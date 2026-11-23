@@ -42,6 +42,16 @@ public final class TestQueryDb extends Instrumentation {
                 QueryDb.flush();
                 check(QueryDb.totals(Retention.cutoff(now))[0] == 5000,
                         "rolling totals exclude physically present expired rows");
+                check(QueryDb.page(0, 10, true, "test-client", "", "burst-4999").size() == 1,
+                        "search combines client, domain text and blocked filters");
+                check(QueryDb.page(1, 2, true, "", "", "burst-49").get(0).domain.equals("burst-4998"),
+                        "filtered search applies offset after matching");
+                check(QueryDb.page(0, 10, false, "", "", "burst-4999").isEmpty(),
+                        "search respects non-blocked filter");
+                check(QueryDb.page(0, 10, null, "", "", "startup-probe").isEmpty(),
+                        "search excludes expired queries");
+                check(QueryDb.page(0, 10, null, "", "", "%").isEmpty(),
+                        "search treats wildcard characters literally");
                 Stats.Entry same = entry(now, "burst-0");
                 Stats.Entry other = entry(now, "backup-only");
                 Stats.Entry expired = entry(Retention.cutoff(now) - 1000, "old-backup");
