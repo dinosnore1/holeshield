@@ -11,6 +11,10 @@
     if (saved === "light" || saved === "dark") {
       document.documentElement.setAttribute("data-theme", saved);
     }
+    var accent = localStorage.getItem("holeshield_accent");
+    if (["default", "blue", "rose", "slate"].indexOf(accent) !== -1) {
+      document.documentElement.setAttribute("data-accent", accent);
+    }
   } catch (e) {}
 })();
 </script>
@@ -73,6 +77,12 @@ html[data-theme="light"]{
   --accent:var(--md-primary); --accent-container:var(--md-primary-container);
   color-scheme:light;
 }
+html[data-accent="blue"]{--md-primary:#99caff;--md-on-primary:#0b2948;--md-primary-container:#203b61;--md-on-primary-container:#d3e8ff;--accent-rgb:153,202,255}
+html[data-accent="rose"]{--md-primary:#ffb3da;--md-on-primary:#3e1730;--md-primary-container:#572640;--md-on-primary-container:#ffdcf0;--accent-rgb:255,179,218}
+html[data-accent="slate"]{--md-primary:#c5cedd;--md-on-primary:#1e293a;--md-primary-container:#333e50;--md-on-primary-container:#e1e9f7;--accent-rgb:197,206,221}
+html[data-theme="light"][data-accent="blue"]{--md-primary:#205ca6;--md-on-primary:#fff;--md-primary-container:#d7e9ff;--md-on-primary-container:#102e52;--accent-rgb:32,92,166}
+html[data-theme="light"][data-accent="rose"]{--md-primary:#983568;--md-on-primary:#fff;--md-primary-container:#fadded;--md-on-primary-container:#4c1735;--accent-rgb:152,53,104}
+html[data-theme="light"][data-accent="slate"]{--md-primary:#465b75;--md-on-primary:#fff;--md-primary-container:#dfe8f4;--md-on-primary-container:#25364d;--accent-rgb:70,91,117}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -167,6 +177,21 @@ button.small{padding:6px 12px;font-size:12px;border-radius:999px}
 button.iconButton{width:38px;height:36px;padding:0;border-radius:999px}
 button.iconButton svg{width:16px;height:16px;display:block}
 button:disabled{opacity:.45;cursor:not-allowed}
+.accent-picker{position:relative;flex:none}
+.accent-picker summary{list-style:none;width:36px;height:36px;padding:0}
+.accent-picker summary::-webkit-details-marker{display:none}
+.accent-options{position:absolute;right:0;top:calc(100% + 6px);z-index:60;
+  display:flex;flex-direction:column;gap:3px;min-width:140px;padding:7px;
+  border:1px solid var(--line);border-radius:14px;background:var(--panel2);box-shadow:var(--shadow)}
+.accent-options button{justify-content:flex-start;border-color:transparent;background:transparent}
+.accent-options button[aria-pressed="true"]{background:var(--md-primary-container);color:var(--md-on-primary-container)}
+.accent-swatch{display:inline-block;width:12px;height:12px;flex:none;border-radius:50%;background:var(--md-primary);border:1px solid var(--outline)}
+.accent-swatch.blue{background:#99caff}.accent-swatch.rose{background:#ffb3da}.accent-swatch.slate{background:#c5cedd}
+.accent-swatch.default{background:#c9b5ff}
+html[data-theme="light"] .accent-swatch.default{background:#1b7f5c}
+html[data-theme="light"] .accent-swatch.blue{background:#205ca6}
+html[data-theme="light"] .accent-swatch.rose{background:#983568}
+html[data-theme="light"] .accent-swatch.slate{background:#465b75}
 .logoutWrap{position:relative;display:inline-flex}
 .logoutMenu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:172px;padding:6px;border-radius:16px;background:var(--md-surface-container-high);border:1px solid var(--md-outline-variant);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:2px}
 .logoutMenu button{border:0;background:transparent;text-align:left;padding:9px 12px;border-radius:10px;font-size:12.5px;font-weight:650;color:var(--text);justify-content:flex-start}
@@ -488,6 +513,15 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     <div class="spacer"></div>
     <div id="status" class="pill"><span class="dot"></span><span id="statusText">Checking…</span></div>
     <button id="theme" class="small iconButton" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"></button>
+    <details class="accent-picker" id="accentPicker">
+      <summary class="btn" aria-label="Accent color" title="Accent color"><span class="accent-swatch" aria-hidden="true"></span></summary>
+      <div class="accent-options" role="group" aria-label="Accent color presets">
+        <button type="button" class="small" data-accent-choice="default" aria-pressed="true"><span class="accent-swatch default" aria-hidden="true"></span>Default</button>
+        <button type="button" class="small" data-accent-choice="blue" aria-pressed="false"><span class="accent-swatch blue" aria-hidden="true"></span>Sky blue</button>
+        <button type="button" class="small" data-accent-choice="rose" aria-pressed="false"><span class="accent-swatch rose" aria-hidden="true"></span>Rose</button>
+        <button type="button" class="small" data-accent-choice="slate" aria-pressed="false"><span class="accent-swatch slate" aria-hidden="true"></span>Slate</button>
+      </div>
+    </details>
     <button id="refresh" class="small iconButton" aria-label="Refresh now" title="Refresh now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
     <div id="logoutWrap" class="logoutWrap" style="display:none">
       <button id="logout" class="small" aria-haspopup="true" aria-expanded="false" title="Log out">Log out
@@ -925,6 +959,32 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     });
   }
   applyTheme(themeName());
+  var accentPicker = $("#accentPicker");
+  function applyAccent(accent){
+    document.documentElement.setAttribute("data-accent", accent);
+    $$("[data-accent-choice]").forEach(function(button){
+      button.setAttribute("aria-pressed", String(button.dataset.accentChoice === accent));
+    });
+  }
+  applyAccent(document.documentElement.getAttribute("data-accent") || "default");
+  accentPicker.addEventListener("click", function(event){
+    var choice = event.target.closest("[data-accent-choice]");
+    if(!choice) return;
+    var accent = choice.dataset.accentChoice;
+    applyAccent(accent);
+    try { localStorage.setItem("holeshield_accent", accent); } catch (e) {}
+    accentPicker.open = false;
+    accentPicker.querySelector("summary").focus();
+  });
+  document.addEventListener("click", function(event){
+    if(!accentPicker.contains(event.target)) accentPicker.open = false;
+  });
+  accentPicker.addEventListener("keydown", function(event){
+    if(event.key === "Escape" && accentPicker.open){
+      accentPicker.open = false;
+      accentPicker.querySelector("summary").focus();
+    }
+  });
   $$("[data-theme-toggle]").forEach(function(button){
     button.addEventListener("click", function(){
       applyTheme(themeName() === "light" ? "dark" : "light");

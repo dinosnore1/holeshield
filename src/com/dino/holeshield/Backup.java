@@ -30,6 +30,7 @@ final class Backup {
         s.put("startOnBoot", p.startOnBoot);
         s.put("tvSafeArea", p.tvSafeArea);
         s.put("theme", p.theme);
+        s.put("accent", p.accent);
         s.put("updateChannel", p.updateChannel);
         s.put("lastUpdateCheck", p.lastUpdateCheck);
         s.put("fallback", p.fallback);
@@ -103,6 +104,7 @@ final class Backup {
         p.startOnBoot = s.optBoolean("startOnBoot", p.startOnBoot);
         p.tvSafeArea = s.optInt("tvSafeArea", p.tvSafeArea);
         p.theme = s.optString("theme", p.theme);
+        p.accent = AccentPalette.fromId(s.optString("accent", p.accent)).id;
         p.updateChannel = s.optString("updateChannel", p.updateChannel);
         p.lastUpdateCheck = s.optLong("lastUpdateCheck", p.lastUpdateCheck);
         p.fallback = s.optString("fallback", p.fallback);

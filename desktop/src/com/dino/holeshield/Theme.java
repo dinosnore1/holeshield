@@ -41,8 +41,9 @@ final class Theme {
     final Color shadow;
     final Color selection;
 
-    private Theme(boolean dark) {
+    private Theme(boolean dark, AccentPalette palette) {
         this.dark = dark;
+        boolean custom = palette != AccentPalette.DEFAULT;
         if (dark) {
             bg = new Color(0x0D0D14);
             surface = new Color(0x11111A);
@@ -53,11 +54,11 @@ final class Theme {
             text = new Color(0xF2EDF9);
             muted = new Color(0xBDB7CC);
             faint = new Color(0xA79DBB);
-            accent = new Color(0xC9B5FF);
-            accentAlt = new Color(0xA7BFFF);
-            onAccent = new Color(0x23183D);
-            accentSoft = new Color(0x35275C);
-            onAccentSoft = new Color(0xEADFFF);
+            accent = new Color(palette.primary(true));
+            accentAlt = custom ? mix(accent, text, .24) : new Color(0xA7BFFF);
+            onAccent = new Color(palette.onPrimary(true));
+            accentSoft = new Color(palette.container(true));
+            onAccentSoft = new Color(palette.onContainer(true));
             danger = new Color(0xFFACA9);
             dangerSoft = new Color(0x4F212F);
             success = accent;
@@ -75,34 +76,34 @@ final class Theme {
             text = new Color(0x0D1A13);
             muted = new Color(0x5A6B60);
             faint = new Color(0x82948A);
-            accent = new Color(0x0E7C55);
-            accentAlt = new Color(0x0A6B49);
-            onAccent = new Color(0xFFFFFF);
-            accentSoft = new Color(0xDCF3E7);
-            onAccentSoft = new Color(0x07331F);
+            accent = new Color(custom ? palette.primary(false) : 0x0E7C55);
+            accentAlt = custom ? mix(accent, text, .18) : new Color(0x0A6B49);
+            onAccent = new Color(palette.onPrimary(false));
+            accentSoft = new Color(custom ? palette.container(false) : 0xDCF3E7);
+            onAccentSoft = new Color(custom ? palette.onContainer(false) : 0x07331F);
             danger = new Color(0xB42318);
             dangerSoft = new Color(0xFEE4E2);
-            success = new Color(0x0E7C55);
+            success = accent;
             warn = new Color(0x8A6100);
             track = new Color(0xEDF2EE);
             shadow = new Color(24, 46, 34, 22);
-            selection = new Color(0xDCF3E7, false);
+            selection = accentSoft;
         }
     }
 
     static Theme get() {
         Theme value = current;
         if (value == null) {
-            value = new Theme(detectSystemDark());
+            value = new Theme(detectSystemDark(), AccentPalette.DEFAULT);
             current = value;
         }
         return value;
     }
 
-    static void setMode(String mode) {
-        if (MODE_DARK.equals(mode)) current = new Theme(true);
-        else if (MODE_LIGHT.equals(mode)) current = new Theme(false);
-        else current = new Theme(detectSystemDark());
+    static void setMode(String mode, String accentId) {
+        boolean dark = MODE_DARK.equals(mode)
+                || (!MODE_LIGHT.equals(mode) && detectSystemDark());
+        current = new Theme(dark, AccentPalette.fromId(accentId));
         applyDefaults();
     }
 

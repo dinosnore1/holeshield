@@ -34,10 +34,6 @@ import android.widget.Toast;
 final class Ui {
 
     // Graphite and violet dark palette, also used by the web dashboard.
-    private static final int F_PRIMARY = 0xFFC9B5FF;
-    private static final int F_ON_PRIMARY = 0xFF23183D;
-    private static final int F_PRIMARY_CONTAINER = 0xFF35275C;
-    private static final int F_ON_PRIMARY_CONTAINER = 0xFFEADFFF;
     private static final int F_SECONDARY = 0xFFA7BFFF;
     private static final int F_ON_SECONDARY = 0xFF152544;
     private static final int F_SECONDARY_CONTAINER = 0xFF222F52;
@@ -63,10 +59,6 @@ final class Ui {
     private static final int F_OUTLINE_VARIANT = 0xFF36334A;
 
     // Keep the existing Material 3 light scheme.
-    private static final int L_PRIMARY = 0xFF1B7F5C;
-    private static final int L_ON_PRIMARY = 0xFFFFFFFF;
-    private static final int L_PRIMARY_CONTAINER = 0xFFA9F2CD;
-    private static final int L_ON_PRIMARY_CONTAINER = 0xFF002115;
     private static final int L_SECONDARY = 0xFF4D6357;
     private static final int L_ON_SECONDARY = 0xFFFFFFFF;
     private static final int L_SECONDARY_CONTAINER = 0xFFCFE9D9;
@@ -136,12 +128,13 @@ final class Ui {
 
     /** True when the current palette is dark. */
     static boolean dark = true;
+    private static AccentPalette accent = AccentPalette.DEFAULT;
 
     /** Smaller paddings and controls while running on a phone. */
     static boolean compact = false;
 
     static {
-        setDark();
+        applyPalette(true, AccentPalette.DEFAULT);
     }
 
     private Ui() { }
@@ -151,10 +144,6 @@ final class Ui {
     }
 
     private static void setDark() {
-        PRIMARY = F_PRIMARY;
-        ON_PRIMARY = F_ON_PRIMARY;
-        PRIMARY_CONTAINER = F_PRIMARY_CONTAINER;
-        ON_PRIMARY_CONTAINER = F_ON_PRIMARY_CONTAINER;
         SECONDARY = F_SECONDARY;
         ON_SECONDARY = F_ON_SECONDARY;
         SECONDARY_CONTAINER = F_SECONDARY_CONTAINER;
@@ -178,14 +167,9 @@ final class Ui {
         SURFACE_CONTAINER_HIGHEST = F_SURFACE_HIGHEST;
         OUTLINE = F_OUTLINE;
         OUTLINE_VARIANT = F_OUTLINE_VARIANT;
-        syncAliases();
     }
 
     private static void setLight() {
-        PRIMARY = L_PRIMARY;
-        ON_PRIMARY = L_ON_PRIMARY;
-        PRIMARY_CONTAINER = L_PRIMARY_CONTAINER;
-        ON_PRIMARY_CONTAINER = L_ON_PRIMARY_CONTAINER;
         SECONDARY = L_SECONDARY;
         ON_SECONDARY = L_ON_SECONDARY;
         SECONDARY_CONTAINER = L_SECONDARY_CONTAINER;
@@ -209,7 +193,6 @@ final class Ui {
         SURFACE_CONTAINER_HIGHEST = L_SURFACE_HIGHEST;
         OUTLINE = L_OUTLINE;
         OUTLINE_VARIANT = L_OUTLINE_VARIANT;
-        syncAliases();
     }
 
     private static void syncAliases() {
@@ -232,12 +215,23 @@ final class Ui {
      * Loads the current Material 3 palette. Returns true when the palette
      * differs from the one already applied to this process.
      */
-    static boolean init(boolean darkMode) {
-        if (dark == darkMode) return false;
+    static boolean init(boolean darkMode, String accentId) {
+        AccentPalette next = AccentPalette.fromId(accentId);
+        if (dark == darkMode && accent == next) return false;
+        applyPalette(darkMode, next);
+        return true;
+    }
+
+    private static void applyPalette(boolean darkMode, AccentPalette next) {
         if (darkMode) setDark();
         else setLight();
         dark = darkMode;
-        return true;
+        accent = next;
+        PRIMARY = 0xFF000000 | next.primary(dark);
+        ON_PRIMARY = 0xFF000000 | next.onPrimary(dark);
+        PRIMARY_CONTAINER = 0xFF000000 | next.container(dark);
+        ON_PRIMARY_CONTAINER = 0xFF000000 | next.onContainer(dark);
+        syncAliases();
     }
 
     static int dp(Context c, float value) {

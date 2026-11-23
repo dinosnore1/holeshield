@@ -3127,6 +3127,44 @@ final class ControlPanel extends JFrame {
                 app.applyTheme();
             });
             appearanceRow.add(theme);
+            JLabel accentLabel = new JLabel("Accent color");
+            accentLabel.setForeground(Theme.get().text);
+            AccentPalette[] palettes = AccentPalette.values();
+            JComboBox<String> accents = Widgets.combo(AccentPalette.labels(),
+                    AccentPalette.fromId(prefs.get("accent", "default")).label);
+            accentLabel.setLabelFor(accents);
+            javax.swing.Icon[] swatches = new javax.swing.Icon[palettes.length];
+            for (int i = 0; i < palettes.length; i++) {
+                boolean dark = Theme.get().dark;
+                int color = palettes[i] == AccentPalette.DEFAULT && !dark
+                        ? 0x0E7C55 : palettes[i].primary(dark);
+                swatches[i] = new javax.swing.ImageIcon(
+                        Icons.image("shield-fill", 14, new java.awt.Color(color)));
+            }
+            accents.setRenderer(new javax.swing.DefaultListCellRenderer() {
+                @Override public java.awt.Component getListCellRendererComponent(
+                        javax.swing.JList<?> list, Object value, int index,
+                        boolean selected, boolean focus) {
+                    JLabel label = (JLabel) super.getListCellRendererComponent(
+                            list, value, index, selected, focus);
+                    Theme t = Theme.get();
+                    label.setForeground(selected ? t.onAccentSoft : t.text);
+                    label.setBackground(selected ? t.accentSoft : t.surfaceAlt);
+                    label.setOpaque(index >= 0);
+                    int choice = index >= 0 ? index : accents.getSelectedIndex();
+                    label.setIcon(choice >= 0 ? swatches[choice] : null);
+                    return label;
+                }
+            });
+            accents.addActionListener(e -> {
+                int choice = accents.getSelectedIndex();
+                if (choice < 0) return;
+                prefs.set("accent", palettes[choice].id);
+                app.inBackground(prefs::save, null);
+                app.applyTheme();
+            });
+            appearanceRow.add(accentLabel);
+            appearanceRow.add(accents);
             appearance.add(appearanceRow, BorderLayout.CENTER);
             fitCard(appearance);
             page.add(appearance);

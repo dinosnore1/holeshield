@@ -23,6 +23,7 @@ final class Prefs {
     int tvSafeArea = 0;
     /** "system", "dark" or "light". */
     String theme = "system";
+    String accent = AccentPalette.DEFAULT.id;
     /** "stable", "beta" or "off". */
     String updateChannel = "stable";
     long lastUpdateCheck = 0L;
@@ -129,6 +130,7 @@ final class Prefs {
         s.startOnBoot = p.getBoolean("startOnBoot", s.startOnBoot);
         s.tvSafeArea = p.getInt("tvSafeArea2", s.tvSafeArea);
         s.theme = p.getString("theme", s.theme);
+        s.accent = AccentPalette.fromId(p.getString("accent", s.accent)).id;
         s.updateChannel = p.getString("updateChannel", s.updateChannel);
         s.lastUpdateCheck = p.getLong("lastUpdateCheck", s.lastUpdateCheck);
         s.fallback = p.getString("fallback", s.fallback);
@@ -227,6 +229,7 @@ final class Prefs {
                 .putBoolean("startOnBoot", startOnBoot)
                 .putInt("tvSafeArea2", tvSafeArea)
                 .putString("theme", theme)
+                .putString("accent", accent)
                 .putString("updateChannel", updateChannel)
                 .putLong("lastUpdateCheck", lastUpdateCheck)
                 .putString("fallback", fallback)

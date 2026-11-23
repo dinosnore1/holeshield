@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         prefs = Prefs.load(this);
-        Ui.init(prefs.darkTheme(this));
+        Ui.init(prefs.darkTheme(this), prefs.accent);
         getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!DnsVpnService.running && !DnsVpnService.starting) {
@@ -593,7 +593,7 @@ public class MainActivity extends Activity {
         isTv = isTelevision(this);
         Ui.setCompact(!isTv);
         prefs = Prefs.load(this);
-        if (Ui.init(prefs.darkTheme(this)) && root != null) {
+        if (Ui.init(prefs.darkTheme(this), prefs.accent) && root != null) {
             setContentView(createShell());
             show(screen);
         }
@@ -637,7 +637,7 @@ public class MainActivity extends Activity {
                 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         prefs = Prefs.load(this);
-        Ui.init(prefs.darkTheme(this));
+        Ui.init(prefs.darkTheme(this), prefs.accent);
         if (root != null) {
             setContentView(createShell());
             show(screen);
@@ -2589,6 +2589,8 @@ public class MainActivity extends Activity {
                         "Choose the app appearance",
                         new String[]{"System", "Dark", "Light"},
                         themeIndex(), this::setThemeMode)), rowLp(0));
+        appearance.addView(settingRow("Accent color", "Buttons, charts and selected controls",
+                AccentPalette.fromId(prefs.accent).label, this::chooseAccent), rowLp(1));
         add(col, appearance, 8);
 
         col.addView(section("SYSTEM"));
@@ -2629,6 +2631,11 @@ public class MainActivity extends Activity {
 
     private void chooseOption(String title, String subtitle, String[] labels,
                               int selected, Consumer<Integer> done) {
+        chooseOption(title, subtitle, labels, selected, null, done);
+    }
+
+    private void chooseOption(String title, String subtitle, String[] labels,
+                              int selected, int[] swatches, Consumer<Integer> done) {
         LinearLayout box = Ui.column(this);
         int pad = Ui.dp(this, isTv ? 34 : 26);
         box.setPadding(pad, Ui.dp(this, isTv ? 24 : 20),
@@ -2677,6 +2684,12 @@ public class MainActivity extends Activity {
             TextView mark = Ui.text(this, isSelected ? "●" : "○",
                     isTv ? 16 : 15, isSelected ? Ui.ON_PRIMARY_CONTAINER : Ui.DIM, false);
             row.addView(mark);
+            if (swatches != null) {
+                View swatch = new View(this);
+                swatch.setBackground(Ui.rounded(this, swatches[i], 8, 0, 0));
+                int size = Ui.dp(this, 16);
+                row.addView(swatch, Ui.margins(Ui.lp(size, size), Ui.dp(this, 10), 0, 0, 0));
+            }
             TextView label = Ui.text(this, labels[i], isTv ? 15 : 14,
                     isSelected ? Ui.ON_PRIMARY_CONTAINER : Ui.TEXT, false);
             row.addView(label, Ui.margins(Ui.lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
@@ -3096,8 +3109,25 @@ public class MainActivity extends Activity {
 
     private void setThemeMode(int which) {
         prefs.theme = which == 1 ? "dark" : which == 2 ? "light" : "system";
+        applyAppearance();
+    }
+
+    private void chooseAccent() {
+        AccentPalette[] palettes = AccentPalette.values();
+        int[] swatches = new int[palettes.length];
+        for (int i = 0; i < palettes.length; i++) {
+            swatches[i] = 0xFF000000 | palettes[i].primary(Ui.dark);
+        }
+        chooseOption("Accent color", "Choose a color for app highlights", AccentPalette.labels(),
+                AccentPalette.fromId(prefs.accent).ordinal(), swatches, which -> {
+                    prefs.accent = palettes[which].id;
+                    applyAppearance();
+                });
+    }
+
+    private void applyAppearance() {
         prefs.save(this);
-        Ui.init(prefs.darkTheme(this));
+        Ui.init(prefs.darkTheme(this), prefs.accent);
         getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
         setContentView(createShell());
         show(Screen.SETTINGS);

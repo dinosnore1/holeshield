@@ -138,7 +138,7 @@ public final class DesktopApp {
                 System.setProperty("apple.laf.useScreenMenuBar", "true");
             }
             Theme.install();
-            Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM));
+            Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM), prefs.get("accent", "default"));
             if (AppDirs.isMac()) {
                 System.setProperty("apple.awt.application.name", NAME);
                 System.setProperty("apple.awt.application.appearance",
@@ -427,7 +427,7 @@ public final class DesktopApp {
     }
 
     void applyTheme() {
-        Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM));
+        Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM), prefs.get("accent", "default"));
         if (AppDirs.isMac()) {
             System.setProperty("apple.awt.application.appearance",
                     Theme.get().dark ? "NSAppearanceNameDarkAqua"
@@ -451,7 +451,7 @@ public final class DesktopApp {
             setStatus("Settings are still applying. Try again in a moment.");
             return;
         }
-        Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM));
+        Theme.setMode(prefs.get("theme", Theme.MODE_SYSTEM), prefs.get("accent", "default"));
         if (AppDirs.isMac()) {
             System.setProperty("apple.awt.application.appearance",
                     Theme.get().dark ? "NSAppearanceNameDarkAqua"
