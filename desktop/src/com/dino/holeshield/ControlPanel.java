@@ -305,7 +305,7 @@ final class ControlPanel extends JFrame {
         header.setBackground(t.surface);
         header.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, t.border),
-                new EmptyBorder(MERGED_TITLE_INSET, 24, 13, 24)));
+                new EmptyBorder(MERGED_TITLE_INSET, 20, 10, 24)));
 
         JPanel brand = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         brand.setOpaque(false);
@@ -363,18 +363,16 @@ final class ControlPanel extends JFrame {
 
     private JPanel buildNav() {
         Theme t = Theme.get();
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setBackground(t.bg);
-        wrapper.setBorder(new EmptyBorder(16, 18, 16, 6));
-        wrapper.setPreferredSize(new Dimension(224, 100));
-
-        Widgets.RoundedPanel nav = new Widgets.RoundedPanel(new BorderLayout());
-        nav.setShadow(true);
-        nav.setBorder(new EmptyBorder(14, 10, 12, 10));
+        JPanel nav = new JPanel(new BorderLayout());
+        nav.setBackground(t.surface);
+        nav.setPreferredSize(new Dimension(186, 100));
+        nav.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 1, t.border),
+                new EmptyBorder(20, 12, 16, 12)));
         JPanel items = new JPanel();
         items.setOpaque(false);
         items.setLayout(new BoxLayout(items, BoxLayout.Y_AXIS));
-        items.add(Widgets.section("WORKSPACE"));
+        items.add(Widgets.section("MONITOR"));
         String[][] entries = app.isCompanion()
                 ? new String[][]{
                         {"Companion", "server"},
@@ -390,7 +388,12 @@ final class ControlPanel extends JFrame {
                         {"Rules", "rules"},
                         {"Settings", "settings"},
                         {"About", "info"}};
-        for (String[] entry : entries) {
+        for (int i = 0; i < entries.length; i++) {
+            String[] entry = entries[i];
+            if (i == 2 || i == 4) {
+                items.add(Box.createVerticalStrut(12));
+                items.add(Widgets.section(i == 2 ? "FILTERING" : "APPLICATION"));
+            }
             Widgets.NavItem item = new Widgets.NavItem(entry[0], entry[1]);
             item.setOnClick(() -> selectPage(entry[0]));
             navItems.put(entry[0], item);
@@ -412,8 +415,7 @@ final class ControlPanel extends JFrame {
         foot.add(Widgets.label(app.isCompanion() ? "Remote dashboard"
                 : "Local DNS · no cloud", 10.5f, Font.PLAIN, 2));
         nav.add(foot, BorderLayout.SOUTH);
-        wrapper.add(nav, BorderLayout.CENTER);
-        return wrapper;
+        return nav;
     }
 
     private JPanel buildFooter() {
@@ -589,11 +591,17 @@ final class ControlPanel extends JFrame {
         private static final double ENTER_DISTANCE = 12;
         private double enterOffset;
         private Motion.Tween enterTween;
+        private final boolean fillViewport;
 
         VerticalPanel() {
+            this(false);
+        }
+
+        VerticalPanel(boolean fillViewport) {
+            this.fillViewport = fillViewport;
             setOpaque(false);
-            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-            setBorder(new EmptyBorder(22, 24, 28, 24));
+            setLayout(fillViewport ? new BorderLayout(0, 12) : new BoxLayout(this, BoxLayout.Y_AXIS));
+            setBorder(new EmptyBorder(20, 24, 22, 24));
         }
 
         /** Eases the page content up into place after a navigation change. */
@@ -645,7 +653,7 @@ final class ControlPanel extends JFrame {
 
         @Override
         public boolean getScrollableTracksViewportHeight() {
-            return false;
+            return fillViewport;
         }
     }
 
@@ -674,6 +682,60 @@ final class ControlPanel extends JFrame {
     private static Widgets.RoundedPanel card(int top, int left, int bottom, int right) {
         Widgets.RoundedPanel panel = new Widgets.RoundedPanel(new BorderLayout());
         panel.setBorder(new EmptyBorder(top, left, bottom, right));
+        return panel;
+    }
+
+    private static JComponent pageHeading(String title, String caption) {
+        JPanel heading = new JPanel();
+        heading.setOpaque(false);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
+        heading.add(Widgets.label(title, 24, Font.BOLD, 0));
+        heading.add(Box.createVerticalStrut(3));
+        heading.add(Widgets.label(caption, 12, Font.PLAIN, 1));
+        heading.setMaximumSize(new Dimension(Integer.MAX_VALUE, heading.getPreferredSize().height));
+        return heading;
+    }
+
+    private JComponent queryToolbar(JTextField search, JComboBox<String> filterCombo,
+                                    Runnable refreshAction, Runnable exportAction) {
+        JPanel header = new JPanel(new BorderLayout(0, 12));
+        header.setOpaque(false);
+        header.add(pageHeading("Query log", app.isCompanion()
+                ? "Inspect lookups reported by the connected resolver."
+                : "Inspect DNS lookups recorded by this resolver."), BorderLayout.NORTH);
+        Widgets.RoundedPanel toolbar = card(10, 12, 10, 12);
+        JPanel controls = new JPanel(new BorderLayout(10, 0));
+        controls.setOpaque(false);
+        search.getAccessibleContext().setAccessibleName("Search domain or client");
+        controls.add(search, BorderLayout.CENTER);
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setOpaque(false);
+        filterCombo.getAccessibleContext().setAccessibleName("Query status filter");
+        actions.add(filterCombo);
+        Widgets.IconButton refresh = new Widgets.IconButton("refresh", "Refresh queries", Widgets.TONAL);
+        refresh.addActionListener(e -> refreshAction.run());
+        actions.add(refresh);
+        Widgets.PillButton export = new Widgets.PillButton("Export CSV", "download", Widgets.OUTLINE);
+        export.addActionListener(e -> exportAction.run());
+        actions.add(export);
+        controls.add(actions, BorderLayout.EAST);
+        toolbar.add(controls, BorderLayout.CENTER);
+        header.add(toolbar, BorderLayout.CENTER);
+        return header;
+    }
+
+    private JComponent queryResults(JTable table, JLabel count) {
+        Widgets.RoundedPanel panel = card(0, 0, 0, 0);
+        panel.setClipChildren(true);
+        panel.add(Widgets.scrollSurface(table), BorderLayout.CENTER);
+        JPanel bar = new JPanel(new BorderLayout());
+        bar.setBackground(Theme.get().card);
+        bar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.get().border),
+                new EmptyBorder(8, 14, 8, 14)));
+        bar.add(count, BorderLayout.WEST);
+        panel.add(bar, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -732,7 +794,7 @@ final class ControlPanel extends JFrame {
 
     private final class OverviewPage extends Page {
         private final JScrollPane scroll;
-        private final JLabel heroTitle = Widgets.label("Hole Shield", 24, Font.BOLD, 0);
+        private final JLabel heroTitle = Widgets.label("Checking DNS protection…", 19, Font.BOLD, 0);
         private final JLabel heroSub = Widgets.label("", 12, Font.PLAIN, 1);
         private final JLabel upstreamChip = Widgets.label("", 10.5f, Font.BOLD, 1);
         private final JLabel portChip = Widgets.label("", 10.5f, Font.BOLD, 1);
@@ -740,13 +802,13 @@ final class ControlPanel extends JFrame {
         private final Widgets.PillButton pauseButton =
                 new Widgets.PillButton("Pause", "pause", Widgets.TONAL);
         private final Widgets.StatCard totalCard =
-                new Widgets.StatCard("Queries", "chart", 0);
+                new Widgets.StatCard("Total queries", "chart", 0);
         private final Widgets.StatCard blockedCard =
                 new Widgets.StatCard("Blocked", "shield-check", 1);
         private final Widgets.StatCard rateCard =
                 new Widgets.StatCard("Blocked rate", "filter", 2);
         private final Widgets.StatCard gravityCard =
-                new Widgets.StatCard("Domains blocked", "server", 0);
+                new Widgets.StatCard("Blocklist domains", "server", 0);
         private final Widgets.ChartPanel chart = new Widgets.ChartPanel();
         private final JLabel chartTitle = Widgets.label("Query activity", 15, Font.BOLD, 0);
         private final JLabel chartSummary = Widgets.label("", 11.5f, Font.PLAIN, 1);
@@ -761,8 +823,12 @@ final class ControlPanel extends JFrame {
 
         OverviewPage() {
             VerticalPanel page = new VerticalPanel();
+            page.add(pageHeading("Overview", "DNS protection and activity for this resolver."));
+            page.add(Box.createVerticalStrut(16));
             page.add(hero());
-            page.add(Box.createVerticalStrut(14));
+            page.add(Box.createVerticalStrut(18));
+            page.add(Widgets.section("ACTIVITY · LAST 30 DAYS"));
+            page.add(Box.createVerticalStrut(6));
             page.add(stats());
             page.add(Box.createVerticalStrut(14));
             page.add(chartCard());
@@ -774,8 +840,7 @@ final class ControlPanel extends JFrame {
         }
 
         private JComponent hero() {
-            Widgets.RoundedPanel card = card(22, 24, 22, 32);
-            card.setShadow(true);
+            Widgets.RoundedPanel card = card(16, 18, 16, 18);
             JPanel left = new JPanel();
             left.setOpaque(false);
             left.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -859,8 +924,8 @@ final class ControlPanel extends JFrame {
             card.add(head, BorderLayout.NORTH);
             chart.setBorder(new EmptyBorder(8, 0, 0, 0));
             card.add(chart, BorderLayout.CENTER);
-            card.setPreferredSize(new Dimension(100, 300));
-            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
+            card.setPreferredSize(new Dimension(100, 258));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
             return card;
         }
 
@@ -927,7 +992,7 @@ final class ControlPanel extends JFrame {
                 heroTitle.setText("DNS is stopped");
                 heroSub.setText("Start the resolver to filter lookups on this network.");
             } else if (blocking) {
-                heroTitle.setText("Hole Shield is blocking");
+                heroTitle.setText("Protection is active");
                 heroSub.setText("Every lookup is checked against gravity and your rules.");
             } else {
                 heroTitle.setText("Blocking is paused");
@@ -955,10 +1020,10 @@ final class ControlPanel extends JFrame {
             blockedCard.setValue(DesktopApp.formatNumber(stats.blocked()));
             rateCard.setValue(String.format(Locale.US, "%.1f%%", stats.rate()));
             gravityCard.setValue(DesktopApp.formatNumber(filter.blockedCount()));
-            totalCard.setHint(stats.uniqueDomains() + " domains");
-            blockedCard.setHint(stats.cached() + " cached");
-            rateCard.setHint(stats.errors() + " errors");
-            gravityCard.setHint(filter.listUrls().size() + " sources");
+            totalCard.setHint(DesktopApp.formatNumber(stats.uniqueDomains()) + " unique domains");
+            blockedCard.setHint("By gravity and rules");
+            rateCard.setHint("Share of all queries");
+            gravityCard.setHint("Across " + filter.listUrls().size() + " sources");
             topBlocked.setData(stats.topDomains(true, 6), "No blocked lookups yet.");
             topBlocked.setDanger(true);
             List<StatsStore.Top> clients = new ArrayList<>();
@@ -971,7 +1036,7 @@ final class ControlPanel extends JFrame {
             types.setData(stats.queryTypes(), "No queries yet.");
             categories.setData(stats.categoryCounts(), "No blocked lookups yet.");
             resizeListCards();
-            if (++chartTick % 2 == 0) refreshChart();
+            if (chartTick++ % 2 == 0) refreshChart();
         }
 
         /** Keeps the bar cards tall enough for every row they now show. */
@@ -1494,31 +1559,8 @@ final class ControlPanel extends JFrame {
         private final Timer debounce;
 
         CompanionQueriesPage() {
-            VerticalPanel page = new VerticalPanel();
-            Widgets.RoundedPanel toolbar = card(14, 16, 14, 16);
-            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-            left.setOpaque(false);
-            left.add(search);
-            left.add(filterCombo);
-            Widgets.PillButton refresh = new Widgets.PillButton("Refresh", "refresh",
-                    Widgets.OUTLINE);
-            refresh.addActionListener(e -> refresh());
-            left.add(refresh);
-            toolbar.add(left, BorderLayout.WEST);
-
-            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-            right.setOpaque(false);
-            right.add(count);
-            Widgets.PillButton export = new Widgets.PillButton("Export", "download",
-                    Widgets.OUTLINE);
-            export.addActionListener(e -> export());
-            right.add(export);
-            toolbar.add(right, BorderLayout.EAST);
-            page.add(toolbar);
-            page.add(Box.createVerticalStrut(14));
-
-            Widgets.RoundedPanel tableCard = card(8, 10, 8, 10);
-            tableCard.setShadow(true);
+            VerticalPanel page = new VerticalPanel(true);
+            page.add(queryToolbar(search, filterCombo, this::refresh, this::export), BorderLayout.NORTH);
             Widgets.styleTable(table);
             table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
             int[] widths = {82, 128, 250, 84, 62, 112, 132, 58, 160};
@@ -1526,12 +1568,7 @@ final class ControlPanel extends JFrame {
                 table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
                 table.getColumnModel().getColumn(i).setCellRenderer(new QueryRenderer(i));
             }
-            JScrollPane inner = Widgets.scroll(table);
-            inner.setPreferredSize(new Dimension(100, 540));
-            tableCard.add(inner, BorderLayout.CENTER);
-            tableCard.setPreferredSize(new Dimension(100, 560));
-            tableCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 560));
-            page.add(tableCard);
+            page.add(queryResults(table, count), BorderLayout.CENTER);
             scroll = pageScroll(page);
 
             debounce = new Timer(280, e -> refresh());
@@ -2124,32 +2161,8 @@ final class ControlPanel extends JFrame {
         private final Timer debounce;
 
         QueriesPage() {
-            VerticalPanel page = new VerticalPanel();
-            Widgets.RoundedPanel toolbar = card(14, 16, 14, 16);
-            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-            left.setOpaque(false);
-            left.add(search);
-            left.add(filterCombo);
-            Widgets.PillButton refresh = new Widgets.PillButton("Refresh", "refresh",
-                    Widgets.TONAL);
-            refresh.addActionListener(e -> refresh());
-            left.add(refresh);
-            toolbar.add(left, BorderLayout.WEST);
-            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-            right.setOpaque(false);
-            right.add(count);
-            Widgets.PillButton export = new Widgets.PillButton("Export", "download",
-                    Widgets.OUTLINE);
-            export.addActionListener(e -> export());
-            right.add(export);
-            toolbar.add(right, BorderLayout.EAST);
-            toolbar.setPreferredSize(new Dimension(100, 68));
-            toolbar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
-            page.add(toolbar);
-            page.add(Box.createVerticalStrut(12));
-
-            Widgets.RoundedPanel tableCard = card(0, 0, 0, 0);
-            tableCard.setClipChildren(true);
+            VerticalPanel page = new VerticalPanel(true);
+            page.add(queryToolbar(search, filterCombo, this::refresh, this::export), BorderLayout.NORTH);
             Widgets.styleTable(table);
             table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
             table.getColumnModel().getColumn(0).setPreferredWidth(82);
@@ -2164,11 +2177,7 @@ final class ControlPanel extends JFrame {
             for (int i = 0; i < table.getColumnCount(); i++) {
                 table.getColumnModel().getColumn(i).setCellRenderer(new QueryRenderer(i));
             }
-            JScrollPane tableScroll = Widgets.scrollSurface(table);
-            tableCard.add(tableScroll, BorderLayout.CENTER);
-            tableCard.setPreferredSize(new Dimension(100, 520));
-            tableCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-            page.add(tableCard);
+            page.add(queryResults(table, count), BorderLayout.CENTER);
 
             table.addMouseListener(new MouseAdapter() {
                 @Override

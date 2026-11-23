@@ -732,24 +732,23 @@ final class Widgets {
                     RenderingHints.VALUE_ANTIALIAS_ON);
             Color accent = tint == 1 ? t.danger : tint == 2 ? t.warn : t.accent;
             g2.setColor(Theme.alpha(accent, t.dark ? 34 : 26));
-            g2.fill(new RoundRectangle2D.Double(16, 16, 32, 32, 11, 11));
+            g2.fill(new RoundRectangle2D.Double(14, 13, 26, 26, 8, 8));
             Graphics2D ig = (Graphics2D) g2.create();
-            ig.translate(23, 23);
-            Icons.paint(ig, iconName, 18, accent);
+            ig.translate(19, 18);
+            Icons.paint(ig, iconName, 16, accent);
             ig.dispose();
 
-            if (!hint.isEmpty()) {
-                g2.setColor(t.faint);
-                g2.setFont(Theme.font(10f, Font.PLAIN));
-                int hintWidth = g2.getFontMetrics().stringWidth(hint);
-                g2.drawString(hint, getWidth() - hintWidth - 16, 29);
-            }
+            g2.setColor(t.muted);
+            g2.setFont(Theme.font(11.5f, Font.BOLD));
+            g2.drawString(label, 47, 30);
             g2.setColor(t.text);
             g2.setFont(Theme.font(29, Font.BOLD));
-            g2.drawString(value, 16, 79);
-            g2.setColor(t.muted);
-            g2.setFont(Theme.font(11.5f, Font.PLAIN));
-            g2.drawString(label, 16, 98);
+            g2.drawString(value, 14, 75);
+            if (!hint.isEmpty()) {
+                g2.setColor(t.faint);
+                g2.setFont(Theme.font(11f, Font.PLAIN));
+                g2.drawString(hint, 14, 95);
+            }
             g2.dispose();
         }
     }
