@@ -82,7 +82,9 @@ platform packaging notes. The GitHub Actions workflow
 - **Per-client rules** for LAN clients: `192.168.1.50 ads.example.com` blocks,
   `192.168.1.50 !example.com` allows, and `*.example.com` matches subdomains.
 - **Backup and restore.** Export settings, custom rules, blocklist sources and
-  the query log as one JSON file through the system document picker.
+  up to the newest 20,000 retained queries as one JSON file through the system
+  document picker. Restore merges the snapshot into existing history; it does
+  not clear newer queries. The export limit does not limit stored history.
 - **In-app updates.** The **About** screen holds the version, update controls and
   the Stable/Beta/Off channel. The app reads a public release manifest, downloads
   the APK, checks its SHA-256 and installs it through the Android package
@@ -95,7 +97,10 @@ platform packaging notes. The GitHub Actions workflow
   widget expose pause, resume and status.
 - **Query log and counters** for queries, blocks, cache hits, forwards, errors,
   clients, types, top domains and upstreams. Query history and the main
-  counters cover the preceding 30 days across app restarts. Use **Older**
+  counters cover a rolling 30 days across app restarts. Android stores queries
+  in an indexed SQLite database and expires rows at startup and periodically
+  in the background. Older history already discarded by a previous version
+  cannot be recovered. Use **Older**
   and **Newer** in the web dashboard to browse retained history. The native
   log views, export snapshots and top lists show bounded subsets.
   The widget, Android notification and legacy “today” counters still show
@@ -420,7 +425,8 @@ src/com/dino/holeshield/
   Blocklist.java             gravity lists, custom rules, downloads
   Blocklists.java            maximum preset and existing-install migration
   HostsParser.java           hosts/adblock line parsing and IP rejection
-  Stats.java                 rolling 30-day counters and query log
+  Stats.java                 statistics, query log and backup interface
+  QueryDb.java               indexed SQLite query history and rolling expiry
   WebServer.java             dashboard HTTP server, v6/v5 API subset, auth
   LanDnsServer.java          UDP + TCP LAN DNS listener
   Prefs.java                 persisted settings and pause state

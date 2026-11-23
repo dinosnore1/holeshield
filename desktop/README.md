@@ -147,8 +147,16 @@ dashboard API. The installers are unsigned by default; see
 
 The directory contains `settings.properties`, `gravity.bin`,
 `gravity.properties`, `stats.txt` and a `querylog/` directory for retained
-query history. The older `query_log.tsv` is migrated on first launch. Set
-`HOLESH_DESKTOP_HOME` to override it.
+query history. Desktop uses JDK-only date-partitioned files, not SQLite. It
+rebuilds counters from retained query records at startup, and removes records
+older than 30 days at startup and periodically. The older `query_log.tsv` is
+migrated on first launch. Legacy counters without matching query records are
+not included in the rolling totals.
+
+For a full desktop history backup, stop Hole Shield and copy `querylog/`.
+With the app stopped, restore it into the data directory (keep a copy of the
+current directory if replacing it). Only queries still within the window will
+count on restart. Set `HOLESH_DESKTOP_HOME` to override the data directory.
 
 ## Source layout
 
