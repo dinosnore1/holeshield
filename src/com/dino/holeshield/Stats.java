@@ -6,53 +6,45 @@ import android.content.SharedPreferences;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.zip.GZIPOutputStream;
 
-/** Dashboard counters and a bounded, persisted query log. */
+import static com.dino.holeshield.ReverseLogReader.RETENTION_MS;
+
+/**
+ * Dashboard statistics. Query history lives in {@link QueryDb}; every counter,
+ * chart and page is derived from those retained rows and covers the same
+ * rolling 30-day window. Only the small "recently blocked" list is cached in
+ * memory, because it feeds the home screen and notification.
+ */
 final class Stats {
 
     private static final String FILE = "holeshield_stats";
     private static final String RECENT_KEY = "recent";
-    private static final String LOG_DIR = "querylog";
-    private static final String LOG_LEGACY = "query_log.tsv";
-    private static final String HISTORY_KEY = "daily_history";
-    private static final String HOURLY_KEY = "hourly_history";
+    static final String LOG_DIR = "querylog";
+    static final String LOG_LEGACY = "query_log.tsv";
     private static final int RECENT_MAX = 40;
-    /** Entries kept in memory for the live chart and the recent list. */
-    private static final int LOG_MAX = 2000;
     /** Upper bound for exports and web paging through the on-disk history. */
     static final int EXPORT_MAX = 20000;
-    /** Keep the in-memory domain set bounded on multi-week runs. */
-    private static final int DOMAIN_CAP = 5000;
-    /** Rolling window for the counters and the daily chart, in days. */
     private static final int HISTORY_MAX = 30;
-    /** Every hour in the rolling window, so the hourly chart never runs dry. */
     private static final int HOURLY_MAX = HISTORY_MAX * 24;
-    private static final SimpleDateFormat DAY_FORMAT =
-            new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    private static final SimpleDateFormat HOUR_FORMAT =
-            new SimpleDateFormat("yyyy-MM-dd-HH", Locale.US);
+
+    private static final long TOTAL_TTL = 1000L;
+    private static final long CHART_TTL = 2000L;
+    private static final long TOP_TTL = 10000L;
+
+    private static long[] windowTotals;
+    private static long windowAt;
+    private static long[] dayTotals;
+    private static long dayAt;
+    private static final Map<String, Object> cached = new HashMap<>();
+    private static final Map<String, Long> cachedAt = new HashMap<>();
 
     static final class Blocked {
         final String name;
@@ -117,76 +109,14 @@ final class Stats {
         Top(String key, int count) { this.key = key; this.count = count; }
     }
 
-    private static long queries;
-    private static long blocked;
-    private static long cached;
-    private static long forwarded;
-    private static long errors;
-    private static String day = "";
     private static final ArrayDeque<Blocked> recent = new ArrayDeque<>();
-    private static final ArrayDeque<Entry> log = new ArrayDeque<>();
-    private static final Set<String> domains = new HashSet<>();
-    private static final Set<String> clients = new HashSet<>();
-    private static final Map<Integer, Integer> types = new HashMap<>();
-    private static final LinkedHashMap<String, long[]> dailyHistory = new LinkedHashMap<>();
-    private static final LinkedHashMap<String, long[]> hourlyHistory = new LinkedHashMap<>();
     private static long lastSave;
-    private static long nextHistoryTrim;
-    private static final ReverseLogReader.BoundaryCache BOUNDARY =
-            new ReverseLogReader.BoundaryCache();
-    private static boolean logDirty;
-    private static File logDir;
-    private static BufferedWriter logWriter;
-    private static String logWriterDay = "";
 
     private Stats() { }
 
-    private static String today() {
-        return DAY_FORMAT.format(new Date());
-    }
-
     static synchronized void load(Context c) {
         SharedPreferences p = c.getSharedPreferences(FILE, Context.MODE_PRIVATE);
-        String savedDay = p.getString("day", "");
-        String now = today();
         recent.clear();
-        log.clear();
-        domains.clear();
-        clients.clear();
-        types.clear();
-        StatsHistoryCodec.load(p.getString(HISTORY_KEY, ""), dailyHistory);
-        StatsHistoryCodec.load(p.getString(HOURLY_KEY, ""), hourlyHistory);
-
-        long savedQueries = p.getLong("queries", 0);
-        long savedBlocked = p.getLong("blocked", 0);
-        long savedCached = p.getLong("cached", 0);
-        long savedForwarded = p.getLong("forwarded", 0);
-        long savedErrors = p.getLong("errors", 0);
-        if (!now.equals(savedDay)) {
-            if (!savedDay.isEmpty()) {
-                archiveDay(savedDay, savedQueries, savedBlocked, savedCached,
-                        savedForwarded, savedErrors);
-            }
-            queries = 0;
-            blocked = 0;
-            cached = 0;
-            forwarded = 0;
-            errors = 0;
-            day = now;
-            // The counters for the new day start at zero, but the rolling
-            // window keeps the archived days and the existing query log.
-            openLog(c);
-            loadLogTail(c);
-            pruneHistory();
-            save(c);
-            return;
-        }
-        day = savedDay;
-        queries = savedQueries;
-        blocked = savedBlocked;
-        cached = savedCached;
-        forwarded = savedForwarded;
-        errors = savedErrors;
         String saved = p.getString(RECENT_KEY, "");
         if (saved != null && !saved.isEmpty()) {
             for (String line : saved.split("\n")) {
@@ -199,139 +129,12 @@ final class Stats {
                 if (recent.size() >= RECENT_MAX) break;
             }
         }
-        openLog(c);
-        loadLogTail(c);
-        pruneHistory();
+        QueryDb.open(c);
+        invalidate();
     }
 
-    private static void archiveDay(String key, long q, long b, long c, long f, long e) {
-        if (key == null || key.isEmpty()) return;
-        dailyHistory.remove(key);
-        dailyHistory.put(key, new long[]{q, b, c, f, e});
-        pruneHistory();
-    }
-
-    /** Drops anything older than the rolling window. */
-    private static void pruneHistory() {
-        String dayCutoff = dayKey(System.currentTimeMillis() - ReverseLogReader.RETENTION_MS);
-        Iterator<String> days = dailyHistory.keySet().iterator();
-        while (days.hasNext()) {
-            if (days.next().compareTo(dayCutoff) >= 0) continue;
-            days.remove();
-        }
-        java.util.Calendar hourCal = java.util.Calendar.getInstance();
-        hourCal.add(java.util.Calendar.HOUR_OF_DAY, -(HOURLY_MAX - 1));
-        String hourCutoff = HOUR_FORMAT.format(hourCal.getTime());
-        Iterator<String> hours = hourlyHistory.keySet().iterator();
-        while (hours.hasNext()) {
-            if (hours.next().compareTo(hourCutoff) >= 0) continue;
-            hours.remove();
-        }
-        while (hourlyHistory.size() > HOURLY_MAX) {
-            Iterator<String> it = hourlyHistory.keySet().iterator();
-            if (!it.hasNext()) break;
-            it.next();
-            it.remove();
-        }
-    }
-
-    /** Opens (and if needed migrates) the date-partitioned query log. */
-    private static void openLog(Context c) {
-        closeLogWriter(false);
-        logDir = new File(c.getFilesDir(), LOG_DIR);
-        File legacy = new File(c.getFilesDir(), LOG_LEGACY);
-        if (!ReverseLogReader.initialize(logDir, legacy,
-                System.currentTimeMillis() - ReverseLogReader.RETENTION_MS,
-                Stats::parseLogLine, e -> e.at, e -> dayKey(e.at), Stats::writeLogEntry)) {
-            android.util.Log.w("HoleShield", "Could not initialize query history");
-            logDir = null;
-            return;
-        }
-        pruneLogFiles(false);
-    }
-
-    /** Fills the in-memory ring from the newest entries on disk. */
-    private static void loadLogTail(Context c) {
-        log.clear();
-        if (logDir == null) return;
-        for (File file : logFilesNewestFirst()) {
-            ArrayDeque<Entry> part = readNewest(file, LOG_MAX - log.size());
-            if (part.isEmpty()) continue;
-            for (Entry e : part) {
-                log.addLast(e);
-                indexLogEntry(e);
-            }
-            if (log.size() >= LOG_MAX) break;
-        }
-    }
-
-    private static void indexLogEntry(Entry e) {
-        if (!e.domain.isEmpty() && domains.size() < DOMAIN_CAP) domains.add(e.domain);
-        if (!e.client.isEmpty() && clients.size() < DOMAIN_CAP) clients.add(e.client);
-        types.put(e.type, types.getOrDefault(e.type, 0) + 1);
-    }
-
-    /** Appends one live query to today's (or its own day's) file. */
-    private static void appendLog(Entry e) {
-        if (logDir == null) return;
-        String key = dayKey(e.at);
-        try {
-            if (logWriter == null || !key.equals(logWriterDay)) {
-                boolean rollover = logWriter != null;
-                closeLogWriter(false);
-                logWriter = new BufferedWriter(new OutputStreamWriter(
-                        new FileOutputStream(new File(logDir, key + ".tsv"), true),
-                        StandardCharsets.UTF_8));
-                logWriterDay = key;
-                if (rollover) pruneLogFiles(false);
-            }
-            writeLogEntry(logWriter, e);
-            logDirty = true;
-        } catch (Exception ex) {
-            closeLogWriter(false);
-        }
-    }
-
-    private static void flushLog() {
-        if (logWriter == null || !logDirty) return;
-        try {
-            logWriter.flush();
-            logDirty = false;
-        } catch (Exception ignored) { }
-    }
-
-    private static void closeLogWriter(boolean compressClosedDay) {
-        String finished = logWriterDay;
-        if (logWriter != null) {
-            try {
-                logWriter.close();
-            } catch (Exception ignored) { }
-            logWriter = null;
-        }
-        logWriterDay = "";
-        logDirty = false;
-        if (compressClosedDay && finished != null && !finished.isEmpty()
-                && !finished.equals(today())) {
-            compressDay(finished);
-        }
-    }
-
-    private static void writeLogEntry(BufferedWriter w, Entry e) throws Exception {
-        w.write(Long.toString(e.at)); w.write('\t');
-        w.write(e.client); w.write('\t');
-        w.write(e.domain); w.write('\t');
-        w.write(Integer.toString(e.type)); w.write('\t');
-        w.write(e.status); w.write('\t');
-        w.write(e.upstream); w.write('\t');
-        w.write(Integer.toString(e.rcode)); w.write('\t');
-        w.write(Long.toString(e.ms)); w.write('\t');
-        w.write(e.rule); w.write('\t');
-        w.write(e.category); w.write('\t');
-        w.write(e.blocked ? '1' : '0'); w.write('\t');
-        w.write(e.cached ? '1' : '0'); w.write('\n');
-    }
-
-    private static Entry parseLogLine(String line) {
+    /** Parses one TSV row; also used when importing the older log files. */
+    static Entry parseLogLine(String line) {
         String[] f = line.split("\t", -1);
         if (f.length < 9) return null;
         try {
@@ -345,337 +148,168 @@ final class Stats {
         }
     }
 
-    /** Newest day first. */
-    private static List<File> logFilesNewestFirst() {
-        ArrayList<File> files = new ArrayList<>();
-        if (logDir == null) return files;
-        File[] all = logDir.listFiles();
-        if (all == null) return files;
-        TreeMap<String, File> byDay = new TreeMap<>(Collections.reverseOrder());
-        for (File f : all) {
-            String name = f.getName();
-            String key = dayFromFile(name);
-            if (key == null) continue;
-            byDay.put(key + (name.endsWith(".gz") ? "a" : "b"), f);
-        }
-        files.addAll(byDay.values());
-        return files;
-    }
-
-    /** Newest-first entries from one day file, capped at {@code limit}. */
-    private static ArrayDeque<Entry> readNewest(File file, int limit) {
-        return new ArrayDeque<>(ReverseLogReader.page(Collections.singletonList(file), 0,
-                limit, System.currentTimeMillis() - ReverseLogReader.RETENTION_MS,
-                Stats::parseLogLine, e -> e.at, e -> true));
-    }
-
-    private static void appendLogDirect(Entry e) {
-        if (logDir == null) return;
-        File file = new File(logDir, dayKey(e.at) + ".tsv");
-        try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
-                new FileOutputStream(file, true), StandardCharsets.UTF_8))) {
-            writeLogEntry(w, e);
-        } catch (Exception ignored) { }
-    }
-
-    private static String dayKey(long at) {
-        return DAY_FORMAT.format(new Date(at));
-    }
-
-    private static String dayFromFile(String name) {
-        if (name.length() < 14) return null;
-        if (!name.endsWith(".tsv") && !name.endsWith(".tsv.gz")) return null;
-        return name.substring(0, 10);
-    }
-
-    /** Deletes expired days and compresses closed days. */
-    private static void pruneLogFiles(boolean compress) {
-        if (logDir == null) return;
-        File[] all = logDir.listFiles();
-        if (all == null) return;
-        String cutoff = dayKey(System.currentTimeMillis() - ReverseLogReader.RETENTION_MS);
-        String todayKey = today();
-        for (File f : all) {
-            String name = f.getName();
-            String key = dayFromFile(name);
-            if (key == null) {
-                continue;
-            }
-            if (key.compareTo(cutoff) < 0) {
-                f.delete();
-            } else if (compress && key.compareTo(todayKey) < 0 && name.endsWith(".tsv")) {
-                compressDay(key);
-            }
-        }
-    }
-
-    private static void compressDay(String key) {
-        if (logDir == null) return;
-        File plain = new File(logDir, key + ".tsv");
-        if (!plain.isFile()) return;
-        File gz = new File(logDir, key + ".tsv.gz");
-        // Never replace an existing archive: the plain file may contain only
-        // later entries for this day, not a complete replacement.
-        if (gz.exists()) return;
-        File tmp = new File(logDir, key + ".tsv.gz.tmp");
-        try (FileInputStream in = new FileInputStream(plain);
-             GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream(tmp))) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
-        } catch (Exception ex) {
-            tmp.delete();
-            return;
-        }
-        if (!tmp.renameTo(gz)) {
-            tmp.delete();
-            return;
-        }
-        plain.delete();
-    }
-
-    private static void deleteLogFiles() {
-        if (logDir == null) return;
-        File[] all = logDir.listFiles();
-        if (all == null) return;
-        for (File f : all) f.delete();
+    private static void invalidate() {
+        windowTotals = null;
+        dayTotals = null;
+        cached.clear();
+        cachedAt.clear();
     }
 
     static synchronized void save(Context c) {
         if (c == null) return;
         StringBuilder list = new StringBuilder();
-        for (Blocked b : recent) {
-            list.append(b.at).append('|').append(b.name).append('\n');
+        synchronized (recent) {
+            for (Blocked b : recent) {
+                list.append(b.at).append('|').append(b.name).append('\n');
+            }
         }
         c.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
-                .putString("day", day)
-                .putLong("queries", queries)
-                .putLong("blocked", blocked)
-                .putLong("cached", cached)
-                .putLong("forwarded", forwarded)
-                .putLong("errors", errors)
                 .putString(RECENT_KEY, list.toString())
-                .putString(HISTORY_KEY, StatsHistoryCodec.encode(dailyHistory))
-                .putString(HOURLY_KEY, StatsHistoryCodec.encode(hourlyHistory))
                 .apply();
-        flushLog();
         lastSave = System.currentTimeMillis();
     }
 
-    static synchronized void onQuery(Entry e) {
+    static void onQuery(Entry e) {
         if (e == null) return;
-        String now = today();
-        if (!now.equals(day)) {
-            archiveDay(day, queries, blocked, cached, forwarded, errors);
-            queries = 0;
-            blocked = 0;
-            cached = 0;
-            forwarded = 0;
-            errors = 0;
-            day = now;
-            // Keep the recent log and the domain/client sets: the counters
-            // roll over 30 days, they do not restart each morning.
-        }
-        queries++;
-        if (e.blocked) blocked++;
-        if (e.cached) cached++;
-        if ("FORWARDED".equals(e.status) || "ALLOWED".equals(e.status)) forwarded++;
-        if ("ERROR".equals(e.status)) errors++;
-        if (!e.domain.isEmpty() && domains.size() < DOMAIN_CAP) domains.add(e.domain);
-        if (!e.client.isEmpty() && clients.size() < DOMAIN_CAP) clients.add(e.client);
-        types.put(e.type, types.getOrDefault(e.type, 0) + 1);
-
-        String hourKey = HOUR_FORMAT.format(new Date(e.at));
-        long[] hour = hourlyHistory.get(hourKey);
-        if (hour == null) {
-            hour = new long[5];
-            hourlyHistory.put(hourKey, hour);
-        }
-        hour[0]++;
-        if (e.blocked) hour[1]++;
-        long wallTime = System.currentTimeMillis();
-        if (wallTime >= nextHistoryTrim) {
-            pruneHistory();
-            nextHistoryTrim = wallTime + 60000L;
-        }
-
-        log.addFirst(e);
-        while (log.size() > LOG_MAX) log.removeLast();
-        appendLog(e);
-
+        QueryDb.insert(e);
         if (e.blocked && !e.domain.isEmpty()) {
             long nowMs = System.currentTimeMillis();
-            Iterator<Blocked> it = recent.iterator();
-            while (it.hasNext()) {
-                Blocked old = it.next();
-                if (old.name.equals(e.domain) && nowMs - old.at < 60000L) {
-                    it.remove();
-                    break;
+            synchronized (recent) {
+                java.util.Iterator<Blocked> it = recent.iterator();
+                while (it.hasNext()) {
+                    Blocked old = it.next();
+                    if (old.name.equals(e.domain) && nowMs - old.at < 60000L) {
+                        it.remove();
+                        break;
+                    }
                 }
+                recent.addFirst(new Blocked(e.domain, nowMs));
+                while (recent.size() > RECENT_MAX) recent.removeLast();
             }
-            recent.addFirst(new Blocked(e.domain, nowMs));
-            while (recent.size() > RECENT_MAX) recent.removeLast();
         }
     }
 
     /** Compatibility helper for callers that only know block/allow. */
-    static synchronized void onQuery(boolean wasBlocked, String name) {
+    static void onQuery(boolean wasBlocked, String name) {
         onQuery(new Entry(System.currentTimeMillis(), "this device", name,
                 DnsPacket.TYPE_A, wasBlocked ? "BLOCKED" : "FORWARDED",
                 "local", 0, 0L, "", wasBlocked, false));
     }
 
-    /** Totals over the rolling window, today included. */
-    static long queries() { return windowSum(0); }
-    static long blocked() { return windowSum(1); }
-    static long cached() { return windowSum(2); }
-    static long forwarded() { return windowSum(3); }
-    static long errors() { return windowSum(4); }
-
-    private static long windowSum(int index) {
-        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
-        String firstDay;
-        long sum;
-        List<File> files;
-        synchronized (Stats.class) {
-            firstDay = dayKey(cutoff);
-            sum = day.compareTo(firstDay) > 0 ? todayValue(index) : 0;
-            for (Map.Entry<String, long[]> bucket : dailyHistory.entrySet()) {
-                if (bucket.getKey().compareTo(firstDay) > 0) sum += bucket.getValue()[index];
-            }
-            if (!day.equals(firstDay) && !dailyHistory.containsKey(firstDay)) return sum;
-            files = logFilesNewestFirst();
+    private static synchronized long[] window() {
+        long now = System.currentTimeMillis();
+        if (windowTotals == null || now - windowAt > TOTAL_TTL) {
+            windowTotals = QueryDb.totals(now - RETENTION_MS);
+            windowAt = now;
         }
-        return sum + BOUNDARY.get(files, firstDay, cutoff, index,
-                Stats::parseLogLine, e -> e.at, Stats::countEntry);
+        return windowTotals;
     }
 
-    private static void countEntry(long[] totals, Entry e) {
-        totals[0]++;
-        if (e.blocked) totals[1]++;
-        if (e.cached) totals[2]++;
-        if ("FORWARDED".equals(e.status) || "ALLOWED".equals(e.status)) totals[3]++;
-        if ("ERROR".equals(e.status)) totals[4]++;
-    }
-
-    private static long todayValue(int index) {
-        switch (index) {
-            case 0: return queries;
-            case 1: return blocked;
-            case 2: return cached;
-            case 3: return forwarded;
-            default: return errors;
+    private static synchronized long[] todayTotals() {
+        long now = System.currentTimeMillis();
+        if (dayTotals == null || now - dayAt > TOTAL_TTL) {
+            dayTotals = QueryDb.totals(QueryDb.startOfDay(now));
+            dayAt = now;
         }
+        return dayTotals;
     }
 
-    static synchronized long todayQueries() { return today().equals(day) ? queries : 0; }
-    static synchronized long todayBlocked() { return today().equals(day) ? blocked : 0; }
+    static long queries() { return window()[0]; }
+    static long blocked() { return window()[1]; }
+    static long cached() { return window()[2]; }
+    static long forwarded() { return window()[3]; }
+    static long errors() { return window()[4]; }
+
+    static synchronized long todayQueries() { return todayTotals()[0]; }
+    static synchronized long todayBlocked() { return todayTotals()[1]; }
 
     static synchronized double todayRate() {
-        return queries == 0 || !today().equals(day) ? 0.0 : (100.0 * blocked / queries);
+        long[] t = todayTotals();
+        return t[0] == 0 ? 0.0 : (100.0 * t[1] / t[0]);
     }
 
     static double rate() {
-        long q = queries();
-        return q == 0 ? 0.0 : (100.0 * blocked() / q);
+        long[] t = window();
+        return t[0] == 0 ? 0.0 : (100.0 * t[1] / t[0]);
     }
 
-    static synchronized int uniqueDomains() { return domains.size(); }
-    static synchronized int clientCount() { return clients.size(); }
+    static synchronized int uniqueDomains() {
+        return cache("unique:domain", TOP_TTL,
+                () -> Collections.singletonList(new Top("", QueryDb.unique(
+                        "domain", System.currentTimeMillis() - RETENTION_MS)))).get(0).count;
+    }
+
+    static synchronized int clientCount() {
+        return cache("unique:client", TOP_TTL,
+                () -> Collections.singletonList(new Top("", QueryDb.unique(
+                        "client", System.currentTimeMillis() - RETENTION_MS)))).get(0).count;
+    }
 
     static synchronized List<Blocked> recent() {
-        return new ArrayList<>(recent);
+        synchronized (recent) {
+            return new ArrayList<>(recent);
+        }
     }
 
     static synchronized List<Entry> log(int limit) {
         int max = Math.max(0, Math.min(EXPORT_MAX, limit));
-        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
-        if (max <= log.size() || logDir == null) {
-            int n = Math.min(max, log.size());
-            ArrayList<Entry> out = new ArrayList<>(n);
-            int i = 0;
-            for (Entry e : log) {
-                if (e.at < cutoff) continue;
-                if (i++ >= n) break;
-                out.add(e);
-            }
-            return out;
-        }
-        flushLog();
-        ArrayList<Entry> out = new ArrayList<>(Math.min(max, 4096));
-        for (File file : logFilesNewestFirst()) {
-            ArrayDeque<Entry> part = readNewest(file, max - out.size());
-            out.addAll(part);
-            if (out.size() >= max) break;
-        }
-        return out;
+        return QueryDb.page(0, max, null);
     }
 
     static List<Entry> logPage(int start, int length, java.util.function.Predicate<Entry> filter) {
-        List<File> files;
-        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
-        synchronized (Stats.class) {
-            flushLog();
-            files = logFilesNewestFirst();
+        return QueryDb.page(start, length, filter);
+    }
+
+    private static long topSince() {
+        return System.currentTimeMillis() - RETENTION_MS;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> List<T> cache(String key, long ttl, java.util.function.Supplier<List<T>> load) {
+        long now = System.currentTimeMillis();
+        Long at = cachedAt.get(key);
+        if (at != null && now - at <= ttl && cached.containsKey(key)) {
+            return (List<T>) cached.get(key);
         }
-        return ReverseLogReader.page(files, start, length, cutoff,
-                Stats::parseLogLine, e -> e.at, filter);
+        List<T> value = load.get();
+        cached.put(key, value);
+        cachedAt.put(key, now);
+        return value;
     }
 
     static synchronized List<Top> topDomains(boolean blockedOnly, int limit) {
-        Map<String, Integer> counts = new HashMap<>();
-        for (Entry e : log) {
-            if (e.domain.isEmpty()) continue;
-            if (blockedOnly != e.blocked) continue;
-            counts.put(e.domain, counts.getOrDefault(e.domain, 0) + 1);
-        }
-        return sort(counts, limit);
+        return cache("domains:" + blockedOnly + ":" + limit, TOP_TTL, () -> QueryDb.top(
+                "domain", "domain <> '' AND blocked = " + (blockedOnly ? "1" : "0"),
+                topSince(), limit));
     }
 
     static synchronized List<Top> topClients(int limit) {
-        Map<String, Integer> counts = new HashMap<>();
-        for (Entry e : log) {
-            if (e.client.isEmpty()) continue;
-            counts.put(e.client, counts.getOrDefault(e.client, 0) + 1);
-        }
-        return sort(counts, limit);
+        return cache("clients:" + limit, TOP_TTL, () -> QueryDb.top(
+                "client", "client <> ''", topSince(), limit));
     }
 
     static synchronized List<Top> queryTypes() {
-        Map<String, Integer> counts = new HashMap<>();
-        for (Map.Entry<Integer, Integer> e : types.entrySet()) {
-            counts.put(DnsPacket.typeName(e.getKey()), e.getValue());
-        }
-        return sort(counts, 16);
+        return cache("types", TOP_TTL, () -> {
+            Map<String, Integer> counts = new HashMap<>();
+            for (Top t : QueryDb.top("type", "1=1", topSince(), 64)) {
+                try {
+                    counts.merge(DnsPacket.typeName(Integer.parseInt(t.key)), t.count, Integer::sum);
+                } catch (NumberFormatException ignored) { }
+            }
+            return sort(counts, 16);
+        });
     }
 
     static synchronized List<Top> topUpstreams(int limit) {
-        Map<String, Integer> counts = new HashMap<>();
-        for (Entry e : log) {
-            String key = e.upstream == null || e.upstream.isEmpty() ? "none" : e.upstream;
-            counts.put(key, counts.getOrDefault(key, 0) + 1);
-        }
-        return sort(counts, limit);
+        return cache("upstreams:" + limit, TOP_TTL, () -> QueryDb.top(
+                "CASE WHEN upstream='' THEN 'none' ELSE upstream END", "1=1",
+                topSince(), limit));
     }
 
     /** Queries and blocked counts per local hour, oldest first. */
     static synchronized List<Bucket> hourly(int hours) {
         int count = Math.max(1, Math.min(HOURLY_MAX, hours));
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.set(java.util.Calendar.MINUTE, 0);
-        cal.set(java.util.Calendar.SECOND, 0);
-        cal.set(java.util.Calendar.MILLISECOND, 0);
-        long current = cal.getTimeInMillis();
-        long hourMs = 3600000L;
-        long start = current - (count - 1) * hourMs;
-        ArrayList<Bucket> out = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            long at = start + i * hourMs;
-            long[] value = hourlyHistory.get(HOUR_FORMAT.format(new Date(at)));
-            out.add(new Bucket(at, value == null ? 0 : value[0],
-                    value == null ? 0 : value[1]));
-        }
-        return out;
+        return cache("hourly:" + count, CHART_TTL, () -> QueryDb.hourly(count));
     }
 
     /** Live chart: per-minute buckets for the last {@code minutes} minutes. */
@@ -685,48 +319,14 @@ final class Stats {
         cal.set(java.util.Calendar.SECOND, 0);
         cal.set(java.util.Calendar.MILLISECOND, 0);
         long current = cal.getTimeInMillis();
-        long minuteMs = 60000L;
-        long start = current - (count - 1) * minuteMs;
-        long[] q = new long[count];
-        long[] b = new long[count];
-        for (Entry e : log) {
-            if (e.at < start || e.at > current + minuteMs) continue;
-            int index = (int) ((e.at - start) / minuteMs);
-            if (index < 0 || index >= count) continue;
-            q[index]++;
-            if (e.blocked) b[index]++;
-        }
-        ArrayList<Bucket> out = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            out.add(new Bucket(start + i * minuteMs, q[i], b[i]));
-        }
-        return out;
+        long start = current - (count - 1) * 60000L;
+        return cache("live:" + current, 500L, () -> QueryDb.live(start, count));
     }
 
     /** Daily chart for the last {@code days} days, including today. */
     static synchronized List<Bucket> daily(int days) {
         int count = Math.max(1, Math.min(HISTORY_MAX, days));
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
-        cal.set(java.util.Calendar.MINUTE, 0);
-        cal.set(java.util.Calendar.SECOND, 0);
-        cal.set(java.util.Calendar.MILLISECOND, 0);
-        cal.add(java.util.Calendar.DAY_OF_YEAR, -(count - 1));
-        ArrayList<Bucket> out = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            String key = DAY_FORMAT.format(cal.getTime());
-            long[] value;
-            if (i == count - 1) {
-                value = today().equals(day)
-                        ? new long[]{queries, blocked} : new long[]{0, 0};
-            } else {
-                value = dailyHistory.get(key);
-            }
-            out.add(new Bucket(cal.getTimeInMillis(),
-                    value == null ? 0 : value[0], value == null ? 0 : value[1]));
-            cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
-        }
-        return out;
+        return cache("daily:" + count, CHART_TTL, () -> QueryDb.daily(count));
     }
 
     /** Chart buckets for the dashboard range selector. */
@@ -740,14 +340,9 @@ final class Stats {
 
     /** Blocked queries grouped by the category that matched. */
     static synchronized List<Top> categoryCounts() {
-        Map<String, Integer> counts = new HashMap<>();
-        for (Entry e : log) {
-            if (!e.blocked) continue;
-            String key = e.category == null || e.category.isEmpty()
-                    ? "Gravity" : e.category;
-            counts.put(key, counts.getOrDefault(key, 0) + 1);
-        }
-        return sort(counts, 16);
+        return cache("categories", TOP_TTL, () -> QueryDb.top(
+                "CASE WHEN category='' THEN 'Gravity' ELSE category END",
+                "blocked = 1", topSince(), 16));
     }
 
     /** Newest-first query log as JSON, for backup/export. */
@@ -772,17 +367,11 @@ final class Stats {
         return arr;
     }
 
-    /** Replaces the query log from a backup. Entries stay newest first. */
+    /** Replaces the query history from a backup. Entries stay newest first. */
     static synchronized void importLog(Context c, JSONArray arr) {
-        if (c != null) openLog(c);
-        closeLogWriter(false);
-        deleteLogFiles();
-        log.clear();
-        domains.clear();
-        clients.clear();
-        types.clear();
+        if (c != null) QueryDb.open(c);
+        ArrayList<Entry> parsed = new ArrayList<>();
         if (arr != null) {
-            ArrayList<Entry> parsed = new ArrayList<>();
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
@@ -796,19 +385,10 @@ final class Stats {
                         o.optBoolean("blocked", false),
                         o.optBoolean("cached", false)));
             }
-            // The backup is newest first; write oldest first so each day file
-            // stays chronological.
-            for (int i = parsed.size() - 1; i >= 0; i--) {
-                appendLogDirect(parsed.get(i));
-            }
-            for (int i = 0; i < parsed.size() && log.size() < LOG_MAX; i++) {
-                Entry e = parsed.get(i);
-                log.addLast(e);
-                indexLogEntry(e);
-            }
         }
-        pruneLogFiles(true);
-        logDirty = false;
+        QueryDb.replaceAll(parsed);
+        recent.clear();
+        invalidate();
         save(c);
     }
 
@@ -830,35 +410,18 @@ final class Stats {
     }
 
     static synchronized void clearLog(Context c) {
-        if (c != null) logDir = new File(c.getFilesDir(), LOG_DIR);
-        closeLogWriter(false);
-        deleteLogFiles();
-        log.clear();
+        if (c != null) QueryDb.open(c);
+        QueryDb.deleteAll();
         recent.clear();
-        domains.clear();
-        clients.clear();
-        types.clear();
-        logDirty = false;
+        invalidate();
         save(c);
     }
 
     static synchronized void reset(Context c) {
-        queries = 0;
-        blocked = 0;
-        cached = 0;
-        forwarded = 0;
-        errors = 0;
-        day = today();
+        if (c != null) QueryDb.open(c);
+        QueryDb.deleteAll();
         recent.clear();
-        log.clear();
-        domains.clear();
-        clients.clear();
-        types.clear();
-        dailyHistory.clear();
-        hourlyHistory.clear();
-        closeLogWriter(false);
-        deleteLogFiles();
-        logDirty = false;
+        invalidate();
         save(c);
     }
 
