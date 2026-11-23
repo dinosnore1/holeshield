@@ -45,15 +45,15 @@ final class Theme {
         this.dark = dark;
         boolean custom = palette != AccentPalette.DEFAULT;
         if (dark) {
-            bg = new Color(0x0D0D14);
-            surface = new Color(0x11111A);
-            surfaceAlt = new Color(0x202031);
-            card = new Color(0x191923);
-            cardHover = new Color(0x29293D);
-            border = new Color(0x36334A);
-            text = new Color(0xF2EDF9);
-            muted = new Color(0xBDB7CC);
-            faint = new Color(0xA79DBB);
+            bg = new Color(0x111111);
+            surface = new Color(0x171717);
+            surfaceAlt = new Color(0x262626);
+            card = new Color(0x202020);
+            cardHover = new Color(0x303030);
+            border = new Color(0x404040);
+            text = new Color(0xF2F2F2);
+            muted = new Color(0xC1C1C1);
+            faint = new Color(0xA6A6A6);
             accent = new Color(palette.primary(true));
             accentAlt = custom ? mix(accent, text, .24) : new Color(0xA7BFFF);
             onAccent = new Color(palette.onPrimary(true));
@@ -63,7 +63,7 @@ final class Theme {
             dangerSoft = new Color(0x4F212F);
             success = accent;
             warn = new Color(0xF5C98B);
-            track = new Color(0x2C2B3D);
+            track = new Color(0x303030);
             shadow = new Color(0, 0, 0, 96);
             selection = accentSoft;
         } else {

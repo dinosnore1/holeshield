@@ -1,44 +1,79 @@
 package com.dino.holeshield;
 
-/** User-selectable accent roles. Backgrounds and warning/error colors are separate. */
-enum AccentPalette {
-    DEFAULT("default", "Default", 0xC9B5FF, 0x23183D, 0x35275C, 0xEADFFF,
-            0x1B7F5C, 0xFFFFFF, 0xA9F2CD, 0x002115),
-    BLUE("blue", "Sky blue", 0x99CAFF, 0x0B2948, 0x203B61, 0xD3E8FF,
-            0x205CA6, 0xFFFFFF, 0xD7E9FF, 0x102E52),
-    ROSE("rose", "Rose", 0xFFB3DA, 0x3E1730, 0x572640, 0xFFDCF0,
-            0x983568, 0xFFFFFF, 0xFADDED, 0x4C1735),
-    SLATE("slate", "Slate", 0xC5CEDD, 0x1E293A, 0x333E50, 0xE1E9F7,
-            0x465B75, 0xFFFFFF, 0xDFE8F4, 0x25364D);
+import java.util.Locale;
 
+/** Accent color and derived contrast roles, independent of UI toolkit. */
+final class AccentPalette {
+    static final AccentPalette DEFAULT = new AccentPalette("default", -1);
     final String id;
-    final String label;
-    private final int[] dark;
-    private final int[] light;
+    private final int rgb;
 
-    AccentPalette(String id, String label, int... colors) {
+    private AccentPalette(String id, int rgb) {
         this.id = id;
-        this.label = label;
-        dark = java.util.Arrays.copyOfRange(colors, 0, 4);
-        light = java.util.Arrays.copyOfRange(colors, 4, 8);
+        this.rgb = rgb;
     }
 
-    int primary(boolean darkMode) { return colors(darkMode)[0]; }
-    int onPrimary(boolean darkMode) { return colors(darkMode)[1]; }
-    int container(boolean darkMode) { return colors(darkMode)[2]; }
-    int onContainer(boolean darkMode) { return colors(darkMode)[3]; }
-
-    private int[] colors(boolean darkMode) { return darkMode ? dark : light; }
-
-    static AccentPalette fromId(String id) {
-        for (AccentPalette palette : values()) if (palette.id.equals(id)) return palette;
-        return DEFAULT;
+    static AccentPalette fromId(String value) {
+        if (value == null) return DEFAULT;
+        switch (value) {
+            case "blue": value = "#99CAFF"; break;
+            case "rose": value = "#FFB3DA"; break;
+            case "slate": value = "#C5CEDD"; break;
+            default: break;
+        }
+        if (!value.matches("#?[0-9a-fA-F]{6}")) return DEFAULT;
+        String hex = value.charAt(0) == '#' ? value : "#" + value;
+        return new AccentPalette(hex.toUpperCase(Locale.ROOT), Integer.parseInt(hex.substring(1), 16));
     }
 
-    static String[] labels() {
-        AccentPalette[] palettes = values();
-        String[] labels = new String[palettes.length];
-        for (int i = 0; i < palettes.length; i++) labels[i] = palettes[i].label;
-        return labels;
+    int chosen(boolean dark) { return rgb < 0 ? dark ? 0xC9B5FF : 0x1B7F5C : rgb; }
+
+    int primary(boolean dark) {
+        int color = chosen(dark);
+        int bg = dark ? 0x262626 : 0xFFFFFF;
+        int toward = dark ? 0xFFFFFF : 0;
+        while (contrast(color, bg) < 4.5) color = mix(color, toward, .12);
+        return color;
+    }
+
+    int onPrimary(boolean dark) {
+        if (this == DEFAULT) return dark ? 0x23183D : 0xFFFFFF;
+        int color = primary(dark);
+        return contrast(color, 0) >= contrast(color, 0xFFFFFF) ? 0 : 0xFFFFFF;
+    }
+
+    int container(boolean dark) {
+        if (this == DEFAULT) return dark ? 0x35275C : 0xA9F2CD;
+        return mix(dark ? 0x202020 : 0xFFFFFF, chosen(dark), .24);
+    }
+
+    int onContainer(boolean dark) {
+        if (this == DEFAULT) return dark ? 0xEADFFF : 0x002115;
+        return dark ? 0xFFFFFF : 0x171717;
+    }
+
+    static String hex(int rgb) { return String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF); }
+
+    private static int mix(int a, int b, double fraction) {
+        int color = 0;
+        for (int shift = 0; shift <= 16; shift += 8) {
+            int x = (a >> shift) & 255, y = (b >> shift) & 255;
+            color |= (int) Math.round(x + (y - x) * fraction) << shift;
+        }
+        return color;
+    }
+
+    private static double contrast(int a, int b) {
+        double x = luminance(a), y = luminance(b);
+        return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
+    }
+
+    private static double luminance(int color) {
+        return .2126 * linear(color >> 16) + .7152 * linear(color >> 8) + .0722 * linear(color);
+    }
+
+    private static double linear(int channel) {
+        double x = (channel & 255) / 255.0;
+        return x <= .04045 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4);
     }
 }

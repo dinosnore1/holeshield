@@ -5,6 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
 <script>
+function applyAccentColor(hex){
+  var root = document.documentElement;
+  var keys = ["--md-primary","--md-on-primary","--md-primary-container","--md-on-primary-container","--accent-rgb"];
+  keys.forEach(function(k){root.style.removeProperty(k);});
+  if(!/^#[\da-f]{6}$/i.test(hex)) return;
+  var dark = root.dataset.theme !== "light";
+  var rgb = hex.slice(1).match(/../g).map(function(x){return parseInt(x,16);});
+  function mix(a,b,t){return a.map(function(v){return Math.round(v+(b-v)*t);});}
+  function luminance(a){return a.reduce(function(sum,ch,i){
+    var v=ch/255;
+    return sum+[.2126,.7152,.0722][i]*(v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4));
+  },0);}
+  function contrast(a,b){return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);}
+  var base = dark ? 38 : 255, baseLum = luminance([base,base,base]), ink = rgb;
+  while(contrast(luminance(ink),baseLum)<4.5) ink=mix(ink,dark?255:0,.12);
+  var container = rgb.map(function(v){var bg=dark?32:255;return Math.round(bg+(v-bg)*.24);});
+  var lum=luminance(ink);
+  var vals=["rgb("+ink+")",contrast(lum,0)>=contrast(lum,1)?"#000":"#fff",
+    "rgb("+container+")",dark?"#fff":"#171717",ink.join(",")];
+  keys.forEach(function(k,i){root.style.setProperty(k,vals[i]);});
+}
 (function(){
   try {
     var saved = localStorage.getItem("holeshield_theme");
@@ -12,8 +33,10 @@
       document.documentElement.setAttribute("data-theme", saved);
     }
     var accent = localStorage.getItem("holeshield_accent");
-    if (["default", "blue", "rose", "slate"].indexOf(accent) !== -1) {
-      document.documentElement.setAttribute("data-accent", accent);
+    accent = ({blue:"#99CAFF",rose:"#FFB3DA",slate:"#C5CEDD"})[accent] || accent;
+    if (/^#[\da-f]{6}$/i.test(accent)) {
+      document.documentElement.dataset.accent = accent;
+      applyAccentColor(accent);
     }
   } catch (e) {}
 })();
@@ -26,24 +49,24 @@
   --md-secondary:#a7bfff; --md-on-secondary:#152544; --md-secondary-container:#222f52; --md-on-secondary-container:#dbe5ff;
   --md-tertiary:#f5c98b; --md-on-tertiary:#422905; --md-tertiary-container:#493019; --md-on-tertiary-container:#ffddb1;
   --md-error:#ffaca9; --md-on-error:#551a24; --md-error-container:#4f212f; --md-on-error-container:#ffd9d7;
-  --md-surface:#11111a; --md-on-surface:#f2edf9; --md-surface-variant:#2c2b3d; --md-on-surface-variant:#bdb7cc;
-  --md-surface-container-lowest:#0d0d14; --md-surface-container-low:#15151f; --md-surface-container:#191923;
-  --md-surface-container-high:#202031; --md-surface-container-highest:#29293d;
-  --md-outline:#938aa9; --md-outline-variant:#36334a;
+  --md-surface:#171717; --md-on-surface:#f2f2f2; --md-surface-variant:#303030; --md-on-surface-variant:#c1c1c1;
+  --md-surface-container-lowest:#111111; --md-surface-container-low:#1b1b1b; --md-surface-container:#202020;
+  --md-surface-container-high:#262626; --md-surface-container-highest:#303030;
+  --md-outline:#929292; --md-outline-variant:#404040;
   --bg:var(--md-surface); --panel:var(--md-surface-container); --panel2:var(--md-surface-container-high);
   --line:var(--md-outline-variant); --text:var(--md-on-surface); --muted:var(--md-on-surface-variant);
   --green:var(--md-primary); --green2:var(--md-primary); --red:var(--md-error);
   --amber:var(--md-tertiary); --blue:var(--md-secondary); --violet:var(--md-on-tertiary-container);
   --outline:var(--md-outline);
   --shadow:0 1px 2px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.22);
-  --glow1:rgba(173,142,252,.13); --glow2:rgba(144,165,255,.09);
+  --glow1:rgba(255,255,255,.035); --glow2:rgba(255,255,255,.025);
   --accent-rgb:201,181,255;
   --hover-border:var(--md-outline); --hover-bg:var(--md-surface-container-highest);
   --login-dot:rgba(222,228,222,.10);
-  --row-line:#2b2a3a; --row-hover:#242337;
-  --hero-bg:radial-gradient(ellipse at 87% 35%,#392958,transparent 62%),linear-gradient(130deg,#211c32,#191923);
-  --header-bg:rgba(17,17,26,.91); --header-border:#332e45;
-  --grid-line:rgba(201,181,255,.055);
+  --row-line:#333; --row-hover:#292929;
+  --hero-bg:linear-gradient(130deg,#2a2a2a,#202020);
+  --header-bg:rgba(23,23,23,.91); --header-border:#383838;
+  --grid-line:rgba(255,255,255,.035);
   --shadow-soft:0 1px 0 rgba(255,255,255,.04),0 18px 40px rgba(0,0,0,.20);
   --radius-xl:28px; --radius-lg:22px; --radius-md:16px;
   --accent:var(--md-primary); --accent-container:var(--md-primary-container);
@@ -77,12 +100,6 @@ html[data-theme="light"]{
   --accent:var(--md-primary); --accent-container:var(--md-primary-container);
   color-scheme:light;
 }
-html[data-accent="blue"]{--md-primary:#99caff;--md-on-primary:#0b2948;--md-primary-container:#203b61;--md-on-primary-container:#d3e8ff;--accent-rgb:153,202,255}
-html[data-accent="rose"]{--md-primary:#ffb3da;--md-on-primary:#3e1730;--md-primary-container:#572640;--md-on-primary-container:#ffdcf0;--accent-rgb:255,179,218}
-html[data-accent="slate"]{--md-primary:#c5cedd;--md-on-primary:#1e293a;--md-primary-container:#333e50;--md-on-primary-container:#e1e9f7;--accent-rgb:197,206,221}
-html[data-theme="light"][data-accent="blue"]{--md-primary:#205ca6;--md-on-primary:#fff;--md-primary-container:#d7e9ff;--md-on-primary-container:#102e52;--accent-rgb:32,92,166}
-html[data-theme="light"][data-accent="rose"]{--md-primary:#983568;--md-on-primary:#fff;--md-primary-container:#fadded;--md-on-primary-container:#4c1735;--accent-rgb:152,53,104}
-html[data-theme="light"][data-accent="slate"]{--md-primary:#465b75;--md-on-primary:#fff;--md-primary-container:#dfe8f4;--md-on-primary-container:#25364d;--accent-rgb:70,91,117}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -177,21 +194,22 @@ button.small{padding:6px 12px;font-size:12px;border-radius:999px}
 button.iconButton{width:38px;height:36px;padding:0;border-radius:999px}
 button.iconButton svg{width:16px;height:16px;display:block}
 button:disabled{opacity:.45;cursor:not-allowed}
-.accent-picker{position:relative;flex:none}
-.accent-picker summary{list-style:none;width:36px;height:36px;padding:0}
-.accent-picker summary::-webkit-details-marker{display:none}
-.accent-options{position:absolute;right:0;top:calc(100% + 6px);z-index:60;
-  display:flex;flex-direction:column;gap:3px;min-width:140px;padding:7px;
-  border:1px solid var(--line);border-radius:14px;background:var(--panel2);box-shadow:var(--shadow)}
-.accent-options button{justify-content:flex-start;border-color:transparent;background:transparent}
-.accent-options button[aria-pressed="true"]{background:var(--md-primary-container);color:var(--md-on-primary-container)}
+.accent-dialog{width:min(360px,calc(100% - 24px));padding:0;
+  border:1px solid var(--line);border-radius:16px;background:var(--panel2);color:var(--text);box-shadow:var(--shadow)}
+.accent-dialog::backdrop{background:rgba(0,0,0,.42)}
+.accent-controls{display:flex;gap:8px;align-items:center;padding:10px}
 .accent-swatch{display:inline-block;width:12px;height:12px;flex:none;border-radius:50%;background:var(--md-primary);border:1px solid var(--outline)}
-.accent-swatch.blue{background:#99caff}.accent-swatch.rose{background:#ffb3da}.accent-swatch.slate{background:#c5cedd}
-.accent-swatch.default{background:#c9b5ff}
-html[data-theme="light"] .accent-swatch.default{background:#1b7f5c}
-html[data-theme="light"] .accent-swatch.blue{background:#205ca6}
-html[data-theme="light"] .accent-swatch.rose{background:#983568}
-html[data-theme="light"] .accent-swatch.slate{background:#465b75}
+.accent-preview{width:32px;height:32px}
+.accent-controls input{min-width:0;flex:1}
+.accent-field{position:relative;height:146px;touch-action:none;cursor:crosshair;
+  background:linear-gradient(transparent,#fff),linear-gradient(to right,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}
+.accent-marker{position:absolute;transform:translate(-50%,-50%);width:21px;height:21px;border:2px solid white;
+  border-radius:50%;box-shadow:0 0 0 1px #444;pointer-events:none}
+.accent-brightness{padding:12px 14px 3px}
+.accent-brightness input{appearance:none;display:block;width:100%;height:24px;padding:0;border-radius:99px}
+.accent-brightness input::-webkit-slider-thumb{appearance:none;width:19px;height:19px;border:2px solid white;border-radius:50%;background:#252525}
+.accent-brightness input::-moz-range-thumb{width:15px;height:15px;border:2px solid white;border-radius:50%;background:#252525}
+.accent-actions{display:flex;justify-content:space-between;padding:10px}
 .logoutWrap{position:relative;display:inline-flex}
 .logoutMenu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:172px;padding:6px;border-radius:16px;background:var(--md-surface-container-high);border:1px solid var(--md-outline-variant);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:2px}
 .logoutMenu button{border:0;background:transparent;text-align:left;padding:9px 12px;border-radius:10px;font-size:12.5px;font-weight:650;color:var(--text);justify-content:flex-start}
@@ -513,15 +531,9 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     <div class="spacer"></div>
     <div id="status" class="pill"><span class="dot"></span><span id="statusText">Checking…</span></div>
     <button id="theme" class="small iconButton" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"></button>
-    <details class="accent-picker" id="accentPicker">
-      <summary class="btn" aria-label="Accent color" title="Accent color"><span class="accent-swatch" aria-hidden="true"></span></summary>
-      <div class="accent-options" role="group" aria-label="Accent color presets">
-        <button type="button" class="small" data-accent-choice="default" aria-pressed="true"><span class="accent-swatch default" aria-hidden="true"></span>Default</button>
-        <button type="button" class="small" data-accent-choice="blue" aria-pressed="false"><span class="accent-swatch blue" aria-hidden="true"></span>Sky blue</button>
-        <button type="button" class="small" data-accent-choice="rose" aria-pressed="false"><span class="accent-swatch rose" aria-hidden="true"></span>Rose</button>
-        <button type="button" class="small" data-accent-choice="slate" aria-pressed="false"><span class="accent-swatch slate" aria-hidden="true"></span>Slate</button>
-      </div>
-    </details>
+    <button id="openAccentPicker" class="small iconButton" type="button" aria-label="Accent color" title="Accent color">
+      <span class="accent-swatch" aria-hidden="true"></span>
+    </button>
     <button id="refresh" class="small iconButton" aria-label="Refresh now" title="Refresh now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
     <div id="logoutWrap" class="logoutWrap" style="display:none">
       <button id="logout" class="small" aria-haspopup="true" aria-expanded="false" title="Log out">Log out
@@ -792,6 +804,24 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   </main>
 </div>
 
+<dialog id="accentPicker" class="accent-dialog" aria-label="Accent color">
+  <form id="accentForm">
+    <div class="accent-controls">
+      <span id="accentPreview" class="accent-swatch accent-preview" aria-hidden="true"></span>
+      <input id="accentHex" type="text" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" required spellcheck="false" aria-label="Hex color">
+      <button id="closeAccentPicker" class="small iconButton" type="button" aria-label="Cancel">×</button>
+    </div>
+    <div id="accentField" class="accent-field" tabindex="0" role="group" aria-label="Hue and saturation. Use the arrow keys to adjust.">
+      <span id="accentMarker" class="accent-marker" aria-hidden="true"></span>
+    </div>
+    <div class="accent-brightness"><input id="accentBrightness" type="range" min="0" max="255" aria-label="Brightness"></div>
+    <div class="accent-actions">
+      <button id="resetAccent" type="button" class="small">Reset</button>
+      <button type="submit" class="small primary">Apply</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="mobileNav" role="navigation" aria-label="Sections">
   <nav>
     <a href="#overview" class="active">
@@ -946,6 +976,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   }
   function applyTheme(theme){
     document.documentElement.setAttribute("data-theme", theme);
+    applyAccentColor(document.documentElement.dataset.accent);
     try { localStorage.setItem("holeshield_theme", theme); } catch (e) {}
     var next = theme === "light" ? "dark" : "light";
     var label = next === "light" ? "Switch to light mode" : "Switch to dark mode";
@@ -959,32 +990,87 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     });
   }
   applyTheme(themeName());
-  var accentPicker = $("#accentPicker");
-  function applyAccent(accent){
-    document.documentElement.setAttribute("data-accent", accent);
-    $$("[data-accent-choice]").forEach(function(button){
-      button.setAttribute("aria-pressed", String(button.dataset.accentChoice === accent));
-    });
+  var accentPicker = $("#accentPicker"), accentHex = $("#accentHex");
+  var accentField = $("#accentField"), accentBrightness = $("#accentBrightness");
+  var hsv = [0,0,1];
+  function setPickerHex(hex){
+    var rgb = hex.replace(/^#/,"").match(/../g).map(function(x){return parseInt(x,16)/255;});
+    var r=rgb[0],g=rgb[1],b=rgb[2],max=Math.max(r,g,b),d=max-Math.min(r,g,b);
+    var hue = !d ? 0 : max===r ? (g-b)/d : max===g ? (b-r)/d+2 : (r-g)/d+4;
+    hsv = [(hue/6+1)%1,max ? d/max : 0,max];
   }
-  applyAccent(document.documentElement.getAttribute("data-accent") || "default");
-  accentPicker.addEventListener("click", function(event){
-    var choice = event.target.closest("[data-accent-choice]");
-    if(!choice) return;
-    var accent = choice.dataset.accentChoice;
-    applyAccent(accent);
-    try { localStorage.setItem("holeshield_accent", accent); } catch (e) {}
-    accentPicker.open = false;
-    accentPicker.querySelector("summary").focus();
+  function pickerHex(value){
+    return "#" + [5,3,1].map(function(n){
+      var k=(n+hsv[0]*6)%6;
+      return Math.round(255*value*(1-hsv[1]*Math.max(0,Math.min(k,4-k,1))))
+        .toString(16).padStart(2,"0");
+    }).join("").toUpperCase();
+  }
+  function renderAccentPicker(updateHex){
+    var hex=pickerHex(hsv[2]), marker=$("#accentMarker");
+    if(updateHex) accentHex.value=hex;
+    $("#accentPreview").style.background=hex;
+    marker.style.left=(3+hsv[0]*94)+"%";
+    marker.style.top=(8+(1-hsv[1])*84)+"%";
+    marker.style.background=hex;
+    accentBrightness.value=Math.round(hsv[2]*255);
+    accentBrightness.style.background="linear-gradient(to right,#000,"+pickerHex(1)+")";
+  }
+  $("#openAccentPicker").addEventListener("click",function(){
+    setPickerHex(document.documentElement.dataset.accent || (themeName()==="dark" ? "#C9B5FF" : "#1B7F5C"));
+    renderAccentPicker(true);
+    accentPicker.showModal();
   });
-  document.addEventListener("click", function(event){
-    if(!accentPicker.contains(event.target)) accentPicker.open = false;
-  });
-  accentPicker.addEventListener("keydown", function(event){
-    if(event.key === "Escape" && accentPicker.open){
-      accentPicker.open = false;
-      accentPicker.querySelector("summary").focus();
+  $("#closeAccentPicker").addEventListener("click",function(){accentPicker.close();});
+  accentHex.addEventListener("input",function(){
+    if(/^#?[\da-f]{6}$/i.test(accentHex.value)){
+      setPickerHex(accentHex.value);
+      renderAccentPicker(false);
     }
   });
+  function clamp(value){return Math.max(0,Math.min(1,value));}
+  function pickAt(event){
+    var box=accentField.getBoundingClientRect();
+    hsv[0]=Math.min(.99999,clamp((event.clientX-box.left)/box.width));
+    hsv[1]=1-clamp((event.clientY-box.top)/box.height);
+    renderAccentPicker(true);
+  }
+  accentField.addEventListener("pointerdown",function(event){
+    accentField.setPointerCapture(event.pointerId);
+    pickAt(event);
+  });
+  accentField.addEventListener("pointermove",function(event){
+    if(accentField.hasPointerCapture(event.pointerId)) pickAt(event);
+  });
+  accentField.addEventListener("keydown",function(event){
+    if(event.key==="ArrowLeft") hsv[0]=(hsv[0]+.99)%1;
+    else if(event.key==="ArrowRight") hsv[0]=(hsv[0]+.01)%1;
+    else if(event.key==="ArrowUp") hsv[1]=clamp(hsv[1]+.04);
+    else if(event.key==="ArrowDown") hsv[1]=clamp(hsv[1]-.04);
+    else return;
+    event.preventDefault();
+    renderAccentPicker(true);
+  });
+  accentBrightness.addEventListener("input",function(){
+    hsv[2]=accentBrightness.value/255;
+    renderAccentPicker(true);
+  });
+  function saveAccent(hex){
+    var root=document.documentElement;
+    if(hex) root.dataset.accent=hex;
+    else delete root.dataset.accent;
+    applyAccentColor(hex);
+    try {
+      if(hex) localStorage.setItem("holeshield_accent",hex);
+      else localStorage.removeItem("holeshield_accent");
+    } catch(e){}
+    accentPicker.close();
+  }
+  $("#accentForm").addEventListener("submit",function(event){
+    event.preventDefault();
+    saveAccent("#"+accentHex.value.replace(/^#/,"").toUpperCase());
+  });
+  $("#resetAccent").addEventListener("click",function(){saveAccent("");});
   $$("[data-theme-toggle]").forEach(function(button){
     button.addEventListener("click", function(){
       applyTheme(themeName() === "light" ? "dark" : "light");

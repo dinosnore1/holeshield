@@ -896,21 +896,23 @@ public final class DesktopTest {
         DesktopPrefs prefs = new DesktopPrefs(home);
         prefs.load();
         prefs.set("dnsPort", "5353");
-        prefs.set("accent", "rose");
+        prefs.set("accent", "#FFB3DA");
         prefs.setBool("categoryTrackers", false);
         prefs.setWebPassword("secret");
         prefs.save();
         DesktopPrefs loaded = new DesktopPrefs(home);
         loaded.load();
         eq(5353, loaded.getInt("dnsPort", 53), "persisted port");
-        eq("rose", loaded.get("accent", "default"), "persisted accent");
+        eq("#FFB3DA", loaded.get("accent", "default"), "persisted accent");
         Theme.setMode(Theme.MODE_DARK, loaded.get("accent", "default"));
-        eq(new java.awt.Color(AccentPalette.ROSE.primary(true)), Theme.get().accent,
+        eq(new java.awt.Color(0xFFB3DA), Theme.get().accent,
                 "custom dark accent applied");
-        eq(new java.awt.Color(0x11111A), Theme.get().surface, "accent leaves dark surface unchanged");
-        Theme.setMode(Theme.MODE_LIGHT, "blue");
-        eq(new java.awt.Color(AccentPalette.BLUE.primary(false)), Theme.get().accent,
-                "custom light accent applied");
+        eq(new java.awt.Color(0x171717), Theme.get().surface, "accent leaves charcoal surface unchanged");
+        Theme.setMode(Theme.MODE_LIGHT, "#FFFFFF");
+        check(!java.awt.Color.WHITE.equals(Theme.get().accent), "light accent adjusted for contrast");
+        eq("#99CAFF", AccentPalette.fromId("blue").id, "legacy preset migrates to hex");
+        eq("#2880DD", AccentPalette.fromId("2880dd").id, "normalize hex without hash");
+        check(AccentPalette.fromId("#000000").primary(true) != 0, "dark accent adjusted for contrast");
         Theme.setMode(Theme.MODE_DARK, "unknown");
         eq(new java.awt.Color(AccentPalette.DEFAULT.primary(true)), Theme.get().accent,
                 "unknown accent falls back to default");

@@ -46,17 +46,17 @@ final class Ui {
     private static final int F_ON_ERROR = 0xFF551A24;
     private static final int F_ERROR_CONTAINER = 0xFF4F212F;
     private static final int F_ON_ERROR_CONTAINER = 0xFFFFD9D7;
-    private static final int F_SURFACE = 0xFF11111A;
-    private static final int F_ON_SURFACE = 0xFFF2EDF9;
-    private static final int F_SURFACE_VARIANT = 0xFF2C2B3D;
-    private static final int F_ON_SURFACE_VARIANT = 0xFFBDB7CC;
-    private static final int F_SURFACE_LOWEST = 0xFF0D0D14;
-    private static final int F_SURFACE_LOW = 0xFF15151F;
-    private static final int F_SURFACE_CONTAINER = 0xFF191923;
-    private static final int F_SURFACE_HIGH = 0xFF202031;
-    private static final int F_SURFACE_HIGHEST = 0xFF29293D;
-    private static final int F_OUTLINE = 0xFF938AA9;
-    private static final int F_OUTLINE_VARIANT = 0xFF36334A;
+    private static final int F_SURFACE = 0xFF171717;
+    private static final int F_ON_SURFACE = 0xFFF2F2F2;
+    private static final int F_SURFACE_VARIANT = 0xFF303030;
+    private static final int F_ON_SURFACE_VARIANT = 0xFFC1C1C1;
+    private static final int F_SURFACE_LOWEST = 0xFF111111;
+    private static final int F_SURFACE_LOW = 0xFF1B1B1B;
+    private static final int F_SURFACE_CONTAINER = 0xFF202020;
+    private static final int F_SURFACE_HIGH = 0xFF262626;
+    private static final int F_SURFACE_HIGHEST = 0xFF303030;
+    private static final int F_OUTLINE = 0xFF929292;
+    private static final int F_OUTLINE_VARIANT = 0xFF404040;
 
     // Keep the existing Material 3 light scheme.
     private static final int L_SECONDARY = 0xFF4D6357;
@@ -217,7 +217,7 @@ final class Ui {
      */
     static boolean init(boolean darkMode, String accentId) {
         AccentPalette next = AccentPalette.fromId(accentId);
-        if (dark == darkMode && accent == next) return false;
+        if (dark == darkMode && accent.id.equals(next.id)) return false;
         applyPalette(darkMode, next);
         return true;
     }
