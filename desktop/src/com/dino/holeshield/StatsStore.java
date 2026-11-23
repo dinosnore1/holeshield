@@ -13,14 +13,17 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 /** Thread-safe query log, counters and chart history for the desktop app. */
@@ -168,15 +171,77 @@ final class StatsStore {
 
         openLog();
         loadLogTail();
-        if (daily.isEmpty() && version < 2) {
-            // Recover dated counters if the old build left only the log.
-            for (Entry e : log) {
-                count(bucketForDay(DAY.format(new Date(e.at))), e);
-            }
-        }
+        rebuildFromRecords();
         trimHistory();
         lastSave = System.currentTimeMillis();
         lastTrim = lastSave;
+    }
+
+    /**
+     * Rebuilds the daily and hourly counters and the top lists from the
+     * retained rows. Days that no longer have a log file keep their stored
+     * aggregate, because that history was discarded by an older build and
+     * cannot be recovered.
+     */
+    private void rebuildFromRecords() {
+        HashMap<String, long[]> dayCounts = new HashMap<>();
+        HashMap<String, long[]> hourCounts = new HashMap<>();
+        Set<String> logDays = new HashSet<>();
+        domainCounts.clear();
+        clientCounts.clear();
+        typeCounts.clear();
+        upstreamCounts.clear();
+        categoryCounts.clear();
+        long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
+        if (logDir != null) {
+            File[] all = logDir.listFiles();
+            if (all != null) {
+                for (File f : all) {
+                    String key = dayFromFile(f.getName());
+                    if (key != null) logDays.add(key);
+                }
+            }
+            for (File file : logFilesNewestFirst()) {
+                scan(file, cutoff, e -> {
+                    String dayKey = DAY.format(new Date(e.at));
+                    long[] d = dayCounts.get(dayKey);
+                    if (d == null) {
+                        d = new long[5];
+                        dayCounts.put(dayKey, d);
+                    }
+                    count(d, e);
+                    String hourKey = HOUR.format(new Date(e.at));
+                    long[] h = hourCounts.get(hourKey);
+                    if (h == null) {
+                        h = new long[2];
+                        hourCounts.put(hourKey, h);
+                    }
+                    h[0]++;
+                    if (e.blocked) h[1]++;
+                    index(e);
+                });
+            }
+        }
+        for (String key : logDays) {
+            daily.remove(key);
+            hourly.keySet().removeIf(hour -> hour.startsWith(key + "-"));
+        }
+        daily.putAll(dayCounts);
+        hourly.putAll(hourCounts);
+    }
+
+    private static void scan(File file, long cutoff,
+                             java.util.function.Consumer<Entry> sink) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                file.getName().endsWith(".gz")
+                        ? new GZIPInputStream(new FileInputStream(file))
+                        : new FileInputStream(file), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Entry e = parseLogLine(line);
+                if (e != null && e.at >= cutoff) sink.accept(e);
+            }
+        } catch (Exception ignored) { }
     }
 
     synchronized void record(Entry entry) {

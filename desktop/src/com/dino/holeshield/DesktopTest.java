@@ -466,6 +466,25 @@ public final class DesktopTest {
                 e -> e.domain.equals("q1.example.com") || e.domain.equals("q2.example.com"))
                 .get(0).domain, "paging applies filters before offset");
 
+        File derivedDir = new File(dir, "stats-derived");
+        derivedDir.mkdirs();
+        String derivedToday = new java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.US).format(new java.util.Date(now));
+        File derivedLog = new File(derivedDir, "querylog");
+        derivedLog.mkdirs();
+        Files.write(new File(derivedDir, "stats.txt").toPath(),
+                ("V 2\nD " + derivedToday + " 999,999,999,999,999\n")
+                        .getBytes(StandardCharsets.UTF_8));
+        Files.write(new File(derivedLog, derivedToday + ".tsv").toPath(),
+                ((now + "\t192.168.2.10\ta.example.com\t1\tBLOCKED\tgravity\t0\t1\t\tAds\t1\t0\n")
+                        + (now + 1 + "\t192.168.2.10\tb.example.com\t1\tFORWARDED\tDoH\t0\t2\t\t\t0\t0\n"))
+                        .getBytes(StandardCharsets.UTF_8));
+        StatsStore derived = new StatsStore(derivedDir);
+        derived.load();
+        eq(2L, derived.queries(), "counters rebuild from retained records");
+        eq(1L, derived.blocked(), "blocked count rebuilds from records");
+        eq(1L, derived.forwarded(), "forwarded count rebuilds from records");
+
         File legacyDir = new File(dir, "stats-legacy");
         legacyDir.mkdirs();
         String yesterday = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
