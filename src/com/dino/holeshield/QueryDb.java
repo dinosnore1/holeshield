@@ -11,15 +11,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
@@ -32,23 +29,20 @@ import java.util.zip.GZIPInputStream;
 final class QueryDb {
 
     private static final String NAME = "queries.db";
-    private static final int VERSION = 1;
+    private static final int VERSION = 4;
     private static final int MIGRATION_BATCH = 500;
     private static final long MAINTENANCE_MS = 15L * 60 * 1000;
-    private static final DateTimeFormatter DAY =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US);
-    private static final DateTimeFormatter HOUR =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd-HH", Locale.US);
 
     private static final String COLUMNS = "at,client,domain,type,status,upstream,"
             + "rcode,ms,rule,category,blocked,cached";
     private static final String INSERT = "INSERT INTO queries (" + COLUMNS
-            + ",day,hour) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            + ",day,hour,origin) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     private static Db helper;
     private static Context app;
     private static boolean started;
     private static final ArrayDeque<Stats.Entry> pending = new ArrayDeque<>();
+    private static boolean writing;
     private static final Object QUEUE = new Object();
     private static final Object WRITE = new Object();
     private static final int PENDING_MAX = 20000;
@@ -81,7 +75,8 @@ final class QueryDb {
                     + "rule TEXT NOT NULL DEFAULT '',"
                     + "category TEXT NOT NULL DEFAULT '',"
                     + "blocked INTEGER NOT NULL DEFAULT 0,"
-                    + "cached INTEGER NOT NULL DEFAULT 0)");
+                    + "cached INTEGER NOT NULL DEFAULT 0,"
+                    + "origin INTEGER NOT NULL DEFAULT 0)");
             db.execSQL("CREATE INDEX queries_at ON queries(at)");
             db.execSQL("CREATE INDEX queries_day ON queries(day)");
             db.execSQL("CREATE INDEX queries_hour ON queries(hour)");
@@ -92,7 +87,17 @@ final class QueryDb {
             db.execSQL("INSERT INTO meta VALUES ('migrated','0')");
         }
 
-        @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) { }
+        @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+            if (oldVersion < 2) {
+                db.execSQL("ALTER TABLE queries ADD COLUMN origin INTEGER NOT NULL DEFAULT 0");
+            }
+            if (oldVersion < 4) {
+                // Row-level uniqueness is wrong here: bursts can record the
+                // same domain, type and millisecond more than once. Drop the
+                // index an unreleased build created.
+                db.execSQL("DROP INDEX IF EXISTS queries_unique");
+            }
+        }
     }
 
     static synchronized void open(Context context) {
@@ -133,9 +138,17 @@ final class QueryDb {
                         }
                     }
                     while (!pending.isEmpty() && batch.size() < 500) batch.add(pending.removeFirst());
+                    writing = true;
                 }
-                synchronized (WRITE) {
-                    write(batch);
+                try {
+                    synchronized (WRITE) {
+                        write(batch);
+                    }
+                } finally {
+                    synchronized (QUEUE) {
+                        writing = false;
+                        QUEUE.notifyAll();
+                    }
                 }
             }
         }, "query-writer");
@@ -150,7 +163,7 @@ final class QueryDb {
         try {
             SQLiteStatement statement = db.compileStatement(INSERT);
             for (Stats.Entry e : batch) {
-                bind(statement, e);
+                bind(statement, e, 0);
                 statement.executeInsert();
             }
             db.setTransactionSuccessful();
@@ -164,7 +177,7 @@ final class QueryDb {
     static void flush() {
         long deadline = System.currentTimeMillis() + 2000L;
         synchronized (QUEUE) {
-            while (!pending.isEmpty() && System.currentTimeMillis() < deadline) {
+            while ((!pending.isEmpty() || writing) && System.currentTimeMillis() < deadline) {
                 try {
                     QUEUE.wait(5L);
                 } catch (InterruptedException e) {
@@ -174,7 +187,7 @@ final class QueryDb {
         }
     }
 
-    private static void bind(SQLiteStatement s, Stats.Entry e) {
+    private static void bind(SQLiteStatement s, Stats.Entry e, int origin) {
         s.bindLong(1, e.at);
         s.bindString(2, e.client);
         s.bindString(3, e.domain);
@@ -189,23 +202,23 @@ final class QueryDb {
         s.bindLong(12, e.cached ? 1 : 0);
         s.bindString(13, dayKey(e.at));
         s.bindString(14, hourKey(e.at));
+        s.bindLong(15, origin);
     }
 
     static String dayKey(long at) {
-        return DAY.format(Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()));
+        return Retention.dayKey(at);
     }
 
     static String hourKey(long at) {
-        return HOUR.format(Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()));
+        return Retention.hourKey(at);
     }
 
     /** Start of the local day that contains {@code at}. */
     static long startOfDay(long at) {
-        return Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
-                .toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return Retention.startOfDay(at);
     }
 
-    /** Rolling totals for the last {@code RETENTION_MS}, computed from the rows. */
+    /** Rolling totals for the last 30 days, computed from the rows. */
     static long[] totals(long since) {
         return totals(since, Long.MAX_VALUE);
     }
@@ -408,23 +421,41 @@ final class QueryDb {
         }
     }
 
-    static synchronized void replaceAll(List<Stats.Entry> entries) {
-        if (helper == null) return;
+    /**
+     * Merges a bounded backup without replacing live history. For each exact
+     * row, preserve the larger of the backup and database occurrence counts.
+     * Equal rows can represent separate queries, even at the same millisecond.
+     */
+    static synchronized void restore(List<Stats.Entry> entries) {
+        if (helper == null || entries.isEmpty()) return;
         synchronized (WRITE) {
-            synchronized (QUEUE) {
-                pending.clear();
-            }
             SQLiteDatabase db = helper.getWritableDatabase();
-            db.beginTransaction();
-            try {
-                db.delete("queries", null, null);
-                SQLiteStatement statement = db.compileStatement(INSERT);
+            long cutoff = Retention.cutoff(System.currentTimeMillis());
+            Map<List<String>, Long> remaining = new HashMap<>();
+            db.beginTransactionNonExclusive();
+            try (SQLiteStatement statement = db.compileStatement(INSERT)) {
                 for (Stats.Entry e : entries) {
-                    bind(statement, e);
+                    if (e.at < cutoff) continue;
+                    String[] args = {Long.toString(e.at), e.client, e.domain,
+                            Integer.toString(e.type), e.status, e.upstream,
+                            Integer.toString(e.rcode), Long.toString(e.ms), e.rule,
+                            e.category, e.blocked ? "1" : "0", e.cached ? "1" : "0"};
+                    List<String> key = Arrays.asList(args);
+                    Long count = remaining.get(key);
+                    if (count == null) {
+                        try (Cursor c = db.rawQuery("SELECT COUNT(*) FROM queries WHERE at=?"
+                                + " AND client=? AND domain=? AND type=? AND status=?"
+                                + " AND upstream=? AND rcode=? AND ms=? AND rule=?"
+                                + " AND category=? AND blocked=? AND cached=?", args)) {
+                            count = c.moveToFirst() ? c.getLong(0) : 0L;
+                        }
+                    }
+                    remaining.put(key, Math.max(0, count - 1));
+                    if (count > 0) continue;
+                    bind(statement, e, 1);
                     statement.executeInsert();
                 }
                 db.setTransactionSuccessful();
-            } catch (Exception ignored) {
             } finally {
                 db.endTransaction();
             }
@@ -436,8 +467,12 @@ final class QueryDb {
         if (helper == null) return 0;
         long cutoff = System.currentTimeMillis() - ReverseLogReader.RETENTION_MS;
         try {
-            return helper.getWritableDatabase().delete("queries", "at < ?",
+            int deleted = helper.getWritableDatabase().delete("queries", "at < ?",
                     new String[]{Long.toString(cutoff)});
+            if (deleted > 0) {
+                android.util.Log.i("HoleShield", "expired " + deleted + " query rows");
+            }
+            return deleted;
         } catch (Exception e) {
             return 0;
         }
@@ -548,8 +583,8 @@ final class QueryDb {
             }
             db.beginTransaction();
             try {
-                db.execSQL("INSERT INTO queries (" + COLUMNS + ",day,hour)"
-                        + " SELECT " + COLUMNS + ",day,hour FROM staging ORDER BY at");
+                db.execSQL("INSERT INTO queries (" + COLUMNS + ",day,hour,origin)"
+                        + " SELECT " + COLUMNS + ",day,hour,0 FROM staging ORDER BY at");
                 db.execSQL("DROP TABLE staging");
                 db.execSQL("UPDATE meta SET value='1' WHERE key='migrated'");
                 db.setTransactionSuccessful();

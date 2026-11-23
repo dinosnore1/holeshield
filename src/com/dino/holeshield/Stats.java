@@ -367,7 +367,7 @@ final class Stats {
         return arr;
     }
 
-    /** Replaces the query history from a backup. Entries stay newest first. */
+    /** Merges query history from a backup without replacing the live history. */
     static synchronized void importLog(Context c, JSONArray arr) {
         if (c != null) QueryDb.open(c);
         ArrayList<Entry> parsed = new ArrayList<>();
@@ -386,8 +386,7 @@ final class Stats {
                         o.optBoolean("cached", false)));
             }
         }
-        QueryDb.replaceAll(parsed);
-        recent.clear();
+        QueryDb.restore(parsed);
         invalidate();
         save(c);
     }

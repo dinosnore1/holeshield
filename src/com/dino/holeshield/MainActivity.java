@@ -2610,7 +2610,7 @@ public class MainActivity extends Activity {
         }
         sys.addView(settingRow("Back up settings", "Settings, rules, lists and query log as JSON",
                 "Export", this::startBackup), rowLp(sysRow++));
-        sys.addView(settingRow("Restore settings", "Replace settings and query log from a backup",
+        sys.addView(settingRow("Restore settings", "Replace settings and merge query history from a backup",
                 "Import", this::startRestore), rowLp(sysRow));
         add(col, sys, 8);
 
@@ -3366,7 +3366,7 @@ public class MainActivity extends Activity {
         Ui.builder(this)
                 .setTitle("Restore settings?")
                 .setMessage("This replaces settings, custom rules, blocklist sources "
-                        + "and the query log with the selected backup.")
+                         + "with the selected backup and merge its query history.")
                 .setPositiveButton("Choose file", (d, w) -> {
                     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
