@@ -9,6 +9,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JPopupMenu;
@@ -18,6 +19,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSlider;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.JViewport;
 import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -716,7 +718,8 @@ final class ControlPanel extends JFrame {
         Widgets.IconButton refresh = new Widgets.IconButton("refresh", "Refresh queries", Widgets.TONAL);
         refresh.addActionListener(e -> refreshAction.run());
         actions.add(refresh);
-        Widgets.PillButton export = new Widgets.PillButton("Export CSV", "download", Widgets.OUTLINE);
+        Widgets.PillButton export = new Widgets.PillButton(app.isCompanion() ? "Export" : "Export CSV",
+                "download", Widgets.OUTLINE);
         export.addActionListener(e -> exportAction.run());
         actions.add(export);
         controls.add(actions, BorderLayout.EAST);
@@ -1090,6 +1093,8 @@ final class ControlPanel extends JFrame {
                 new Widgets.StatCard("Queries", "chart", 0);
         private final Widgets.StatCard blockedCard =
                 new Widgets.StatCard("Blocked", "shield-check", 1);
+        private final Widgets.StatCard allowedCard = new Widgets.StatCard("Allowed", "shield-check", 0);
+        private final Widgets.StatCard clientsCard = new Widgets.StatCard("Active clients", "server", 0);
         private final Widgets.StatCard rateCard =
                 new Widgets.StatCard("Blocked rate", "filter", 2);
         private final Widgets.StatCard gravityCard =
@@ -1105,6 +1110,7 @@ final class ControlPanel extends JFrame {
         private final Widgets.ChartPanel chart = new Widgets.ChartPanel();
         private final JLabel chartSummary = Widgets.label("", 11.5f, Font.PLAIN, 1);
         private final Widgets.BarList topBlocked = new Widgets.BarList();
+        private final Widgets.BarList topAllowed = new Widgets.BarList();
         private final Widgets.BarList topClients = new Widgets.BarList();
         private final Widgets.BarList types = new Widgets.BarList();
         private final Widgets.BarList upstreams = new Widgets.BarList();
@@ -1143,8 +1149,14 @@ final class ControlPanel extends JFrame {
             chartSummary.setBorder(new EmptyBorder(2, 0, 0, 0));
             copy.add(chartSummary);
             head.add(copy, BorderLayout.CENTER);
-            head.add(Widgets.label("Last 24 hours", 11.5f, Font.PLAIN, 1),
-                    BorderLayout.EAST);
+            List<String> ranges = List.of("live", "24h", "week", "month");
+            Widgets.SegmentedControl rangeControl = new Widgets.SegmentedControl(
+                    new String[]{"Live", "24h", "Week", "Month"}, ranges.indexOf(app.companionRange()));
+            rangeControl.setOnChange(index -> {
+                app.setCompanionRange(ranges.get(index));
+                refreshMirror(app.companionDashboard());
+            });
+            head.add(rangeControl, BorderLayout.EAST);
             card.add(head, BorderLayout.NORTH);
             card.add(chart, BorderLayout.CENTER);
             card.setPreferredSize(new Dimension(100, 330));
@@ -1153,10 +1165,11 @@ final class ControlPanel extends JFrame {
         }
 
         private JComponent topsRow() {
-            JPanel row = new JPanel(new GridLayout(1, 4, 14, 0));
+            JPanel row = new JPanel(new GridLayout(0, 3, 14, 12));
             row.setOpaque(false);
             row.setAlignmentX(Component.LEFT_ALIGNMENT);
             row.add(barCard("Top blocked", "Most blocked lookups", topBlocked, true));
+            row.add(barCard("Top permitted", "Non-blocked lookups", topAllowed, false));
             row.add(barCard("Top clients", "Devices using the resolver", topClients, false));
             row.add(barCard("Query types", "A, AAAA, HTTPS and more", types, false));
             row.add(barCard("Upstreams", "Where lookups were answered", upstreams, false));
@@ -1171,10 +1184,10 @@ final class ControlPanel extends JFrame {
             if (topsRowPanel == null) return;
             int tallest = 0;
             for (Widgets.BarList list : new Widgets.BarList[]{
-                    topBlocked, topClients, types, upstreams}) {
+                    topBlocked, topAllowed, topClients, types, upstreams}) {
                 tallest = Math.max(tallest, list.getPreferredSize().height);
             }
-            int height = Math.max(236, tallest + 96);
+            int height = 2 * Math.max(200, tallest + 92) + 12;
             topsRowPanel.setPreferredSize(new Dimension(100, height));
             topsRowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
             relayout(topsRowPanel);
@@ -1193,13 +1206,13 @@ final class ControlPanel extends JFrame {
         private JComponent coverageCard() {
             coveragePanel = card(16, 18, 16, 18);
             coveragePanel.add(Widgets.header("List coverage",
-                    "Remote blocklist sources and their last download", null),
+                    "Loaded gravity domains by category", null),
                     BorderLayout.NORTH);
             coverage.setBorder(new EmptyBorder(8, 2, 0, 0));
             coverage.setVerticalAlignment(SwingConstants.TOP);
             coveragePanel.add(coverage, BorderLayout.CENTER);
-            coveragePanel.setPreferredSize(new Dimension(100, 150));
-            coveragePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
+            coveragePanel.setPreferredSize(new Dimension(100, 244));
+            coveragePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 244));
             return coveragePanel;
         }
 
@@ -1280,15 +1293,17 @@ final class ControlPanel extends JFrame {
         }
 
         private JComponent stats() {
-            JPanel row = new JPanel(new GridLayout(1, 4, 14, 0));
+            JPanel row = new JPanel(new GridLayout(2, 3, 14, 12));
             row.setOpaque(false);
             row.setAlignmentX(Component.LEFT_ALIGNMENT);
             row.add(totalCard);
             row.add(blockedCard);
+            row.add(allowedCard);
             row.add(rateCard);
             row.add(gravityCard);
-            row.setPreferredSize(new Dimension(100, 108));
-            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 108));
+            row.add(clientsCard);
+            row.setPreferredSize(new Dimension(100, 230));
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
             return row;
         }
 
@@ -1304,8 +1319,18 @@ final class ControlPanel extends JFrame {
             JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
             row.setOpaque(false);
             blockingButton.addActionListener(e -> {
-                if (app.isBlocking()) app.pause(0);
-                else app.resume();
+                if (!app.isBlocking()) { app.resume(); return; }
+                JPopupMenu choices = new JPopupMenu();
+                String[] labels = {"5 minutes", "30 minutes", "1 hour", "2 hours",
+                        "6 hours", "12 hours", "24 hours", "Until resumed"};
+                int[] durations = {300, 1800, 3600, 7200, 21600, 43200, 86400, 0};
+                for (int i = 0; i < durations.length; i++) {
+                    int duration = durations[i];
+                    JMenuItem option = new JMenuItem("Pause " + labels[i]);
+                    option.addActionListener(event -> app.pause(duration));
+                    choices.add(option);
+                }
+                choices.show(blockingButton, 0, blockingButton.getHeight());
             });
             row.add(blockingButton);
             Widgets.PillButton flush = new Widgets.PillButton("Flush DNS cache",
@@ -1344,8 +1369,8 @@ final class ControlPanel extends JFrame {
                     BorderLayout.NORTH);
             details.setBorder(new EmptyBorder(10, 2, 0, 0));
             card.add(details, BorderLayout.CENTER);
-            card.setPreferredSize(new Dimension(100, 176));
-            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 190));
+            card.setPreferredSize(new Dimension(100, 300));
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 360));
             return card;
         }
 
@@ -1367,9 +1392,9 @@ final class ControlPanel extends JFrame {
             boolean blocking = app.isBlocking();
             blockingButton.setText(blocking ? "Pause blocking" : "Resume blocking");
             blockingButton.setEnabled(connected);
-            updateButton.setEnabled(connected && !app.isUpdating());
-
             CompanionClient.Dashboard dash = app.companionDashboard();
+            boolean updating = app.isUpdating() || (dash != null && dash.listsUpdating);
+            updateButton.setEnabled(connected && !updating);
             refreshMirror(dash);
 
             if (snapshot == null) {
@@ -1380,6 +1405,8 @@ final class ControlPanel extends JFrame {
                         : error);
                 totalCard.setValue("—");
                 blockedCard.setValue("—");
+                allowedCard.setValue("—");
+                clientsCard.setValue("—");
                 rateCard.setValue("—");
                 gravityCard.setValue("—");
                 totalCard.setHint("");
@@ -1393,8 +1420,9 @@ final class ControlPanel extends JFrame {
                 return;
             }
 
-            heroTitle.setText(blocking ? "Companion is connected"
-                    : "Remote blocking is paused");
+            heroTitle.setText(blocking ? "Remote protection is active"
+                    : snapshot.scheduleEnabled && !snapshot.scheduleActive
+                            ? "Outside blocking hours" : "Remote blocking is paused");
             String liveError = app.companionError();
             heroSub.setText(liveError.isEmpty()
                     ? "This console mirrors " + address
@@ -1402,6 +1430,8 @@ final class ControlPanel extends JFrame {
                     : liveError);
             totalCard.setValue(DesktopApp.formatNumber(snapshot.queries));
             blockedCard.setValue(DesktopApp.formatNumber(snapshot.blocked));
+            allowedCard.setValue(snapshot.allowed == null ? "—" : DesktopApp.formatNumber(snapshot.allowed));
+            clientsCard.setValue(DesktopApp.formatNumber(snapshot.clients));
             rateCard.setValue(String.format(Locale.US, "%.1f%%", snapshot.rate));
             gravityCard.setValue(DesktopApp.formatNumber(snapshot.gravityDomains));
             totalCard.setHint(snapshot.uniqueDomains + " domains");
@@ -1418,7 +1448,9 @@ final class ControlPanel extends JFrame {
                 rows.add(new StatsStore.Top(categoryLabel(key),
                         (int) Math.min(Integer.MAX_VALUE, count)));
             }
-            categories.setData(rows, "No category counts reported.");
+            coverage.setText(categoryCoverage(rows));
+            categories.setData(dash != null ? tops(dash.blockedCategories)
+                    : new ArrayList<>(), "No blocked category counts reported.");
             int categoryHeight = Math.max(210, categories.getPreferredSize().height + 90);
             if (companionCategoryPanel.getPreferredSize().height != categoryHeight) {
                 companionCategoryPanel.setPreferredSize(new Dimension(100, categoryHeight));
@@ -1441,20 +1473,32 @@ final class ControlPanel extends JFrame {
                     .append("Schedule: ").append(snapshot.scheduleEnabled
                     ? html(snapshot.scheduleLabel) : "Always on")
                     .append(" · Blocking: ").append(blocking ? "enabled" : "paused");
-            if (host != null && !host.hostname.isEmpty()) {
+            if (host != null && (!host.hostname.isEmpty() || !host.ip.isEmpty())) {
                 info.append("<br>Host: ").append(html(host.hostname))
                         .append(host.ip.isEmpty() ? "" : " · " + html(host.ip))
                         .append(" · web ").append(host.webPort)
                         .append(" · DNS ").append(host.dnsPort)
                         .append(host.dnsRunning ? " (running)" : " (stopped)");
+                info.append("<br>Dashboard: ").append(html(client == null ? "" : client.dashboardUrl()));
+                info.append("<br>Web login: ").append(html(host.login));
+                info.append("<br>Upstream: ").append(html(host.upstream));
+                info.append("<br>Blocked response: ").append(html(host.blockedResponse));
+                info.append(" · SafeSearch: ").append(host.safeSearch ? "On" : "Off");
+                if (!host.upstreamWarning.isEmpty()) {
+                    info.append("<br>Upstream note: ").append(html(host.upstreamWarning));
+                }
                 if (!host.dnsNote.isEmpty()) {
                     info.append("<br>").append(html(host.dnsNote));
                 }
             }
+            if (snapshot.historyLoss > 0) info.append("<br>Query history incomplete: ")
+                    .append(DesktopApp.formatNumber(snapshot.historyLoss)).append(" records not saved.");
             details.setText(info.append("</body></html>").toString());
-            state.setText(app.isUpdating() ? "Remote blocklist update in progress…"
+            state.setText(updating ? "Remote blocklist update in progress…"
                     : !liveError.isEmpty() ? liveError
-                    : "Live view · refreshes every two seconds.");
+                    : !blocking && snapshot.blockingTimer > 0
+                            ? "Blocking resumes in " + ((snapshot.blockingTimer + 59) / 60) + " min."
+                            : "Live view · updates automatically.");
         }
 
         private String categoryLabel(String key) {
@@ -1471,19 +1515,21 @@ final class ControlPanel extends JFrame {
             List<StatsStore.Top> upstreamRows = new ArrayList<>();
             long total = 0;
             long blockedCount = 0;
+            boolean rangeReady = dash != null && app.companionRange().equals(dash.range);
             if (dash != null) {
-                for (CompanionClient.Point point : dash.history) {
+                for (CompanionClient.Point point : rangeReady ? dash.history : List.<CompanionClient.Point>of()) {
                     points.add(new StatsStore.Bucket(point.time, point.queries, point.blocked));
                     total += point.queries;
                     blockedCount += point.blocked;
                 }
                 blockedRows = tops(dash.topBlocked);
+                topAllowed.setData(tops(dash.topAllowed), "No permitted lookups yet.");
                 clientRows = tops(dash.topClients);
                 typeRows = tops(dash.types);
                 upstreamRows = tops(dash.upstreams);
             }
-            chart.setData(points, "24h");
-            chartSummary.setText(DesktopApp.formatNumber(total) + " queries · "
+            chart.setData(points, app.companionRange());
+            chartSummary.setText(!rangeReady ? "Loading the selected range…" : DesktopApp.formatNumber(total) + " queries · "
                     + DesktopApp.formatNumber(blockedCount) + " blocked · "
                     + String.format(Locale.US, "%.1f%%",
                     total == 0 ? 0 : blockedCount * 100.0 / total));
@@ -1491,18 +1537,7 @@ final class ControlPanel extends JFrame {
             topClients.setData(clientRows, "No clients yet.");
             types.setData(typeRows, "No queries yet.");
             upstreams.setData(upstreamRows, "No upstream data yet.");
-            coverage.setText(dash == null
-                    ? "Waiting for the remote dashboard…"
-                    : coverageHtml(dash.sources));
             fitTops();
-            if (coveragePanel != null) {
-                int lines = dash == null ? 1 : Math.min(8, dash.sources.size())
-                        + (dash.sources.size() > 8 ? 1 : 0);
-                int height = 104 + Math.max(1, lines) * 18;
-                coveragePanel.setPreferredSize(new Dimension(100, height));
-                coveragePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
-                relayout(coveragePanel);
-            }
         }
 
         private List<StatsStore.Top> tops(List<CompanionClient.Top> source) {
@@ -1514,28 +1549,14 @@ final class ControlPanel extends JFrame {
             return rows;
         }
 
-        private String coverageHtml(List<CompanionClient.Source> sources) {
-            if (sources.isEmpty()) return "No blocklist sources reported.";
-            StringBuilder out = new StringBuilder("<html><body style='width:560px'>");
-            int shown = 0;
-            for (CompanionClient.Source source : sources) {
-                if (shown++ >= 8) break;
-                String host = source.address.replaceFirst("^https?://", "");
-                if (host.length() > 58) host = host.substring(0, 57) + "…";
-                out.append(source.ok ? "<span style='color:#3fd391'>✓</span> "
-                        : "<span style='color:#ff6b6b'>✕</span> ").append(html(host));
-                if (source.count > 0) {
-                    out.append(" · ").append(DesktopApp.formatNumber(source.count));
-                }
-                if (!source.ok && !source.error.isEmpty()) {
-                    out.append(" · ").append(html(source.error));
-                }
-                out.append("<br>");
+        private String categoryCoverage(List<StatsStore.Top> rows) {
+            if (rows.isEmpty()) return "No blocklist coverage reported.";
+            StringBuilder out = new StringBuilder("<html>");
+            for (StatsStore.Top row : rows) {
+                out.append(html(row.key)).append(": <b>")
+                        .append(DesktopApp.formatNumber(row.count)).append("</b><br>");
             }
-            if (sources.size() > 8) {
-                out.append("+ ").append(sources.size() - 8).append(" more sources");
-            }
-            return out.append("</body></html>").toString();
+            return out.append("</html>").toString();
         }
 
         private String html(String value) {
@@ -1548,6 +1569,7 @@ final class ControlPanel extends JFrame {
 
     /** Remote query log, mirroring the web dashboard's query table. */
     private final class CompanionQueriesPage extends Page {
+        private static final int PAGE_SIZE = 150;
         private final JScrollPane scroll;
         private final JTextField search = Widgets.field("Search domain or client", 24);
         private final JComboBox<String> filterCombo = Widgets.combo(
@@ -1557,10 +1579,16 @@ final class ControlPanel extends JFrame {
         private int filterMode;
         private final JTable table = new JTable(model);
         private final Timer debounce;
+        private final Widgets.PillButton newer = new Widgets.PillButton("Newer", null, Widgets.OUTLINE);
+        private final Widgets.PillButton older = new Widgets.PillButton("Older", null, Widgets.OUTLINE);
+        private int offset;
+        private long request;
+        private long lastLoad;
+        private boolean loading;
 
         CompanionQueriesPage() {
             VerticalPanel page = new VerticalPanel(true);
-            page.add(queryToolbar(search, filterCombo, this::refresh, this::export), BorderLayout.NORTH);
+            page.add(queryToolbar(search, filterCombo, () -> load(false), this::export), BorderLayout.NORTH);
             Widgets.styleTable(table);
             table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
             int[] widths = {82, 128, 250, 84, 62, 112, 132, 58, 160};
@@ -1569,19 +1597,57 @@ final class ControlPanel extends JFrame {
                 table.getColumnModel().getColumn(i).setCellRenderer(new QueryRenderer(i));
             }
             page.add(queryResults(table, count), BorderLayout.CENTER);
+            JPanel pagination = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+            pagination.setOpaque(false);
+            newer.setEnabled(false);
+            older.setEnabled(false);
+            newer.addActionListener(e -> { offset = Math.max(0, offset - PAGE_SIZE); load(false); });
+            older.addActionListener(e -> { offset += PAGE_SIZE; load(false); });
+            pagination.add(newer);
+            pagination.add(older);
+            page.add(pagination, BorderLayout.SOUTH);
             scroll = pageScroll(page);
+            table.addMouseListener(new MouseAdapter() {
+                @Override public void mousePressed(MouseEvent e) { queryMenu(e); }
+                @Override public void mouseReleased(MouseEvent e) { queryMenu(e); }
+            });
 
-            debounce = new Timer(280, e -> refresh());
+            debounce = new Timer(280, e -> load(false));
             debounce.setRepeats(false);
             search.getDocument().addDocumentListener(new DocumentListener() {
-                @Override public void insertUpdate(DocumentEvent e) { debounce.restart(); }
-                @Override public void removeUpdate(DocumentEvent e) { debounce.restart(); }
-                @Override public void changedUpdate(DocumentEvent e) { debounce.restart(); }
+                @Override public void insertUpdate(DocumentEvent e) { searchChanged(); }
+                @Override public void removeUpdate(DocumentEvent e) { searchChanged(); }
+                @Override public void changedUpdate(DocumentEvent e) { searchChanged(); }
             });
             filterCombo.addActionListener(e -> {
                 filterMode = filterCombo.getSelectedIndex();
-                refresh();
+                offset = 0;
+                load(false);
             });
+        }
+
+        private void searchChanged() {
+            request++;
+            loading = false;
+            offset = 0;
+            newer.setEnabled(false);
+            older.setEnabled(false);
+            debounce.restart();
+        }
+
+        private void queryMenu(MouseEvent event) {
+            if (!event.isPopupTrigger()) return;
+            int row = table.rowAtPoint(event.getPoint());
+            if (row < 0) return;
+            CompanionClient.Query query = model.rows.get(table.convertRowIndexToModel(row));
+            JPopupMenu menu = new JPopupMenu();
+            JMenuItem action = new JMenuItem(query.blocked ? "Allow domain" : "Block domain");
+            action.addActionListener(e -> app.companionAddRule(query.blocked, "exact", query.domain));
+            menu.add(action);
+            JMenuItem copy = new JMenuItem("Copy domain");
+            copy.addActionListener(e -> SystemIntegration.copy(query.domain));
+            menu.add(copy);
+            menu.show(table, event.getX(), event.getY());
         }
 
         @Override
@@ -1591,59 +1657,80 @@ final class ControlPanel extends JFrame {
 
         @Override
         void refresh() {
-            CompanionClient.Dashboard dash = app.companionDashboard();
-            List<CompanionClient.Query> rows = new ArrayList<>();
-            if (dash != null) {
-                String needle = search.getText().trim().toLowerCase(Locale.US);
-                for (CompanionClient.Query row : dash.queries) {
-                    if (filterMode == 1 && !row.blocked) continue;
-                    if (filterMode == 2 && row.blocked) continue;
-                    if (!needle.isEmpty()
-                            && !row.domain.toLowerCase(Locale.US).contains(needle)
-                            && !row.client.toLowerCase(Locale.US).contains(needle)
-                            && !row.clientName.toLowerCase(Locale.US).contains(needle)) continue;
-                    rows.add(row);
-                }
+            load(true);
+        }
+
+        private void load(boolean automatic) {
+            CompanionClient client = app.companion();
+            if (client == null || !app.companionConnected()) {
+                count.setText("Waiting for the remote resolver…");
+                return;
             }
-            model.setRows(rows);
-            count.setText(rows.size() + " shown");
+            JViewport viewport = (JViewport) table.getParent();
+            if (automatic && (!"Query log".equals(currentPage) || offset != 0 || loading
+                    || debounce.isRunning() || viewport.getViewPosition().y > 0
+                    || System.currentTimeMillis() - lastLoad < 4000L)) return;
+            debounce.stop();
+            long token = ++request;
+            int start = offset, filter = filterMode;
+            String term = search.getText().trim();
+            loading = true;
+            lastLoad = System.currentTimeMillis();
+            if (!automatic) {
+                count.setText("Loading queries…");
+                newer.setEnabled(false);
+                older.setEnabled(false);
+            }
+            app.inBackground(() -> {
+                try {
+                    List<CompanionClient.Query> rows = client.queries(start, PAGE_SIZE, filter, term);
+                    SwingUtilities.invokeLater(() -> {
+                        if (token != request || client != app.companion()) return;
+                        loading = false;
+                        if (automatic && viewport.getViewPosition().y > 0) return;
+                        model.setRows(rows);
+                        if (!automatic) viewport.setViewPosition(new java.awt.Point());
+                        count.setText(rows.isEmpty() ? "No matching queries"
+                                : "Showing " + (start + 1) + "–" + (start + rows.size()));
+                        newer.setEnabled(start > 0);
+                        older.setEnabled(rows.size() == PAGE_SIZE);
+                    });
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() -> {
+                        if (token != request || client != app.companion()) return;
+                        loading = false;
+                        count.setText("Could not load queries: " + e.getMessage());
+                        newer.setEnabled(start > 0);
+                    });
+                }
+            }, null);
         }
 
         private void export() {
+            CompanionClient client = app.companion();
+            if (client == null || !app.companionConnected()) return;
+            int format = JOptionPane.showOptionDialog(ControlPanel.this, "Export filtered queries as:",
+                    "Export queries", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+                    null, new String[]{"CSV", "JSON"}, "CSV");
+            if (format < 0) return;
+            boolean json = format == 1;
             JFileChooser chooser = new JFileChooser();
-            chooser.setSelectedFile(new File("holeshield-remote-queries.csv"));
+            chooser.setSelectedFile(new File("holeshield-remote-queries." + (json ? "json" : "csv")));
             if (chooser.showSaveDialog(ControlPanel.this) != JFileChooser.APPROVE_OPTION) {
                 return;
             }
-            StringBuilder csv = new StringBuilder(
-                    "Time,Client,Domain,Category,Type,Status,Upstream,ms,Rule\n");
-            java.text.SimpleDateFormat clock =
-                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-            for (CompanionClient.Query row : model.rows) {
-                csv.append(clock.format(new java.util.Date(row.at))).append(',')
-                        .append(csv(row.client)).append(',')
-                        .append(csv(row.domain)).append(',')
-                        .append(csv(row.category)).append(',')
-                        .append(csv(row.type)).append(',')
-                        .append(csv(row.status)).append(',')
-                        .append(csv(row.upstream)).append(',')
-                        .append(String.format(Locale.US, "%.1f", row.ms)).append(',')
-                        .append(csv(row.rule)).append('\n');
-            }
-            try {
-                Files.write(chooser.getSelectedFile().toPath(),
-                        csv.toString().getBytes(StandardCharsets.UTF_8));
-                setStatus("Exported " + chooser.getSelectedFile().getName());
-            } catch (Exception e) {
-                SystemIntegration.showError(ControlPanel.this,
-                        "Could not write the export: " + e.getMessage());
-            }
-        }
-
-        private String csv(String value) {
-            if (value == null) return "";
-            if (value.indexOf(',') < 0 && value.indexOf('"') < 0) return value;
-            return "\"" + value.replace("\"", "\"\"") + "\"";
+            File file = chooser.getSelectedFile();
+            String term = search.getText().trim();
+            int filter = filterMode;
+            app.inBackground(() -> {
+                try {
+                    Files.writeString(file.toPath(), client.exportQueries(json, filter, term));
+                    SwingUtilities.invokeLater(() -> setStatus("Exported " + file.getName()));
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() -> SystemIntegration.showError(ControlPanel.this,
+                            "Could not export queries: " + e.getMessage()));
+                }
+            }, null);
         }
     }
 
@@ -1660,16 +1747,21 @@ final class ControlPanel extends JFrame {
         void setRows(List<CompanionClient.Query> rows) {
             List<CompanionClient.Query> next = rows == null
                     ? new ArrayList<>() : rows;
-            if (sameIds(next)) return;
+            if (sameRows(next)) return;
             this.rows = next;
             fireTableDataChanged();
         }
 
-        /** Keeps the table still while the same rows are on screen. */
-        private boolean sameIds(List<CompanionClient.Query> next) {
+        /** IDs are page positions, not stable row identifiers. */
+        private boolean sameRows(List<CompanionClient.Query> next) {
             if (next.size() != rows.size()) return false;
             for (int i = 0; i < next.size(); i++) {
-                if (next.get(i).id != rows.get(i).id) return false;
+                CompanionClient.Query a = next.get(i), b = rows.get(i);
+                if (a.at != b.at || a.blocked != b.blocked || a.ms != b.ms
+                        || !a.domain.equals(b.domain) || !a.client.equals(b.client)
+                        || !a.type.equals(b.type) || !a.status.equals(b.status)
+                        || !a.clientName.equals(b.clientName) || !a.category.equals(b.category)
+                        || !a.upstream.equals(b.upstream) || !a.rule.equals(b.rule)) return false;
             }
             return true;
         }
@@ -1684,7 +1776,7 @@ final class ControlPanel extends JFrame {
             switch (column) {
                 case 0: return CLOCK.format(new java.util.Date(q.at));
                 case 1: return q.clientName.isEmpty() || q.clientName.equals(q.client)
-                        ? q.client : q.clientName;
+                        ? q.client : q.clientName + " · " + q.client;
                 case 2: return q.domain;
                 case 3: return q.category == null || q.category.isEmpty()
                         ? (q.blocked ? "Gravity" : "—") : q.category;
@@ -1805,7 +1897,7 @@ final class ControlPanel extends JFrame {
             card.add(Widgets.header("Blocklist sources",
                     "Lists the remote system downloads", null), BorderLayout.NORTH);
             Widgets.styleTable(sourceTable);
-            int[] widths = {620, 90, 80};
+            int[] widths = {430, 90, 220};
             for (int i = 0; i < sourceTable.getColumnCount(); i++) {
                 sourceTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
                 sourceTable.getColumnModel().getColumn(i)
@@ -1872,11 +1964,12 @@ final class ControlPanel extends JFrame {
         void refresh() {
             CompanionClient.Dashboard dash = app.companionDashboard();
             CompanionClient.Snapshot snapshot = app.companionSnapshot();
-            update.setEnabled(app.companionConnected() && !app.isUpdating());
+            boolean updating = app.isUpdating() || (dash != null && dash.listsUpdating);
+            update.setEnabled(app.companionConnected() && !updating);
             if (snapshot != null) {
                 gravityLine.setText(DesktopApp.formatNumber(snapshot.gravityDomains)
                         + " domains · " + snapshot.categories.size() + " categories");
-                gravityHint.setText(snapshot.lastUpdate > 0
+                gravityHint.setText(updating ? "Fetching remote blocklists…" : snapshot.lastUpdate > 0
                         ? "Last updated " + relative(snapshot.lastUpdate)
                         : "No update has run yet.");
             } else {
@@ -1904,16 +1997,26 @@ final class ControlPanel extends JFrame {
             }
             String signature = signature(dash.sources);
             if (!signature.equals(sourceSignature)) {
+                int selected = sourceTable.getSelectedRow();
+                String address = selected < 0 ? "" : sourceModel.rows.get(
+                        sourceTable.convertRowIndexToModel(selected)).address;
                 sourceSignature = signature;
                 sourceModel.setRows(dash.sources);
+                for (int i = 0; i < dash.sources.size(); i++) {
+                    if (!address.equals(dash.sources.get(i).address)) continue;
+                    int view = sourceTable.convertRowIndexToView(i);
+                    if (view >= 0) sourceTable.setRowSelectionInterval(view, view);
+                    break;
+                }
             }
         }
 
         private String signature(List<CompanionClient.Source> sources) {
             StringBuilder out = new StringBuilder();
             for (CompanionClient.Source source : sources) {
-                out.append(source.id).append(source.address).append(source.ok)
-                        .append(source.count).append('|');
+                out.append(source.id).append(source.address).append(source.checked)
+                        .append(source.ok).append(source.count).append(source.progress)
+                        .append(source.error).append('|');
             }
             return out.toString();
         }
@@ -1937,9 +2040,15 @@ final class ControlPanel extends JFrame {
         public Object getValueAt(int row, int column) {
             CompanionClient.Source source = rows.get(row);
             switch (column) {
-                case 0: return source.address.replaceFirst("^https?://", "");
-                case 1: return DesktopApp.formatNumber(source.count);
-                case 2: return source.ok ? "OK" : "FAIL";
+                case 0: return source.address;
+                case 1: return source.checked && source.ok ? DesktopApp.formatNumber(source.count) : "—";
+                case 2:
+                    if (!source.progress.isEmpty()) {
+                        String state = source.progress.toLowerCase(Locale.US);
+                        return Character.toUpperCase(state.charAt(0)) + state.substring(1);
+                    }
+                    return !source.checked ? "Not fetched" : source.ok ? "OK"
+                            : source.error.isEmpty() ? "Failed" : "Failed · " + source.error;
                 default: return "";
             }
         }
@@ -1968,8 +2077,10 @@ final class ControlPanel extends JFrame {
             if (column == 2) {
                 setFont(Theme.font(10.5f, Font.BOLD));
                 String status = value == null ? "" : value.toString();
-                setForeground("OK".equals(status) ? t.accent : t.danger);
+                setForeground(status.startsWith("Failed") ? t.danger
+                        : "OK".equals(status) || "Fetching".equals(status) ? t.accent : t.muted);
             }
+            setToolTipText(value == null ? null : value.toString());
             return this;
         }
     }

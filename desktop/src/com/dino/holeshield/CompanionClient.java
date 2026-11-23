@@ -37,6 +37,8 @@ final class CompanionClient {
     static final class Snapshot {
         long queries;
         long blocked;
+        Long allowed;
+        long historyLoss;
         long uniqueDomains;
         long forwarded;
         long cached;
@@ -47,6 +49,8 @@ final class CompanionClient {
         double rate;
         boolean blocking = true;
         boolean scheduleEnabled;
+        boolean scheduleActive = true;
+        long blockingTimer;
         String scheduleLabel = "";
         String version = "";
         String name = "";
@@ -57,6 +61,10 @@ final class CompanionClient {
             Map<String, Object> queries = object(root.get("queries"));
             snap.queries = number(queries.get("total"));
             snap.blocked = number(queries.get("blocked"));
+            if (queries.containsKey("allowed")) snap.allowed = number(queries.get("allowed"));
+            Map<String, Object> loss = object(root.get("query_history"));
+            snap.historyLoss = number(loss.get("queue_dropped_since_start"))
+                    + number(loss.get("write_failed_since_start"));
             snap.uniqueDomains = number(queries.get("unique_domains"));
             snap.forwarded = number(queries.get("forwarded"));
             snap.cached = number(queries.get("cached"));
@@ -77,6 +85,8 @@ final class CompanionClient {
 
             snap.blocking = bool(root.get("blocking"), true);
             snap.scheduleEnabled = bool(root.get("schedule_enabled"), false);
+            snap.scheduleActive = bool(root.get("schedule_active"), true);
+            snap.blockingTimer = number(root.get("blocking_timer"));
             snap.scheduleLabel = text(root.get("schedule_label"));
 
             Map<String, Object> categories = object(root.get("categories"));
@@ -133,7 +143,9 @@ final class CompanionClient {
         String address = "";
         boolean enabled = true;
         long count;
-        boolean ok = true;
+        boolean ok;
+        boolean checked;
+        String progress = "";
         String error = "";
     }
 
@@ -159,25 +171,33 @@ final class CompanionClient {
         int dnsPort;
         boolean dnsRunning;
         String dnsNote = "";
+        String upstream = "";
+        String upstreamWarning = "";
+        String blockedResponse = "";
+        String login = "";
+        boolean safeSearch;
     }
 
     /** Everything the remote web dashboard shows, in one snapshot. */
     static final class Dashboard {
         final List<Point> history = new ArrayList<>();
         final List<Top> topBlocked = new ArrayList<>();
+        final List<Top> topAllowed = new ArrayList<>();
+        final List<Top> blockedCategories = new ArrayList<>();
         final List<Top> topClients = new ArrayList<>();
         final List<Top> types = new ArrayList<>();
         final List<Top> upstreams = new ArrayList<>();
-        final List<Query> queries = new ArrayList<>();
         final List<Source> sources = new ArrayList<>();
         final List<Rule> allowed = new ArrayList<>();
         final List<Rule> blocked = new ArrayList<>();
         final Map<String, Boolean> categories = new LinkedHashMap<>();
         final Map<String, String> levels = new LinkedHashMap<>();
         Host host = new Host();
+        String range = "24h";
+        boolean listsUpdating;
 
         boolean isEmpty() {
-            return history.isEmpty() && queries.isEmpty() && sources.isEmpty()
+            return history.isEmpty() && sources.isEmpty()
                     && categories.isEmpty() && host.hostname.isEmpty();
         }
     }
@@ -330,17 +350,23 @@ final class CompanionClient {
 
     /** Reads everything the remote web dashboard shows, section by section. */
     Dashboard dashboard() throws IOException {
+        return dashboard("24h");
+    }
+
+    Dashboard dashboard(String range) throws IOException {
         Dashboard dash = new Dashboard();
+        dash.range = range;
         IOException[] first = new IOException[1];
-        dash.history.addAll(section(this::history, new ArrayList<Point>(), first));
+        section(() -> { readHistory(dash); return true; }, false, first);
         dash.topBlocked.addAll(section(() -> topDomains(true, 8),
+                new ArrayList<Top>(), first));
+        dash.topAllowed.addAll(section(() -> topDomains(false, 8),
                 new ArrayList<Top>(), first));
         dash.topClients.addAll(section(() -> topClients(6),
                 new ArrayList<Top>(), first));
         dash.types.addAll(section(this::queryTypes, new ArrayList<Top>(), first));
         dash.upstreams.addAll(section(this::upstreams, new ArrayList<Top>(), first));
-        dash.queries.addAll(section(() -> queries(400), new ArrayList<Query>(), first));
-        dash.sources.addAll(section(this::sources, new ArrayList<Source>(), first));
+        dash.sources.addAll(section(() -> sources(dash), new ArrayList<Source>(), first));
         dash.allowed.addAll(section(() -> rules(true), new ArrayList<Rule>(), first));
         dash.blocked.addAll(section(() -> rules(false), new ArrayList<Rule>(), first));
         try {
@@ -356,14 +382,22 @@ final class CompanionClient {
     }
 
     List<Point> history() throws IOException {
-        Map<String, Object> root = getObject("/api/stats/history?from=-86400");
-        List<Point> out = new ArrayList<>();
+        Dashboard dash = new Dashboard();
+        readHistory(dash);
+        return dash.history;
+    }
+
+    private void readHistory(Dashboard dash) throws IOException {
+        Map<String, Object> root = getObject("/api/stats/history?from=-86400&range=" + dash.range);
         for (Object item : array(root.get("points"))) {
             Map<String, Object> p = object(item);
-            out.add(new Point(number(p.get("time")) * 1000L,
+            dash.history.add(new Point(number(p.get("time")) * 1000L,
                     number(p.get("queries")), number(p.get("blocked"))));
         }
-        return out;
+        for (Object item : array(root.get("categories"))) {
+            Map<String, Object> row = object(item);
+            dash.blockedCategories.add(new Top(text(row.get("category")), number(row.get("count"))));
+        }
     }
 
     List<Top> topDomains(boolean blockedOnly, int count) throws IOException {
@@ -412,8 +446,12 @@ final class CompanionClient {
     }
 
     List<Query> queries(int limit) throws IOException {
+        return queries(0, limit, 0, "");
+    }
+
+    List<Query> queries(int start, int limit, int filter, String search) throws IOException {
         Map<String, Object> root = getObject("/api/queries?length="
-                + Math.max(1, limit));
+                + Math.max(1, limit) + "&start=" + Math.max(0, start) + queryFilter(filter, search));
         List<Query> out = new ArrayList<>();
         for (Object item : array(root.get("queries"))) {
             Map<String, Object> q = object(item);
@@ -437,7 +475,30 @@ final class CompanionClient {
         return out;
     }
 
+    private static String queryFilter(int filter, String search) {
+        return (filter == 1 ? "&blocked=true" : filter == 2 ? "&blocked=false" : "")
+                + (search.isEmpty() ? "" : "&search="
+                + java.net.URLEncoder.encode(search, StandardCharsets.UTF_8));
+    }
+
+    String exportQueries(boolean json, int filter, String search) throws IOException {
+        String path = "/api/queries/export?format=" + (json ? "json" : "csv") + queryFilter(filter, search);
+        HttpResponse<String> response = request("GET", path, null);
+        if (response.statusCode() == 401) {
+            connect();
+            response = request("GET", path, null);
+        }
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException("Query export failed (HTTP " + response.statusCode() + ").");
+        }
+        return response.body();
+    }
+
     List<Source> sources() throws IOException {
+        return sources(new Dashboard());
+    }
+
+    private List<Source> sources(Dashboard dash) throws IOException {
         Map<String, Object> root = getObject("/api/lists");
         List<Source> out = new ArrayList<>();
         for (Object item : array(root.get("lists"))) {
@@ -451,10 +512,17 @@ final class CompanionClient {
         Map<String, Source> byAddress = new HashMap<>();
         for (Source source : out) byAddress.put(source.address, source);
         try {
-            for (Object item : array(getObject("/api/lists/health").get("lists"))) {
+            Map<String, Object> health = getObject("/api/lists/health");
+            Map<String, Object> progress = object(health.get("progress"));
+            dash.listsUpdating = bool(health.get("updating"), false);
+            if (dash.listsUpdating) {
+                for (Source source : out) source.progress = text(progress.get(source.address));
+            }
+            for (Object item : array(health.get("lists"))) {
                 Map<String, Object> h = object(item);
                 Source source = byAddress.get(text(h.get("address")));
                 if (source == null) continue;
+                source.checked = true;
                 source.count = number(h.get("count"));
                 source.ok = bool(h.get("ok"), true);
                 source.error = text(h.get("error"));
@@ -503,7 +571,14 @@ final class CompanionClient {
         host.webPort = (int) number(h.get("web_port"));
         host.dnsPort = (int) number(h.get("lan_dns_port"));
         host.dnsRunning = bool(h.get("lan_dns_running"), false);
-        host.dnsNote = text(h.get("lan_dns_note"));
+        host.dnsNote = text(h.get("lan_dns_error"));
+        if (host.dnsNote.isEmpty()) host.dnsNote = text(h.get("lan_dns_note"));
+        host.upstream = text(h.get("upstream"));
+        host.upstreamWarning = text(h.get("upstream_warning"));
+        host.blockedResponse = text(h.get("blocked_response"));
+        host.login = bool(h.get("web_username"), false) ? "User + password"
+                : bool(h.get("web_password"), false) ? "Password only" : "Not set";
+        host.safeSearch = bool(h.get("safe_search"), false);
         return host;
     }
 

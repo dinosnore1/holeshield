@@ -24,6 +24,7 @@ public final class DesktopApp {
     private CompanionClient companion;
     private volatile CompanionClient.Snapshot companionSnapshot;
     private volatile CompanionClient.Dashboard companionDashboard;
+    private volatile String companionRange = "24h";
     private volatile String companionError = "";
     private volatile boolean companionUpdating;
     private volatile int companionGeneration;
@@ -505,6 +506,10 @@ public final class DesktopApp {
     CompanionClient companion() { return companion; }
     CompanionClient.Snapshot companionSnapshot() { return companionSnapshot; }
     CompanionClient.Dashboard companionDashboard() { return companionDashboard; }
+
+    String companionRange() { return companionRange; }
+
+    void setCompanionRange(String range) { companionRange = range; }
     String companionError() { return companionError; }
     boolean companionConnected() {
         return companion != null && companion.connected();
@@ -582,7 +587,7 @@ public final class DesktopApp {
             String message;
             try {
                 work.run(client);
-                CompanionClient.Dashboard dashboard = client.dashboard();
+                CompanionClient.Dashboard dashboard = client.dashboard(companionRange);
                 if (generation == companionGeneration) companionDashboard = dashboard;
                 message = success;
             } catch (Exception e) {
@@ -710,10 +715,11 @@ public final class DesktopApp {
             companionError = "";
             // The full dashboard mirror changes slowly; refresh it every few
             // seconds so the console does not hammer the remote.
-            if (now - lastDashboardAt >= 4000L) {
+            if (now - lastDashboardAt >= 4000L || (companionDashboard != null
+                    && !companionRange.equals(companionDashboard.range))) {
                 lastDashboardAt = now;
                 try {
-                    CompanionClient.Dashboard dashboard = client.dashboard();
+                    CompanionClient.Dashboard dashboard = client.dashboard(companionRange);
                     if (generation == companionGeneration) {
                         companionDashboard = dashboard;
                     }

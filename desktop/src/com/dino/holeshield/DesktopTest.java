@@ -789,12 +789,28 @@ public final class DesktopTest {
                     "gravity", 0, 2, "", "Ads", true, false));
             CompanionClient.Dashboard dash = client.dashboard();
             eq(24, dash.history.size(), "companion history buckets");
-            check(!dash.queries.isEmpty(), "companion query log");
-            check(dash.queries.get(0).blocked, "companion query status");
+            eq(30, client.dashboard("month").history.size(), "companion month chart");
+            eq(7, client.dashboard("week").history.size(), "companion week chart");
+            eq(30, client.dashboard("live").history.size(), "companion live chart");
+            check(dash.blockedCategories.stream().anyMatch(t -> "Ads".equals(t.key) && t.count > 0),
+                    "companion blocked categories are query counts");
+            check(client.snapshot().allowed != null, "companion reads allowed total");
+            List<CompanionClient.Query> filtered = client.queries(0, 20, 1, "ADS.EXAMPLE");
+            check(!filtered.isEmpty(), "companion server-side query search");
+            check(filtered.get(0).blocked, "companion query status");
+            check(client.queries(0, 20, 2, "ads.example").isEmpty(), "companion blocked filter");
+            check(client.queries(filtered.size(), 20, 1, "ads.example").isEmpty(),
+                    "companion query offset after search");
+            check(client.exportQueries(true, 1, "ads.example").contains("ads.example.com"),
+                    "companion JSON export");
+            check(client.exportQueries(false, 1, "ads.example").contains("ads.example.com"),
+                    "companion CSV export");
             check(dash.categories.containsKey("ads"), "companion categories");
             check(dash.levels.containsKey("ads"), "companion category levels");
             check(!dash.sources.isEmpty(), "companion list sources");
             check(!dash.host.hostname.isEmpty(), "companion host info");
+            eq("User + password", dash.host.login, "companion remote login mode");
+            check(!dash.host.upstream.isEmpty(), "companion upstream details");
 
             client.addRule(true, "exact", "allowed.example");
             client.addRule(false, "wildcard", "*.ads.example");
@@ -814,6 +830,7 @@ public final class DesktopTest {
                     .filter(s -> s.address.equals("https://example.test/hosts.txt"))
                     .findFirst().orElse(null);
             check(added != null, "companion adds list");
+            check(!added.checked, "new companion source has no fabricated success");
             client.removeList(added.id);
             check(client.dashboard().sources.stream()
                             .noneMatch(s -> s.address.equals("https://example.test/hosts.txt")),
@@ -867,6 +884,16 @@ public final class DesktopTest {
                     out.write(reply);
                 }
             });
+            android.createContext("/api/lists", exchange -> {
+                String body = exchange.getRequestURI().getPath().endsWith("/health")
+                        ? "{\"updating\":true,\"progress\":{\"https://example.test/list\":\"FETCHING\"},\"lists\":[]}"
+                        : "{\"lists\":[{\"id\":1,\"address\":\"https://example.test/list\"}]}";
+                byte[] reply = body.getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, reply.length);
+                try (java.io.OutputStream out = exchange.getResponseBody()) {
+                    out.write(reply);
+                }
+            });
             android.start();
             try {
                 CompanionClient androidClient = new CompanionClient(
@@ -877,6 +904,10 @@ public final class DesktopTest {
                 CompanionClient.Snapshot androidSnapshot = androidClient.snapshot();
                 eq(7L, androidSnapshot.queries, "companion android summary");
                 eq(3L, androidSnapshot.blocked, "companion android blocked");
+                eq(null, androidSnapshot.allowed, "older servers do not fabricate allowed totals");
+                CompanionClient.Dashboard updating = androidClient.dashboard();
+                check(updating.listsUpdating, "companion reports remote gravity running");
+                eq("FETCHING", updating.sources.get(0).progress, "companion reads per-source fetching");
                 eq(11L, androidSnapshot.gravityDomains,
                         "companion android gravity");
                 eq(42.9, androidSnapshot.rate, "companion android rate");
