@@ -740,13 +740,14 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
         <button id="exportJson" class="small" title="Export JSON">JSON</button>
       </div>
     </div>
-    <div class="scroll" tabindex="0" role="region" aria-label="Query log results">
+    <div id="queryScroll" class="scroll" tabindex="0" role="region" aria-label="Query log results">
       <table>
         <thead><tr><th>Time</th><th>Client</th><th>Domain</th><th>Category</th><th>Type</th><th>Status</th><th>Upstream</th><th>ms</th><th>Rule</th></tr></thead>
         <tbody id="queries"><tr><td colspan="9" class="note">Loading…</td></tr></tbody>
       </table>
     </div>
     <div class="filters query-footer" role="group" aria-label="Query log pages">
+      <span id="queryPaused" class="note" hidden>Live refresh paused while browsing</span>
       <button id="queryNewer" class="small" disabled>Newer</button>
       <button id="queryOlder" class="small" disabled>Older</button>
     </div>
@@ -1503,6 +1504,23 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
   var queryRequest = 0;
   var queryInFlight = false;
   var searchTimer = null;
+  var queryScroll = $("#queryScroll");
+  var queryScrollUntil = 0;
+  function queryAutoPaused(){
+    return queryScroll.scrollTop > 1 || performance.now() < queryScrollUntil
+      || $("#queries").contains(document.activeElement);
+  }
+  function updateQueryPaused(){
+    $("#queryPaused").hidden = queryOffset === 0 && queryScroll.scrollTop <= 1;
+  }
+  queryScroll.addEventListener("scroll", function(){
+    queryScrollUntil = performance.now() + 400;
+    updateQueryPaused();
+  }, {passive:true});
+  window.addEventListener("scroll", function(){
+    var box = queryScroll.getBoundingClientRect();
+    if(box.bottom > 0 && box.top < window.innerHeight) queryScrollUntil = performance.now() + 400;
+  }, {passive:true});
   function invalidateQueries(){
     clearTimeout(searchTimer);
     searchTimer = null;
@@ -1512,7 +1530,7 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     $("#queryOlder").disabled = true;
   }
   function loadQueries(automatic){
-    if(automatic && (queryInFlight || searchTimer !== null)) return;
+    if(automatic && (queryInFlight || searchTimer !== null || queryAutoPaused())) return;
     var request = ++queryRequest;
     queryInFlight = true;
     var qs = "length=150&start=" + queryOffset;
@@ -1522,7 +1540,11 @@ html[data-theme="light"] .loginField:focus-within{box-shadow:0 0 0 3px rgba(27,1
     if(!automatic) $("#queryStatus").textContent = state.search ? "Searching…" : "Loading queries…";
     api("/api/queries?" + qs).then(function(d){
       if(request !== queryRequest) return;
+      // The user may have started scrolling after this refresh was sent.
+      if(automatic && queryAutoPaused()) return;
       renderQueries(d);
+      if(!automatic) queryScroll.scrollTop = 0;
+      updateQueryPaused();
       $("#queryStatus").textContent = state.search
         ? (d.queries || []).length + " matches on this page" : "";
     }).catch(function(){
