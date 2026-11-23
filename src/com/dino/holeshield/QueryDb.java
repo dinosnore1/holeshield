@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 
@@ -46,6 +47,8 @@ final class QueryDb {
     private static final Object QUEUE = new Object();
     private static final Object WRITE = new Object();
     private static final int PENDING_MAX = 20000;
+    private static final AtomicLong queueDrops = new AtomicLong();
+    private static final AtomicLong writeFailures = new AtomicLong();
 
     private QueryDb() { }
 
@@ -119,7 +122,10 @@ final class QueryDb {
     static void insert(Stats.Entry e) {
         if (e == null) return;
         synchronized (QUEUE) {
-            if (pending.size() >= PENDING_MAX) pending.removeFirst();
+            if (pending.size() >= PENDING_MAX) {
+                pending.removeFirst();
+                queueDrops.incrementAndGet();
+            }
             pending.addLast(e);
             QUEUE.notifyAll();
         }
@@ -144,6 +150,10 @@ final class QueryDb {
                     synchronized (WRITE) {
                         write(batch);
                     }
+                } catch (RuntimeException e) {
+                    if (writeFailures.getAndAdd(batch.size()) == 0) {
+                        android.util.Log.w("HoleShield", "Could not persist a batch of queries", e);
+                    }
                 } finally {
                     synchronized (QUEUE) {
                         writing = false;
@@ -157,21 +167,21 @@ final class QueryDb {
     }
 
     private static void write(ArrayList<Stats.Entry> batch) {
-        if (helper == null || batch.isEmpty()) return;
         SQLiteDatabase db = helper.getWritableDatabase();
         db.beginTransaction();
-        try {
-            SQLiteStatement statement = db.compileStatement(INSERT);
+        try (SQLiteStatement statement = db.compileStatement(INSERT)) {
             for (Stats.Entry e : batch) {
                 bind(statement, e, 0);
                 statement.executeInsert();
             }
             db.setTransactionSuccessful();
-        } catch (Exception ignored) {
         } finally {
             db.endTransaction();
         }
     }
+
+    static long queueDrops() { return queueDrops.get(); }
+    static long writeFailures() { return writeFailures.get(); }
 
     /** Waits briefly for queued records so reads see the same data as writes. */
     static void flush() {
@@ -225,7 +235,7 @@ final class QueryDb {
 
     /** Totals between {@code from} and {@code to}, computed from the rows. */
     static synchronized long[] totals(long from, long to) {
-        long[] out = new long[5];
+        long[] out = new long[6];
         if (helper == null) return out;
         flush();
         try {
@@ -235,11 +245,13 @@ final class QueryDb {
                     + "COALESCE(SUM(cached),0),"
                     + "COALESCE(SUM(CASE WHEN status='FORWARDED' OR status='ALLOWED'"
                     + " THEN 1 ELSE 0 END),0),"
-                    + "COALESCE(SUM(CASE WHEN status='ERROR' THEN 1 ELSE 0 END),0)"
+                    + "COALESCE(SUM(CASE WHEN status='ERROR' THEN 1 ELSE 0 END),0),"
+                    + "COALESCE(SUM(CASE WHEN blocked=0 AND status IN ('ALLOWED','CACHED','FORWARDED')"
+                    + " AND rcode IN (0,3) THEN 1 ELSE 0 END),0)"
                     + " FROM queries WHERE at >= ? AND at < ?",
                     new String[]{Long.toString(from), Long.toString(to)})) {
                 if (c.moveToFirst()) {
-                    for (int i = 0; i < 5; i++) out[i] = c.getLong(i);
+                    for (int i = 0; i < out.length; i++) out[i] = c.getLong(i);
                 }
             }
         } catch (Exception ignored) { }

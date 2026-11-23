@@ -103,6 +103,9 @@ platform packaging notes. The GitHub Actions workflow
   cannot be recovered. Use **Older**
   and **Newer** in the web dashboard to browse retained history. The native
   log views, export snapshots and top lists show bounded subsets.
+  **Allowed** counts non-blocked responses with DNS status NOERROR or NXDOMAIN,
+  including cached answers. Android's dashboard warns if the write queue
+  discarded records or SQLite failed to save them since the process started.
   The widget, Android notification and legacy “today” counters still show
   the current local day.
 - **Web dashboard** at `http://DEVICE-IP:8080/admin/`, with optional

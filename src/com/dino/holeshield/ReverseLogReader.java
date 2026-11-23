@@ -90,10 +90,10 @@ final class ReverseLogReader implements Closeable {
         return result;
     }
 
-    static <E> long[] boundary(List<File> files, String day, long cutoff,
+    static <E> long[] boundary(List<File> files, String day, long cutoff, int counterCount,
                                 Function<String, E> parse, ToLongFunction<E> timestamp,
                                 BiConsumer<long[], E> count) {
-        long[] totals = new long[5];
+        long[] totals = new long[counterCount];
         for (File path : files) {
             if (!path.getName().startsWith(day + ".")) continue;
             try (ReverseLogReader reader = new ReverseLogReader(path)) {
@@ -117,10 +117,11 @@ final class ReverseLogReader implements Closeable {
         private long[] totals;
 
         synchronized <E> long get(List<File> paths, String day, long cutoff, int index,
+                                   int counterCount,
                                    Function<String, E> parse, ToLongFunction<E> timestamp,
                                    BiConsumer<long[], E> count) {
             if (second != cutoff / 1000 || !paths.equals(files)) {
-                totals = boundary(paths, day, cutoff, parse, timestamp, count);
+                totals = boundary(paths, day, cutoff, counterCount, parse, timestamp, count);
                 files = paths;
                 second = cutoff / 1000;
             }

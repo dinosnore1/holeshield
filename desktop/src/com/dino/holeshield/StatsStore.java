@@ -33,6 +33,7 @@ final class StatsStore {
     static final int LOG_MAX = 2000;
     /** Upper bound for exports and web paging through the on-disk history. */
     static final int EXPORT_MAX = 20000;
+    private static final int COUNTER_COUNT = 6;
     /** Rolling window for the counters and charts. */
     private static final int HISTORY_MAX = 30 * 24;
     private static final int DAILY_MAX = 30;
@@ -185,7 +186,7 @@ final class StatsStore {
                     String dayKey = DAY.format(new Date(e.at));
                     long[] d = dayCounts.get(dayKey);
                     if (d == null) {
-                        d = new long[5];
+                        d = new long[COUNTER_COUNT];
                         dayCounts.put(dayKey, d);
                     }
                     count(d, e);
@@ -244,7 +245,7 @@ final class StatsStore {
     private long[] bucketForDay(String key) {
         long[] existing = daily.get(key);
         if (existing == null) {
-            existing = new long[5];
+            existing = new long[COUNTER_COUNT];
             daily.put(key, existing);
         }
         return existing;
@@ -256,6 +257,9 @@ final class StatsStore {
         if (e.cached) bucket[2]++;
         if (!e.blocked && !e.cached && !"ERROR".equals(e.status)) bucket[3]++;
         if ("ERROR".equals(e.status)) bucket[4]++;
+        if (!e.blocked && (e.rcode == 0 || e.rcode == 3)
+                && ("ALLOWED".equals(e.status) || "CACHED".equals(e.status)
+                || "FORWARDED".equals(e.status))) bucket[5]++;
     }
 
     /**
@@ -331,7 +335,7 @@ final class StatsStore {
             if (!daily.containsKey(firstDay)) return sum;
             files = logFilesNewestFirst();
         }
-        return sum + boundary.get(files, firstDay, cutoff, index,
+        return sum + boundary.get(files, firstDay, cutoff, index, COUNTER_COUNT,
                 StatsStore::parseLogLine, e -> e.at, StatsStore::count);
     }
 
@@ -340,6 +344,7 @@ final class StatsStore {
     long cached() { return windowSum(2); }
     long forwarded() { return windowSum(3); }
     long errors() { return windowSum(4); }
+    long allowed() { return windowSum(5); }
 
     synchronized long todayQueries() {
         long[] value = daily.get(DAY.format(new Date()));

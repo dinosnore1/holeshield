@@ -380,6 +380,7 @@ public final class DesktopTest {
         eq(1L, store.blocked(), "blocked queries");
         eq(1L, store.cached(), "cached queries");
         eq(1L, store.forwarded(), "forwarded queries");
+        eq(2L, store.allowed(), "forwarded and cached outcomes count as allowed");
         eq(2, store.clientCount(), "client count");
         eq(2, store.uniqueDomains(), "unique domains");
         eq("ads.example.com", store.topDomains(true, 1).get(0).key,
@@ -398,6 +399,7 @@ public final class DesktopTest {
         loaded.load();
         eq(3L, loaded.queries(), "persisted queries");
         eq(1L, loaded.blocked(), "persisted blocked");
+        eq(2L, loaded.allowed(), "persisted allowed");
         eq(2, loaded.uniqueDomains(), "persisted domains");
         eq(2, loaded.clientCount(), "persisted clients");
         eq(3L, loaded.todayQueries(), "today queries");
@@ -430,6 +432,15 @@ public final class DesktopTest {
         boundary.record(new StatsStore.Entry(now - 30L * day - 60000L,
                 "192.168.2.10", "expired-boundary.example.com", DnsPacket.TYPE_A,
                 "BLOCKED", "gravity", 0, 1, "", "Ads", true, false));
+        boundary.record(new StatsStore.Entry(now - 30L * day + 60000L,
+                "client", "allowed-boundary.example.com", 1,
+                "ALLOWED", "DoH", 3, 1, "", "", false, false));
+        boundary.record(new StatsStore.Entry(now - 30L * day + 60000L,
+                "client", "failure-boundary.example.com", 1,
+                "FORWARDED", "DoH", 2, 1, "", "", false, false));
+        boundary.record(new StatsStore.Entry(now - 30L * day + 60000L,
+                "client", "error-boundary.example.com", 1,
+                "ERROR", "DoH", 2, 1, "", "", false, false));
         boundary.save();
         File boundaryLog = new File(boundaryDir, "querylog");
         String cutoffDay = Retention.dayKey(now - 30L * day);
@@ -442,8 +453,9 @@ public final class DesktopTest {
                 java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
         StatsStore boundaryLoaded = new StatsStore(boundaryDir);
         boundaryLoaded.load();
-        eq(1L, boundaryLoaded.queries(),
-                "rolling boundary retains only the unexpired query after restart");
+        eq(4L, boundaryLoaded.queries(),
+                "rolling boundary retains only unexpired queries after restart");
+        eq(1L, boundaryLoaded.allowed(), "allowed includes NXDOMAIN but excludes failures and blocks");
         check(!oldPartition.exists()
                         || !Files.readString(oldPartition.toPath()).contains("startup-expired.example.com"),
                 "startup physically removes expired rows, including partial days");

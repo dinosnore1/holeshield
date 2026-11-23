@@ -356,6 +356,7 @@ final class WebDashboard {
         Json.Obj root = new Json.Obj();
         root.put("queries", new Json.Obj()
                 .put("total", stats.queries())
+                .put("allowed", stats.allowed())
                 .put("blocked", stats.blocked())
                 .put("percent_blocked", stats.rate())
                 .put("unique_domains", stats.uniqueDomains())

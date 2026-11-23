@@ -219,6 +219,7 @@ final class Stats {
     static long cached() { return window()[2]; }
     static long forwarded() { return window()[3]; }
     static long errors() { return window()[4]; }
+    static long allowed() { return window()[5]; }
 
     static synchronized long todayQueries() { return todayTotals()[0]; }
     static synchronized long todayBlocked() { return todayTotals()[1]; }

@@ -312,12 +312,16 @@ final class WebServer {
         JSONObject root = new JSONObject();
         JSONObject q = new JSONObject();
         q.put("total", Stats.queries());
+        q.put("allowed", Stats.allowed());
         q.put("blocked", Stats.blocked());
         q.put("percent_blocked", Stats.rate());
         q.put("unique_domains", Stats.uniqueDomains());
         q.put("forwarded", Stats.forwarded());
         q.put("cached", Stats.cached());
         q.put("errors", Stats.errors());
+        root.put("query_history", new JSONObject()
+                .put("queue_dropped_since_start", QueryDb.queueDrops())
+                .put("write_failed_since_start", QueryDb.writeFailures()));
 
         JSONObject gravity = new JSONObject();
         gravity.put("domains_being_blocked", Blocklist.activeGravityDomains());

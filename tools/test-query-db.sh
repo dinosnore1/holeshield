@@ -37,7 +37,7 @@ cleanup() {
     rm -rf "$OUT"
 }
 trap 'cleanup "$@"' EXIT
-for phase in seed restart; do
+for phase in seed restart overload overload-restart; do
     result="$("$ADB" "$@" shell am instrument -w -e phase "$phase" "$PKG/com.dino.holeshield.TestQueryDb")"
     printf '%s\n' "$result"
     grep -Fq "QueryDb $phase: PASS" <<< "$result"
