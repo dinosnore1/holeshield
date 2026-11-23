@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material 3 dark scheme generated from the Hole Shield green seed (#34D399). -->
-    <color name="m3_primary">#FF8ED5B2</color>
-    <color name="m3_on_primary">#FF003825</color>
-    <color name="m3_primary_container">#FF005137</color>
-    <color name="m3_on_primary_container">#FFA9F2CD</color>
-    <color name="m3_secondary">#FFB4CCBD</color>
-    <color name="m3_secondary_container">#FF364B40</color>
-    <color name="m3_tertiary">#FFA5CCDE</color>
-    <color name="m3_tertiary_container">#FF244C5A</color>
-    <color name="m3_error">#FFFFB4AB</color>
-    <color name="m3_surface">#FF0F1511</color>
-    <color name="m3_on_surface">#FFDEE4DE</color>
-    <color name="m3_on_surface_variant">#FFBFC9C1</color>
-    <color name="m3_surface_container">#FF1B211D</color>
-    <color name="m3_surface_container_high">#FF252B28</color>
-    <color name="m3_outline">#FF8A938C</color>
-    <color name="m3_outline_variant">#FF404943</color>
+    <!-- Graphite and violet dark palette for Android framework views. -->
+    <color name="m3_primary">#FFC9B5FF</color>
+    <color name="m3_on_primary">#FF23183D</color>
+    <color name="m3_primary_container">#FF35275C</color>
+    <color name="m3_on_primary_container">#FFEADFFF</color>
+    <color name="m3_secondary">#FFA7BFFF</color>
+    <color name="m3_secondary_container">#FF222F52</color>
+    <color name="m3_tertiary">#FFF5C98B</color>
+    <color name="m3_tertiary_container">#FF493019</color>
+    <color name="m3_error">#FFFFACA9</color>
+    <color name="m3_surface">#FF11111A</color>
+    <color name="m3_on_surface">#FFF2EDF9</color>
+    <color name="m3_on_surface_variant">#FFBDB7CC</color>
+    <color name="m3_surface_container">#FF191923</color>
+    <color name="m3_surface_container_high">#FF202031</color>
+    <color name="m3_outline">#FF938AA9</color>
+    <color name="m3_outline_variant">#FF36334A</color>
     <color name="m3_light_primary">#FF1B7F5C</color>
     <color name="m3_light_surface_container_high">#FFE5EAE5</color>
     <color name="m3_light_on_surface">#FF191C19</color>
     <color name="m3_light_on_surface_variant">#FF414942</color>
     <color name="m3_light_outline_variant">#FFC1C9C1</color>
-    <color name="ic_launcher_background">#FF0D1512</color>
+    <color name="ic_launcher_background">#FF161523</color>
 </resources>

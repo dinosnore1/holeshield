@@ -44,27 +44,27 @@ final class Theme {
     private Theme(boolean dark) {
         this.dark = dark;
         if (dark) {
-            bg = new Color(0x0A0F0C);
-            surface = new Color(0x0F1512);
-            surfaceAlt = new Color(0x141C17);
-            card = new Color(0x121A15);
-            cardHover = new Color(0x1A251D);
-            border = new Color(0x23302A);
-            text = new Color(0xE9F1EC);
-            muted = new Color(0x93A69A);
-            faint = new Color(0x6D8175);
-            accent = new Color(0x3DDC97);
-            accentAlt = new Color(0x2AC98A);
-            onAccent = new Color(0x04241A);
-            accentSoft = new Color(0x132F23);
-            onAccentSoft = new Color(0xA7F3CE);
-            danger = new Color(0xFF9E93);
-            dangerSoft = new Color(0x3D1E1A);
-            success = new Color(0x3DDC97);
-            warn = new Color(0xF2CE7A);
-            track = new Color(0x1B2620);
+            bg = new Color(0x0D0D14);
+            surface = new Color(0x11111A);
+            surfaceAlt = new Color(0x202031);
+            card = new Color(0x191923);
+            cardHover = new Color(0x29293D);
+            border = new Color(0x36334A);
+            text = new Color(0xF2EDF9);
+            muted = new Color(0xBDB7CC);
+            faint = new Color(0xA79DBB);
+            accent = new Color(0xC9B5FF);
+            accentAlt = new Color(0xA7BFFF);
+            onAccent = new Color(0x23183D);
+            accentSoft = new Color(0x35275C);
+            onAccentSoft = new Color(0xEADFFF);
+            danger = new Color(0xFFACA9);
+            dangerSoft = new Color(0x4F212F);
+            success = accent;
+            warn = new Color(0xF5C98B);
+            track = new Color(0x2C2B3D);
             shadow = new Color(0, 0, 0, 96);
-            selection = new Color(0x3DDC97, false);
+            selection = accentSoft;
         } else {
             bg = new Color(0xF5F8F6);
             surface = new Color(0xFFFFFF);

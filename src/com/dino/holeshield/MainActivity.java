@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         prefs = Prefs.load(this);
-        Ui.init(this, prefs.darkTheme(this));
+        Ui.init(prefs.darkTheme(this));
         getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
         vpnConsentNeeded = VpnService.prepare(this) != null;
         if (!DnsVpnService.running && !DnsVpnService.starting) {
@@ -593,7 +593,7 @@ public class MainActivity extends Activity {
         isTv = isTelevision(this);
         Ui.setCompact(!isTv);
         prefs = Prefs.load(this);
-        if (Ui.init(this, prefs.darkTheme(this)) && root != null) {
+        if (Ui.init(prefs.darkTheme(this)) && root != null) {
             setContentView(createShell());
             show(screen);
         }
@@ -637,7 +637,7 @@ public class MainActivity extends Activity {
                 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         prefs = Prefs.load(this);
-        Ui.init(this, prefs.darkTheme(this));
+        Ui.init(prefs.darkTheme(this));
         if (root != null) {
             setContentView(createShell());
             show(screen);
@@ -3097,7 +3097,7 @@ public class MainActivity extends Activity {
     private void setThemeMode(int which) {
         prefs.theme = which == 1 ? "dark" : which == 2 ? "light" : "system";
         prefs.save(this);
-        Ui.init(this, prefs.darkTheme(this));
+        Ui.init(prefs.darkTheme(this));
         getWindow().setBackgroundDrawable(new ColorDrawable(Ui.BG));
         setContentView(createShell());
         show(Screen.SETTINGS);

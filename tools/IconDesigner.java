@@ -18,11 +18,12 @@ import java.io.File;
  */
 public final class IconDesigner {
 
-    private static final Color BG_TOP = new Color(0x12261C);
-    private static final Color BG_BOTTOM = new Color(0x07100C);
-    private static final Color MINT_TOP = new Color(0xB9F4D6);
-    private static final Color MINT_BOTTOM = new Color(0x69C295);
-    private static final Color INK = new Color(0x07130D);
+    private static final Color BG_TOP = new Color(0x26203A);
+    private static final Color BG_BOTTOM = new Color(0x11111A);
+    private static final Color VIOLET_TOP = new Color(0xEADFFF);
+    private static final Color VIOLET = new Color(0xC9B5FF);
+    private static final Color VIOLET_BOTTOM = new Color(0xA68BE9);
+    private static final Color INK = new Color(0x23183D);
 
     private IconDesigner() { }
 
@@ -58,8 +59,7 @@ public final class IconDesigner {
         g.setClip(background);
         g.setPaint(new RadialGradientPaint(new Point2D.Double(s * 0.34, s * 0.22),
                 s * 0.72f, new float[]{0f, 1f},
-                new Color[]{new Color(142, 213, 178, 44),
-                        new Color(142, 213, 178, 0)}));
+                new Color[]{violetGlow(44), violetGlow(0)}));
         g.fillRect(0, 0, size, size);
         g.setClip(null);
 
@@ -95,7 +95,7 @@ public final class IconDesigner {
         g.setPaint(new LinearGradientPaint((float) (cx - w / 2), (float) (cy - h / 2),
                 (float) (cx + w / 2), (float) (cy + h / 2),
                 new float[]{0f, 0.45f, 1f},
-                new Color[]{MINT_TOP, new Color(0x8ED5B2), MINT_BOTTOM}));
+                new Color[]{VIOLET_TOP, VIOLET, VIOLET_BOTTOM}));
         g.fill(shield);
 
         g.setColor(new Color(255, 255, 255, 46));
@@ -141,32 +141,35 @@ public final class IconDesigner {
         Graphics2D g = graphics(image);
         g.setPaint(new LinearGradientPaint(0, 0, w, h,
                 new float[]{0f, 1f},
-                new Color[]{new Color(0x0F1C16), new Color(0x07100C)}));
+                new Color[]{BG_TOP, BG_BOTTOM}));
         g.fillRect(0, 0, w, h);
         g.setPaint(new RadialGradientPaint(new Point2D.Double(120, 40), 300,
                 new float[]{0f, 1f},
-                new Color[]{new Color(142, 213, 178, 34),
-                        new Color(142, 213, 178, 0)}));
+                new Color[]{violetGlow(34), violetGlow(0)}));
         g.fillRect(0, 0, w, h);
 
         BufferedImage icon = resize(master(512), 190);
         g.drawImage(icon, 38, 85, null);
 
-        g.setColor(new Color(0xE8F3EC));
+        g.setColor(new Color(0xF2EDF9));
         g.setFont(new Font("SansSerif", Font.BOLD, 52));
         g.drawString("HOLE SHIELD", 252, 170);
-        g.setColor(new Color(0x8ED5B2));
+        g.setColor(VIOLET);
         g.setFont(new Font("SansSerif", Font.BOLD, 24));
         g.drawString("TV · DNS FILTER", 255, 212);
-        g.setColor(new Color(0x93A89C));
+        g.setColor(new Color(0xBDB7CC));
         g.setFont(new Font("SansSerif", Font.PLAIN, 17));
         g.drawString("BLOCK ADS · TRACKERS · TELEMETRY", 255, 247);
 
-        g.setColor(new Color(142, 213, 178, 90));
+        g.setColor(violetGlow(90));
         g.setStroke(new BasicStroke(2f));
         g.drawLine(255, 270, 588, 270);
         g.dispose();
         return image;
+    }
+
+    private static Color violetGlow(int alpha) {
+        return new Color(VIOLET.getRed(), VIOLET.getGreen(), VIOLET.getBlue(), alpha);
     }
 
     private static Graphics2D graphics(BufferedImage image) {

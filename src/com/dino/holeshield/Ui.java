@@ -15,7 +15,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.StateListDrawable;
-import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -30,43 +29,40 @@ import android.widget.Toast;
 /**
  * Small helpers for the programmatic, D-pad and touch UI.
  *
- * The colour tokens follow Material 3. On Android 12+ they are taken from the
- * system's dynamic ("Material You") tonal palettes; older devices use a dark
- * Material 3 scheme generated from the Hole Shield green seed colour. The app is
- * deliberately always dark and keeps the same visual language on TV and phone.
+ * Material 3 roles with fixed palettes for consistent phone and TV styling.
  */
 final class Ui {
 
-    // Material 3 dark scheme generated from the Hole Shield seed colour #34D399.
-    private static final int F_PRIMARY = 0xFF8ED5B2;
-    private static final int F_ON_PRIMARY = 0xFF003825;
-    private static final int F_PRIMARY_CONTAINER = 0xFF005137;
-    private static final int F_ON_PRIMARY_CONTAINER = 0xFFA9F2CD;
-    private static final int F_SECONDARY = 0xFFB4CCBD;
-    private static final int F_ON_SECONDARY = 0xFF1F352A;
-    private static final int F_SECONDARY_CONTAINER = 0xFF364B40;
-    private static final int F_ON_SECONDARY_CONTAINER = 0xFFCFE9D9;
-    private static final int F_TERTIARY = 0xFFA5CCDE;
-    private static final int F_ON_TERTIARY = 0xFF073543;
-    private static final int F_TERTIARY_CONTAINER = 0xFF244C5A;
-    private static final int F_ON_TERTIARY_CONTAINER = 0xFFC1E9FB;
-    private static final int F_ERROR = 0xFFFFB4AB;
-    private static final int F_ON_ERROR = 0xFF690005;
-    private static final int F_ERROR_CONTAINER = 0xFF93000A;
-    private static final int F_ON_ERROR_CONTAINER = 0xFFFFDAD6;
-    private static final int F_SURFACE = 0xFF0F1511;
-    private static final int F_ON_SURFACE = 0xFFDEE4DE;
-    private static final int F_SURFACE_VARIANT = 0xFF404943;
-    private static final int F_ON_SURFACE_VARIANT = 0xFFBFC9C1;
-    private static final int F_SURFACE_LOWEST = 0xFF0A0F0C;
-    private static final int F_SURFACE_LOW = 0xFF171D19;
-    private static final int F_SURFACE_CONTAINER = 0xFF1B211D;
-    private static final int F_SURFACE_HIGH = 0xFF252B28;
-    private static final int F_SURFACE_HIGHEST = 0xFF303632;
-    private static final int F_OUTLINE = 0xFF8A938C;
-    private static final int F_OUTLINE_VARIANT = 0xFF404943;
+    // Graphite and violet dark palette, also used by the web dashboard.
+    private static final int F_PRIMARY = 0xFFC9B5FF;
+    private static final int F_ON_PRIMARY = 0xFF23183D;
+    private static final int F_PRIMARY_CONTAINER = 0xFF35275C;
+    private static final int F_ON_PRIMARY_CONTAINER = 0xFFEADFFF;
+    private static final int F_SECONDARY = 0xFFA7BFFF;
+    private static final int F_ON_SECONDARY = 0xFF152544;
+    private static final int F_SECONDARY_CONTAINER = 0xFF222F52;
+    private static final int F_ON_SECONDARY_CONTAINER = 0xFFDBE5FF;
+    private static final int F_TERTIARY = 0xFFF5C98B;
+    private static final int F_ON_TERTIARY = 0xFF422905;
+    private static final int F_TERTIARY_CONTAINER = 0xFF493019;
+    private static final int F_ON_TERTIARY_CONTAINER = 0xFFFFDDB1;
+    private static final int F_ERROR = 0xFFFFACA9;
+    private static final int F_ON_ERROR = 0xFF551A24;
+    private static final int F_ERROR_CONTAINER = 0xFF4F212F;
+    private static final int F_ON_ERROR_CONTAINER = 0xFFFFD9D7;
+    private static final int F_SURFACE = 0xFF11111A;
+    private static final int F_ON_SURFACE = 0xFFF2EDF9;
+    private static final int F_SURFACE_VARIANT = 0xFF2C2B3D;
+    private static final int F_ON_SURFACE_VARIANT = 0xFFBDB7CC;
+    private static final int F_SURFACE_LOWEST = 0xFF0D0D14;
+    private static final int F_SURFACE_LOW = 0xFF15151F;
+    private static final int F_SURFACE_CONTAINER = 0xFF191923;
+    private static final int F_SURFACE_HIGH = 0xFF202031;
+    private static final int F_SURFACE_HIGHEST = 0xFF29293D;
+    private static final int F_OUTLINE = 0xFF938AA9;
+    private static final int F_OUTLINE_VARIANT = 0xFF36334A;
 
-    // Material 3 light scheme generated from the same seed.
+    // Keep the existing Material 3 light scheme.
     private static final int L_PRIMARY = 0xFF1B7F5C;
     private static final int L_ON_PRIMARY = 0xFFFFFFFF;
     private static final int L_PRIMARY_CONTAINER = 0xFFA9F2CD;
@@ -138,7 +134,6 @@ final class Ui {
     static int AMBER;       // tertiary / paused
     static int RED;         // error
 
-    private static String paletteKey = "";
     /** True when the current palette is dark. */
     static boolean dark = true;
 
@@ -146,7 +141,7 @@ final class Ui {
     static boolean compact = false;
 
     static {
-        setFallback();
+        setDark();
     }
 
     private Ui() { }
@@ -155,7 +150,7 @@ final class Ui {
         compact = on;
     }
 
-    private static void setFallback() {
+    private static void setDark() {
         PRIMARY = F_PRIMARY;
         ON_PRIMARY = F_ON_PRIMARY;
         PRIMARY_CONTAINER = F_PRIMARY_CONTAINER;
@@ -237,98 +232,12 @@ final class Ui {
      * Loads the current Material 3 palette. Returns true when the palette
      * differs from the one already applied to this process.
      */
-    static boolean init(Context c, boolean darkMode) {
-        if (!darkMode) {
-            boolean changed = !"light".equals(paletteKey);
-            setLight();
-            dark = false;
-            paletteKey = "light";
-            return changed;
-        }
-        dark = true;
-        // Dynamic colours are used for the accents; surfaces and text stay on
-        // the fixed dark Material 3 palette.
-        int primaryLight = systemColor(c, "system_accent1_200", F_PRIMARY);
-        int primaryDark = systemColor(c, "system_accent1_800", F_ON_PRIMARY);
-        int primary = lighter(primaryLight, primaryDark);
-        int onPrimary = darker(primaryLight, primaryDark);
-
-        int secondaryLight = systemColor(c, "system_accent2_200", F_SECONDARY);
-        int secondaryDark = systemColor(c, "system_accent2_800", F_ON_SECONDARY);
-        int secondary = lighter(secondaryLight, secondaryDark);
-        int onSecondary = darker(secondaryLight, secondaryDark);
-
-        int tertiaryLight = systemColor(c, "system_accent3_200", F_TERTIARY);
-        int tertiaryDark = systemColor(c, "system_accent3_800", F_ON_TERTIARY);
-        int tertiary = lighter(tertiaryLight, tertiaryDark);
-        int onTertiary = darker(tertiaryLight, tertiaryDark);
-
-        int errorLight = systemColor(c, "system_error_200", F_ERROR);
-        int errorDark = systemColor(c, "system_error_800", F_ON_ERROR);
-        int error = lighter(errorLight, errorDark);
-        int onError = darker(errorLight, errorDark);
-
-        int surface = F_SURFACE;
-        int onSurface = F_ON_SURFACE;
-
-        String key = "dark:" + Integer.toHexString(primary) + ':'
-                + Integer.toHexString(secondary) + ':'
-                + Integer.toHexString(tertiary) + ':'
-                + Integer.toHexString(error) + ':'
-                + Integer.toHexString(surface) + ':'
-                + Integer.toHexString(onSurface);
-        boolean changed = !key.equals(paletteKey);
-
-        PRIMARY = primary;
-        ON_PRIMARY = onPrimary;
-        PRIMARY_CONTAINER = onPrimary;
-        ON_PRIMARY_CONTAINER = primary;
-        SECONDARY = secondary;
-        ON_SECONDARY = onSecondary;
-        SECONDARY_CONTAINER = onSecondary;
-        ON_SECONDARY_CONTAINER = secondary;
-        TERTIARY = tertiary;
-        ON_TERTIARY = onTertiary;
-        TERTIARY_CONTAINER = onTertiary;
-        ON_TERTIARY_CONTAINER = tertiary;
-        ERROR = error;
-        ON_ERROR = onError;
-        ERROR_CONTAINER = onError;
-        ON_ERROR_CONTAINER = error;
-        SURFACE = surface;
-        ON_SURFACE = onSurface;
-        SURFACE_VARIANT = F_SURFACE_VARIANT;
-        ON_SURFACE_VARIANT = F_ON_SURFACE_VARIANT;
-        SURFACE_CONTAINER_LOWEST = F_SURFACE_LOWEST;
-        SURFACE_CONTAINER_LOW = F_SURFACE_LOW;
-        SURFACE_CONTAINER = F_SURFACE_CONTAINER;
-        SURFACE_CONTAINER_HIGH = F_SURFACE_HIGH;
-        SURFACE_CONTAINER_HIGHEST = F_SURFACE_HIGHEST;
-        OUTLINE = F_OUTLINE;
-        OUTLINE_VARIANT = F_OUTLINE_VARIANT;
-        syncAliases();
-        paletteKey = key;
-        return changed;
-    }
-
-    private static int lighter(int a, int b) {
-        return Color.luminance(a) >= Color.luminance(b) ? a : b;
-    }
-
-    private static int darker(int a, int b) {
-        return Color.luminance(a) <= Color.luminance(b) ? a : b;
-    }
-
-    private static int systemColor(Context c, String name, int fallback) {
-        if (Build.VERSION.SDK_INT < 31 || c == null) return fallback;
-        try {
-            int id = c.getResources().getIdentifier(name, "color", "android");
-            if (id == 0) return fallback;
-            int color = c.getColor(id);
-            return Color.alpha(color) == 0xFF ? color : fallback;
-        } catch (Exception ignored) {
-            return fallback;
-        }
+    static boolean init(boolean darkMode) {
+        if (dark == darkMode) return false;
+        if (darkMode) setDark();
+        else setLight();
+        dark = darkMode;
+        return true;
     }
 
     static int dp(Context c, float value) {
